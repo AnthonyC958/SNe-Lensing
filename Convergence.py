@@ -31,17 +31,24 @@ def comoving(matter_dp, lambda_dp, zs_array):
     return dist
 
 
-def single_m_convergence(matter_dp, chi_widths, chis, zs, index, density):
+def single_m_convergence(matter_dp, chi_widths, chis, zs, index, density, SN_dist):
     """Calculates convergence from an overdensity in redshfit bin i.
 
     Inputs:
      matter_dp -- matter density parameter.
+     chi_widths -- the width of the comoving distance bins.
+     chis -- the mean comoving distances of each bin.
+     zs -- the mean redshift of each bin, for the scale factor.
      index -- which redshift bin will contain the over density.
-     density -- the value of the overdensity. Any rational number. Corresponds to (observed-expected)/expected when
-                galaxy counting.
+     density -- the value of the overdensity. Corresponds to (observed-expected)/expected when galaxy counting (>= -1).
+     SN_dist -- comoving distance to SN along line of sight.
     """
     coeff = 3 * H0 ** 2 * matter_dp / (2 * c ** 2)
-    chi_SN = 1.6
+    d_arr = np.linspace(0, 0, len(zs))
+    d_arr[index] = density
+    sf_arr = 1 / (1 + zs)
+    k_i = coeff * chis * chi_widths * (SN_dist - chis) / SN_dist * d_arr / sf_arr
+    return np.sum(k_i)
 
 
 if __name__ == "__main__":
@@ -69,8 +76,25 @@ if __name__ == "__main__":
     comoving_bin_edges = comoving_values[0::2]
     comoving_bins = comoving_values[1::2]
     comoving_binwidths = comoving_bin_edges[1:] - comoving_bin_edges[:-1]
-    print(comoving_values, comoving_bin_edges, comoving_binwidths, comoving_bins)
 
-    plt.plot(z_arr, comoving(om, ol, z_arr))
-    plt.plot(z_values, comoving_values, linestyle='', marker='o')
+    # plt.plot(z_arr, comoving(om, ol, z_arr))
+    # plt.plot(z_bins, comoving_bins, linestyle='', marker='o', markersize=4)
+    # plt.plot([z_bin_edges, z_bin_edges], [0, 4.24], color=[0.5, 0.5, 0.5], linestyle='--')
+    # plt.plot([0, 1.5], [comoving_bin_edges, comoving_bin_edges], color=[0.5, 0.5, 0.5], linestyle='--')
+    # plt.show()
+
+    SN_redshift = 1.6
+    comoving_to_SN = comoving(om, ol, np.linspace(0, SN_redshift, 1000))
+    chi_SN = comoving_to_SN[-1]
+    print(chi_SN)
+    convergence = np.linspace(0, 0, len(z_bins))
+    delta = 1
+    for i in range(0, len(z_bins)):
+        convergence[i] = (single_m_convergence(om, comoving_binwidths, comoving_bins, z_bins, i, delta, chi_SN))
+
+    plt.plot(comoving_bins, convergence, label=f'$\delta$ = {delta}')
+    plt.xlabel("Comoving Distance of Overdensity (Gpc)")
+    plt.ylabel("$\kappa$")
+    plt.title("Convergence as a function of overdensity location for SN at $\chi$ = 4.42 Gpc")
+    plt.legend()
     plt.show()
