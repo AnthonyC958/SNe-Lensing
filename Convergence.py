@@ -31,12 +31,37 @@ def comoving(zs_array):
     return dist
 
 
+def create_bins(z_lo, z_hi, num_bins):
+    z_to_end = np.linspace(z_lo, z_hi, 1001)
+    chi_to_end = comoving(z_to_end)
+    chi_start = chi_to_end[0]
+    chi_end = chi_to_end[-1]
+
+    chi_values = np.linspace(chi_start, chi_end, num_bins * 2 - 1)
+    chi_bin_edges = chi_values[0::2]
+    chi_widths = chi_bin_edges[1:] - chi_bin_edges[:-1]
+    chis = chi_values[1::2]
+
+    z_values = np.interp(chi_values, chi_to_end, z_to_end)
+    z_bin_edges = z_values[0::2]
+    zs = z_values[1::2]
+
+    plt.plot(z_to_end, chi_to_end)
+    plt.plot(zs, chis, linestyle='', marker='o', markersize=4)
+    plt.plot([z_bin_edges, z_bin_edges], [chi_bin_edges[0], chi_bin_edges[-1]], color=[0.5, 0.5, 0.5],
+             linestyle='--')
+    plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.5, 0.5, 0.5], linestyle='--')
+    plt.show()
+
+    return chi_widths, chis, zs
+
+
 def single_m_convergence(chi_widths, chis, zs, index, density, SN_dist):
     """Calculates convergence from an overdensity in redshfit bin i.
 
     Inputs:
      chi_widths -- the width of the comoving distance bins.
-     chis -- the mean comoving distances of each bin.
+     chis -- the mean comoving distance of each bin.
      zs -- the mean redshift of each bin, for the scale factor.
      index -- which redshift bin will contain the over density.
      density -- the value of the overdensity. Corresponds to (observed-expected)/expected when galaxy counting (>= -1).
@@ -50,50 +75,43 @@ def single_m_convergence(chi_widths, chis, zs, index, density, SN_dist):
     return np.sum(k_i)
 
 
-def plot_single_m(chi_widths, chis, zs):
-    SN_redshift = 1.6
-    comoving_to_SN = comoving(np.linspace(0, SN_redshift, 1000))
+def plot_single_m(chi_widths, chis, zs, SN_redshift):
+    comoving_to_SN = comoving(np.linspace(0, SN_redshift, 1001))
     chi_SN = comoving_to_SN[-1]
 
-    convergence = np.linspace(0, 0, len(z_bins))
+    convergence = np.linspace(0, 0, len(chis))
     delta = 1
-    for i in range(0, len(z_bins)):
+    for i in range(0, len(chis)):
         convergence[i] = (single_m_convergence(chi_widths, chis, zs, i, delta, chi_SN))
 
-    plt.plot(comoving_bins, convergence, label=f'$\delta$ = {delta}')
-    # plt.plot([1, 3, 5, 7, 9, 11, 13, 15], convergence, label=f'$\delta$ = 10')
+    plt.plot(chis, convergence, label=f'$\delta$ = {delta}')
     plt.xlabel("Comoving Distance of Overdensity (Gpc)")
-    # plt.xlabel("Number of bins smoothed over")
     plt.ylabel("$\kappa$")
-    plt.title("Convergence as a function of overdensity location for SN at $\chi$ = 4.42 Gpc")
-    # plt.title("Convergence as a function of central overdensity smoothing (z$_{SN}$ = 1.5)")
-    plt.legend()
+    plt.title(f"Convergence as a function of overdensity location for SN at $\chi$ = {np.round(chi_SN, 2)} Gpc")
+    plt.legend(frameon=0)
     plt.show()
 
 
-def plot_smoothed_m(chi_widths, chis, zs):
-    SN_redshift = 1.5
+def plot_smoothed_m(chi_widths, chis, zs, SN_redshift):
     comoving_to_SN = comoving(np.linspace(0, SN_redshift, 1000))
     chi_SN = comoving_to_SN[-1]
 
-    delta = [[0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0, 10 / 3, 10 / 3, 10 / 3, 0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 10 / 7, 10 / 7, 10 / 7, 10 / 7, 10 / 7, 10 / 7, 10 / 7, 0, 0, 0, 0],
-             [0, 0, 0, 10 / 9, 10 / 9, 10 / 9, 10 / 9, 10 / 9, 10 / 9, 10 / 9, 10 / 9, 10 / 9, 0, 0, 0],
-             [0, 0, 10 / 11, 10 / 11, 10 / 11, 10 / 11, 10 / 11, 10 / 11, 10 / 11, 10 / 11, 10 / 11, 10 / 11, 10 / 11,
-              0, 0],
-             [0, 10 / 13, 10 / 13, 10 / 13, 10 / 13, 10 / 13, 10 / 13, 10 / 13, 10 / 13, 10 / 13, 10 / 13, 10 / 13,
-              10 / 13, 10 / 13, 0],
-             [10 / 15, 10 / 15, 10 / 15, 10 / 15, 10 / 15, 10 / 15, 10 / 15, 10 / 15, 10 / 15, 10 / 15, 10 / 15,
-              10 / 15, 10 / 15, 10 / 15, 10 / 15]]
-    print(len(delta))
-    convergence = np.linspace(0, 0, len(delta))
+    delta = np.arange((2 * len(chis) + 1) * len(chis), dtype=np.float64).reshape(2 * len(chis) + 1, len(chis))
+    delta_range = np.linspace(-3, 3, len(chis))
 
-    for j in range(8):
+    for m, i in enumerate(np.linspace(0.1, 1, 2 * len(chis))):
+        delta[m][:] = 1 / (i * np.sqrt(2 * np.pi)) * np.exp(-delta_range ** 2 / (2 * i ** 2))
+        plt.plot(delta_range, delta[m][:])
+    delta[-1][:] = 1/9
+    plt.plot(delta_range, delta[-1][:])
+    plt.show()
+
+    convergence = np.zeros(((2 * len(chis) + 1), 1), dtype=np.float64)
+
+    for j in range(2 * len(chis) + 1):
         convergence[j] = (smoothed_m_convergence(chi_widths, chis, zs, delta[j], chi_SN))
 
-    plt.plot([1, 3, 5, 7, 9, 11, 13, 15], convergence, label=f'$\delta$ = 10')
+    plt.plot(range(2 * len(chis)), convergence[0:-1], label=f'$\delta$ = 10')
     plt.xlabel("Number of bins smoothed over")
     plt.ylabel("$\kappa$")
     plt.title("Convergence as a function of central overdensity smoothing (z$_{SN}$ = 1.5)")
@@ -123,22 +141,7 @@ def smoothed_m_convergence(chi_widths, chis, zs, d_arr, SN_dist):
 if __name__ == "__main__":
     vecGet_h_inv = np.vectorize(get_h_inv)
 
-    z_lo = 0.1
-    z_hi = 1.5
-    z_nbin = 15
-    z_values = np.linspace(0, z_hi, z_nbin * 2 + 1)
-    z_bin_edges = z_values[0::2]
-    z_bins = z_values[1::2]
-    z_binwidth = z_bin_edges[1] - z_bin_edges[0]
-
-    comoving_values = np.linspace(0, 0, z_nbin*2+1)
-    for k in range(1, z_nbin*2+1):
-        comoving_distances = comoving(np.linspace(0, z_values[k], 1000))
-        comoving_values[k] = comoving_distances[-1]
-
-    comoving_bin_edges = comoving_values[0::2]
-    comoving_bins = comoving_values[1::2]
-    comoving_binwidths = comoving_bin_edges[1:] - comoving_bin_edges[:-1]
-
-    plot_single_m(comoving_binwidths, comoving_bins, z_bins)
-    plot_smoothed_m(comoving_binwidths, comoving_bins, z_bins)
+    z_SN = 10
+    (comoving_binwidths, comoving_bins, z_bins) = create_bins(0, z_SN, 50)
+    plot_single_m(comoving_binwidths, comoving_bins, z_bins, z_SN)
+    plot_smoothed_m(comoving_binwidths, comoving_bins, z_bins, z_SN)
