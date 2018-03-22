@@ -17,9 +17,9 @@ def get_h_inv(z_val):
     Inputs:
      z_val -- upper redshift bound.
     """
-    curvature_dp = 1.0 - OM - OL
-    H = np.sqrt(curvature_dp * (1 + z_val) ** 2 + OM * (1 + z_val) ** 3 + OL)
-    return 1. / H
+    OK = 1.0 - OM - OL
+    H = np.sqrt(OK * (1.0 + z_val) ** 2 + OM * (1.0 + z_val) ** 3 + OL)
+    return 1.0 / H
 
 
 def comoving(zs_array):
@@ -31,7 +31,7 @@ def comoving(zs_array):
     return dist
 
 
-def create_bins(z_lo, z_hi, num_bins):
+def create_chi_bins(z_lo, z_hi, num_bins):
     z_to_end = np.linspace(z_lo, z_hi, 1001)
     chi_to_end = comoving(z_to_end)
     chi_start = chi_to_end[0]
@@ -47,10 +47,44 @@ def create_bins(z_lo, z_hi, num_bins):
     zs = z_values[1::2]
 
     plt.plot(z_to_end, chi_to_end)
-    plt.plot(zs, chis, linestyle='', marker='o', markersize=4)
+    plt.plot(zs, chis, linestyle='', marker='o', markersize=3)
     plt.plot([z_bin_edges, z_bin_edges], [chi_bin_edges[0], chi_bin_edges[-1]], color=[0.5, 0.5, 0.5],
-             linestyle='--')
-    plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.5, 0.5, 0.5], linestyle='--')
+             linestyle='--', linewidth=0.5)
+    plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.5, 0.5, 0.5], linestyle='--', linewidth=0.5)
+    plt.xlabel('$z$')
+    plt.ylabel('$R_0\chi$')
+    plt.show()
+
+    return chi_widths, chis, zs
+
+
+def create_z_bins(z_lo, z_hi, num_bins):
+    z_to_end = np.linspace(z_lo, z_hi, 1001)
+    chi_to_end = comoving(z_to_end)
+    chi_start = chi_to_end[0]
+    chi_end = chi_to_end[-1]
+
+    z_values = np.linspace(z_lo, z_hi, num_bins * 2 - 1)
+    z_bin_edges = z_values[0::2]
+    z_widths = z_bin_edges[1:] - z_bin_edges[:-1]
+    zs = z_values[1::2]
+
+    chi_values = np.linspace(0, 0, len(z_values))
+    for k in range(len(z_values)):
+        chi = comoving(np.linspace(z_lo, z_values[k], 1001))
+        chi_values[k] = chi[-1]
+
+    chi_bin_edges = chi_values[0::2]
+    chis = chi_values[1::2]
+    chi_widths = chi_bin_edges[1:] - chi_bin_edges[:-1]
+
+    plt.plot(z_to_end, chi_to_end)
+    plt.plot(zs, chis, linestyle='', marker='o', markersize=3)
+    plt.plot([z_bin_edges, z_bin_edges], [chi_bin_edges[0], chi_bin_edges[-1]], color=[0.5, 0.5, 0.5],
+             linestyle='--', linewidth=0.5)
+    plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.5, 0.5, 0.5], linestyle='--', linewidth=0.5)
+    plt.xlabel('$z$')
+    plt.ylabel('$R_0\chi$')
     plt.show()
 
     return chi_widths, chis, zs
@@ -67,55 +101,63 @@ def single_m_convergence(chi_widths, chis, zs, index, density, SN_dist):
      density -- the value of the overdensity. Corresponds to (observed-expected)/expected when galaxy counting (>= -1).
      SN_dist -- comoving distance to SN along line of sight.
     """
-    coeff = 3 * H0 ** 2 * OM / (2 * c ** 2)
+    coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
     d_arr = np.linspace(0, 0, len(zs))
     d_arr[index] = density
-    sf_arr = 1 / (1 + zs)
+    sf_arr = 1.0 / (1.0 + zs)
     k_i = coeff * chis * chi_widths * (SN_dist - chis) / SN_dist * d_arr / sf_arr
     return np.sum(k_i)
 
 
-def plot_single_m(chi_widths, chis, zs, SN_redshift):
-    comoving_to_SN = comoving(np.linspace(0, SN_redshift, 1001))
+def plot_single_m(chi_widths, chis, zs, z_SN):
+    comoving_to_SN = comoving(np.linspace(0, z_SN, 1001))
     chi_SN = comoving_to_SN[-1]
+    # print(chi_SN)
 
     convergence = np.linspace(0, 0, len(chis))
-    delta = 1
+    delta = 1.0
     for i in range(0, len(chis)):
         convergence[i] = (single_m_convergence(chi_widths, chis, zs, i, delta, chi_SN))
 
-    plt.plot(chis, convergence, label=f'$\delta$ = {delta}')
-    plt.xlabel("Comoving Distance of Overdensity (Gpc)")
-    plt.ylabel("$\kappa$")
-    plt.title(f"Convergence as a function of overdensity location for SN at $\chi$ = {np.round(chi_SN, 2)} Gpc")
+    # plt.plot(chis, convergence, label=f'$\delta$ = {delta}')
+    plt.plot(zs, convergence, label=f'$\delta$ = {delta}')
+    # plt.plot(chis[-1] - chis, convergence, label=f'$\delta$ = {delta}')
+    # plt.plot(zs[-1] - zs, convergence, label=f'$\delta$ = {delta}')
+    # plt.xlabel("Comoving Distance of Overdensity (Gpc)")
+    plt.xlabel("Redshift of Overdensity")
+    plt.ylabel("Convergence $\kappa$")
+    # plt.title(f"Convergence as a function of overdensity location for SN at $\chi$ = {np.round(chi_SN, 2)} Gpc")
     plt.legend(frameon=0)
     plt.show()
 
 
 def plot_smoothed_m(chi_widths, chis, zs, SN_redshift):
-    comoving_to_SN = comoving(np.linspace(0, SN_redshift, 1000))
+    """Creates an array of density arrays with progressively smoothed overdensity.
+    Assumes the array of bins is odd."""
+    comoving_to_SN = comoving(np.linspace(0, SN_redshift, 1001))
     chi_SN = comoving_to_SN[-1]
 
-    delta = np.arange((2 * len(chis) + 1) * len(chis), dtype=np.float64).reshape(2 * len(chis) + 1, len(chis))
-    delta_range = np.linspace(-3, 3, len(chis))
+    delta = np.zeros((len(zs)//2 + 1, len(zs)))
 
-    for m, i in enumerate(np.linspace(0.1, 1, 2 * len(chis))):
-        delta[m][:] = 1 / (i * np.sqrt(2 * np.pi)) * np.exp(-delta_range ** 2 / (2 * i ** 2))
-        plt.plot(delta_range, delta[m][:])
-    delta[-1][:] = 1/9
-    plt.plot(delta_range, delta[-1][:])
-    plt.show()
+    delta1 = 10
+    correction = delta1 / len(zs)
 
-    convergence = np.zeros(((2 * len(chis) + 1), 1), dtype=np.float64)
+    for s in np.arange(0, len(zs)//2 + 1, 1):
+        delta[s][int(len(zs)//2)-s:int(len(zs)//2)+s+1] = delta1/(2*s+1)
 
-    for j in range(2 * len(chis) + 1):
+    convergence = np.zeros(len(zs)//2 + 1)
+    convergence_cor = np.zeros(len(zs) // 2 + 1)
+
+    for j in range(len(zs)//2 + 1):
         convergence[j] = (smoothed_m_convergence(chi_widths, chis, zs, delta[j], chi_SN))
+        convergence_cor[j] = (smoothed_m_convergence(chi_widths, chis, zs, delta[j]-correction, chi_SN))
 
-    plt.plot(range(2 * len(chis)), convergence[0:-1], label=f'$\delta$ = 10')
+    plt.plot(range(len(zs) // 2 + 1), convergence, label=f'$\delta$ = 10')
+    plt.plot(range(len(zs) // 2 + 1), convergence_cor, label=f'$\delta$ = 10')
     plt.xlabel("Number of bins smoothed over")
     plt.ylabel("$\kappa$")
-    plt.title("Convergence as a function of central overdensity smoothing (z$_{SN}$ = 1.5)")
-    plt.legend()
+    plt.title(f"Convergence as a function of central overdensity smoothing (z$_S$$_N$ = {SN_redshift})")
+    plt.legend(frameon=0)
     plt.show()
 
 
@@ -130,10 +172,8 @@ def smoothed_m_convergence(chi_widths, chis, zs, d_arr, SN_dist):
      d_arr -- the vector of overdensities.
      SN_dist -- comoving distance to SN along line of sight.
     """
-    coeff = 3 * H0 ** 2 * OM / (2 * c ** 2)
-    # d_arr = np.linspace(0, 0, len(zs))
-    # d_arr[index] = density
-    sf_arr = 1 / (1 + zs)
+    coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
+    sf_arr = 1.0 / (1.0 + zs)
     k_i = coeff * chis * chi_widths * (SN_dist - chis) / SN_dist * d_arr / sf_arr
     return np.sum(k_i)
 
@@ -141,7 +181,23 @@ def smoothed_m_convergence(chi_widths, chis, zs, d_arr, SN_dist):
 if __name__ == "__main__":
     vecGet_h_inv = np.vectorize(get_h_inv)
 
-    z_SN = 10
-    (comoving_binwidths, comoving_bins, z_bins) = create_bins(0, z_SN, 50)
-    plot_single_m(comoving_binwidths, comoving_bins, z_bins, z_SN)
-    plot_smoothed_m(comoving_binwidths, comoving_bins, z_bins, z_SN)
+    SN_redshift = 2.0
+    chi_to_SN = comoving(np.linspace(0, SN_redshift, 1001))
+    SN_chi = chi_to_SN[-1]
+    (comoving_binwidthsc, comoving_binsc, z_binsc) = create_chi_bins(0, SN_redshift, 36)
+    # (comoving_binwidthsz, comoving_binsz, z_binsz) = create_z_bins(0, SN_redshift, 36)
+    # plot_single_m(comoving_binwidthsz, comoving_binsz, z_binsz, SN_redshift)
+    plot_smoothed_m(comoving_binwidthsc, comoving_binsc, z_binsc, SN_redshift)
+
+    num_test = 60
+    conv = np.zeros(num_test)
+    for y in np.arange(1, num_test, 2):
+        (comoving_binwidths, comoving_bins, z_bins) = create_chi_bins(0, SN_redshift, y)
+        conv[y] = (single_m_convergence(comoving_binwidths, comoving_bins, z_bins, len(z_bins)//2, 1.0, SN_chi))
+
+    plt.plot(np.arange(1, num_test, 2), conv, label=f'$\delta$ = 1.0')
+    plt.xlabel("Number of bins")
+    plt.ylabel("Convergence $\kappa$")
+    plt.legend(frameon=0)
+    plt.show()
+
