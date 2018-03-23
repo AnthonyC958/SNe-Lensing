@@ -46,14 +46,14 @@ def create_chi_bins(z_lo, z_hi, num_bins):
     z_bin_edges = z_values[0::2]
     zs = z_values[1::2]
 
-    plt.plot(z_to_end, chi_to_end)
-    plt.plot(zs, chis, linestyle='', marker='o', markersize=3)
-    plt.plot([z_bin_edges, z_bin_edges], [chi_bin_edges[0], chi_bin_edges[-1]], color=[0.5, 0.5, 0.5],
-             linestyle='--', linewidth=0.5)
-    plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.5, 0.5, 0.5], linestyle='--', linewidth=0.5)
-    plt.xlabel('$z$')
-    plt.ylabel('$R_0\chi$')
-    plt.show()
+    # plt.plot(z_to_end, chi_to_end)
+    # plt.plot(zs, chis, linestyle='', marker='o', markersize=3)
+    # plt.plot([z_bin_edges, z_bin_edges], [chi_bin_edges[0], chi_bin_edges[-1]], color=[0.5, 0.5, 0.5],
+    #          linestyle='--', linewidth=0.5)
+    # plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.5, 0.5, 0.5], linestyle='--', linewidth=0.5)
+    # plt.xlabel('$z$')
+    # plt.ylabel('$R_0\chi$')
+    # plt.show()
 
     return chi_widths, chis, zs
 
@@ -78,14 +78,14 @@ def create_z_bins(z_lo, z_hi, num_bins):
     chis = chi_values[1::2]
     chi_widths = chi_bin_edges[1:] - chi_bin_edges[:-1]
 
-    plt.plot(z_to_end, chi_to_end)
-    plt.plot(zs, chis, linestyle='', marker='o', markersize=3)
-    plt.plot([z_bin_edges, z_bin_edges], [chi_bin_edges[0], chi_bin_edges[-1]], color=[0.5, 0.5, 0.5],
-             linestyle='--', linewidth=0.5)
-    plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.5, 0.5, 0.5], linestyle='--', linewidth=0.5)
-    plt.xlabel('$z$')
-    plt.ylabel('$R_0\chi$')
-    plt.show()
+    # plt.plot(z_to_end, chi_to_end)
+    # plt.plot(zs, chis, linestyle='', marker='o', markersize=3)
+    # plt.plot([z_bin_edges, z_bin_edges], [chi_bin_edges[0], chi_bin_edges[-1]], color=[0.5, 0.5, 0.5],
+    #          linestyle='--', linewidth=0.5)
+    # plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.5, 0.5, 0.5], linestyle='--', linewidth=0.5)
+    # plt.xlabel('$z$')
+    # plt.ylabel('$R_0\chi$')
+    # plt.show()
 
     return chi_widths, chis, zs
 
@@ -148,12 +148,18 @@ def plot_smoothed_m(chi_widths, chis, zs, SN_redshift):
     convergence = np.zeros(len(zs)//2 + 1)
     convergence_cor = np.zeros(len(zs) // 2 + 1)
 
+    for array in delta:
+        plt.bar(chis, array, width=chi_widths[0], alpha=0.5, edgecolor='k', color=[0.5, 0.5, 0.5])
+    plt.xlabel("Comoving Distance (Gpc)")
+    plt.ylabel("$\delta_i$")
+    plt.show()
+
     for j in range(len(zs)//2 + 1):
         convergence[j] = (smoothed_m_convergence(chi_widths, chis, zs, delta[j], chi_SN))
         convergence_cor[j] = (smoothed_m_convergence(chi_widths, chis, zs, delta[j]-correction, chi_SN))
 
-    plt.plot(range(len(zs) // 2 + 1), convergence, label=f'$\delta$ = 10')
-    plt.plot(range(len(zs) // 2 + 1), convergence_cor, label=f'$\delta$ = 10')
+    plt.plot(range(len(zs) // 2 + 1), convergence, label=f'Total $\delta$ = 10')
+    plt.plot(range(len(zs) // 2 + 1), convergence_cor, label=f'Total $\delta$ = 0')
     plt.xlabel("Number of bins smoothed over")
     plt.ylabel("$\kappa$")
     plt.title(f"Convergence as a function of central overdensity smoothing (z$_S$$_N$ = {SN_redshift})")
@@ -189,15 +195,17 @@ if __name__ == "__main__":
     # plot_single_m(comoving_binwidthsz, comoving_binsz, z_binsz, SN_redshift)
     plot_smoothed_m(comoving_binwidthsc, comoving_binsc, z_binsc, SN_redshift)
 
-    num_test = 60
-    conv = np.zeros(num_test)
-    for y in np.arange(1, num_test, 2):
-        (comoving_binwidths, comoving_bins, z_bins) = create_chi_bins(0, SN_redshift, y)
-        conv[y] = (single_m_convergence(comoving_binwidths, comoving_bins, z_bins, len(z_bins)//2, 1.0, SN_chi))
+    num_test = 80
+    test_range = np.arange(3, num_test, 2)
+    conv = np.zeros(len(test_range))
 
-    plt.plot(np.arange(1, num_test, 2), conv, label=f'$\delta$ = 1.0')
+    for num, y in enumerate(test_range):
+        (comoving_binwidths, comoving_bins, z_bins) = create_chi_bins(0, SN_redshift, y+1)
+        conv[num] = single_m_convergence(comoving_binwidths, comoving_bins, z_bins, len(z_bins)//2, 1, SN_chi)
+        print(num, y, len(z_bins)//2, conv[num])
+
+    plt.plot(test_range, conv, label=f'$\delta$ = 1.0')
     plt.xlabel("Number of bins")
     plt.ylabel("Convergence $\kappa$")
     plt.legend(frameon=0)
     plt.show()
-
