@@ -43,7 +43,6 @@ def create_chi_bins(z_lo, z_hi, num_bins):
     chis = chi_values[1::2]
 
     z_values = np.interp(chi_values, chi_to_end, z_to_end)
-    z_bin_edges = z_values[0::2]
     zs = z_values[1::2]
 
     # plt.plot(z_to_end, chi_to_end)
@@ -59,14 +58,7 @@ def create_chi_bins(z_lo, z_hi, num_bins):
 
 
 def create_z_bins(z_lo, z_hi, num_bins):
-    z_to_end = np.linspace(z_lo, z_hi, 1001)
-    chi_to_end = comoving(z_to_end)
-    chi_start = chi_to_end[0]
-    chi_end = chi_to_end[-1]
-
     z_values = np.linspace(z_lo, z_hi, num_bins * 2 - 1)
-    z_bin_edges = z_values[0::2]
-    z_widths = z_bin_edges[1:] - z_bin_edges[:-1]
     zs = z_values[1::2]
 
     chi_values = np.linspace(0, 0, len(z_values))
@@ -91,7 +83,7 @@ def create_z_bins(z_lo, z_hi, num_bins):
 
 
 def single_m_convergence(chi_widths, chis, zs, index, density, SN_dist):
-    """Calculates convergence from an overdensity in redshfit bin i.
+    """Calculates convergence from an overdensity in redshift bin i.
 
     Inputs:
      chi_widths -- the width of the comoving distance bins.
@@ -131,10 +123,10 @@ def plot_single_m(chi_widths, chis, zs, z_SN):
     plt.show()
 
 
-def plot_smoothed_m(chi_widths, chis, zs, SN_redshift):
+def plot_smoothed_m(chi_widths, chis, zs, z_SN):
     """Creates an array of density arrays with progressively smoothed overdensity.
     Assumes the array of bins is odd."""
-    comoving_to_SN = comoving(np.linspace(0, SN_redshift, 1001))
+    comoving_to_SN = comoving(np.linspace(0, z_SN, 1001))
     chi_SN = comoving_to_SN[-1]
 
     delta = np.zeros((len(zs)//2 + 1, len(zs)))
@@ -162,20 +154,20 @@ def plot_smoothed_m(chi_widths, chis, zs, SN_redshift):
     plt.plot(range(len(zs) // 2 + 1), convergence_cor, label=f'Total $\delta$ = 0')
     plt.xlabel("Number of bins smoothed over")
     plt.ylabel("$\kappa$")
-    plt.title(f"Convergence as a function of central overdensity smoothing (z$_S$$_N$ = {SN_redshift})")
+    plt.title(f"Convergence as a function of central overdensity smoothing (z$_S$$_N$ = {z_SN})")
     plt.legend(frameon=0)
     plt.show()
 
 
 def smoothed_m_convergence(chi_widths, chis, zs, d_arr, SN_dist):
-    """Calculates convergence from an overdensity in redshfit bin i.
+    """Calculates convergence from an overdensity in redshift bin i.
 
     Inputs:
      matter_dp -- matter density parameter.
      chi_widths -- the width of the comoving distance bins.
      chis -- the mean comoving distances of each bin.
      zs -- the mean redshift of each bin, for the scale factor.
-     d_arr -- the vector of overdensities.
+     d_arr -- overdensity array.
      SN_dist -- comoving distance to SN along line of sight.
     """
     coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
@@ -202,7 +194,6 @@ if __name__ == "__main__":
     for num, y in enumerate(test_range):
         (comoving_binwidths, comoving_bins, z_bins) = create_chi_bins(0, SN_redshift, y+1)
         conv[num] = single_m_convergence(comoving_binwidths, comoving_bins, z_bins, len(z_bins)//2, 1, SN_chi)
-        print(num, y, len(z_bins)//2, conv[num])
 
     plt.plot(test_range, conv, label=f'$\delta$ = 1.0')
     plt.xlabel("Number of bins")
