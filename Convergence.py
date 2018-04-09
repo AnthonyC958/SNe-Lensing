@@ -15,14 +15,24 @@ MSOL = 1.989E30
 
 def get_h_inv(z_val):
     """Integrand for calculating comoving distance.
-    Assumes the lower bound on redshift is 0.
 
     Inputs:
-     z_val -- upper redshift bound.
+     z_val -- redshift value integrand is evaluated at.
     """
     OK = 1.0 - OM - OL
     H = np.sqrt(OK * (1.0 + z_val) ** 2 + OM * (1.0 + z_val) ** 3 + OL)
     return 1.0 / H
+
+
+def get_adot_inv(a_val):
+    """Integrand for calculating comoving distance.
+
+    Inputs:
+     a_val -- scalefactor value integrand is evaluated at.
+    """
+    OK = 1.0 - OM - OL
+    adot = np.sqrt(OK + OM / a_val + OL * a_val ** 2)
+    return 1.0 / adot
 
 
 def comoving(zs_array):
@@ -32,6 +42,49 @@ def comoving(zs_array):
     dist = comoving_coord * c / H0
 
     return dist
+
+
+def scalefactor(as_array):
+    adot_invs = vecGet_adot_inv(as_array)
+    time = sp.cumtrapz(adot_invs, x=as_array, initial=0)
+
+    return time
+
+
+def plot_scalefactor():
+    aarr = np.linspace(1/101, 1, 1001)
+    timea = scalefactor(aarr)
+    plt.plot(timea, aarr)
+    plt.xlabel('t')
+    plt.ylabel('a')
+    plt.show()
+
+    zarr = 1 / aarr - 1
+    plt.plot(timea, zarr)
+    plt.xlabel('t')
+    plt.ylabel('z')
+    plt.show()
+
+
+def plot_comoving():
+    zarr = np.linspace(0, 15, 2001)
+    comz = comoving(zarr)
+    plt.plot(zarr, comz)
+    plt.xlabel('z')
+    plt.ylabel('$R_0\chi$')
+    plt.show()
+
+    aarr = 1 / (zarr + 1)
+    plt.plot(aarr, comz)
+    plt.xlabel('a')
+    plt.ylabel('$R_0\chi$')
+    plt.show()
+
+    tarr = scalefactor(aarr)
+    plt.plot(tarr, comz)
+    plt.xlabel('t')
+    plt.ylabel('$R_0\chi$')
+    plt.show()
 
 
 def create_chi_bins(z_lo, z_hi, num_bins):
@@ -200,41 +253,43 @@ def smoothed_m_convergence(chi_widths, chis, zs, d_arr, SN_dist):
 
 if __name__ == "__main__":
     vecGet_h_inv = np.vectorize(get_h_inv)
+    vecGet_adot_inv = np.vectorize(get_adot_inv)
 
-    SN_redshift = 0.5
-    chi_to_SN = comoving(np.linspace(0, SN_redshift, 1001))
+    # plot_comoving()
+    # plot_scalefactor()
+
+    SN_redshift = 15.0
+    chi_to_SN = comoving(np.linspace(0, SN_redshift, 501))
     SN_chi = chi_to_SN[-1]
     print(SN_redshift, SN_chi)
-    (comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc) = create_chi_bins(0, SN_redshift, 36)
-    (comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz) = create_z_bins(0, SN_redshift, 36)
+    # # # (comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc) = create_chi_bins(0, SN_redshift, 36)
+    (comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz) = create_z_bins(0, SN_redshift, 80)
 
-    # single_conv_c = calc_single_m(comoving_binwidthsc, comoving_binsc, z_binsc, SN_redshift)
-    # single_conv_z = calc_single_m(comoving_binwidthsz, comoving_binsz, z_binsz, SN_redshift)
-    plot_smoothed_m(comoving_binwidthsc, comoving_binsc, z_binsc, SN_redshift, z_widthsc)
+    # # # single_conv_c = calc_single_m(comoving_binwidthsc, comoving_binsc, z_binsc, SN_redshift)
+    single_conv_z = calc_single_m(comoving_binwidthsz, comoving_binsz, z_binsz, SN_redshift)
+    # # # plot_smoothed_m(comoving_binwidthsc, comoving_binsc, z_binsc, SN_redshift, z_widthsc)
 
     # plt.plot(comoving_binsc, single_conv_c, label=f'Even $\chi$')
-    # plt.plot(comoving_binsz, single_conv_z, label=f'Even z')
-    # # plt.plot(comoving_binsc[-1] - comoving_binsc, single_conv_c, color=colours[0], alpha=0.5, linestyle='--')
-    # # plt.plot(comoving_binsz[-1] - comoving_binsz, single_conv_z, color=colours[1], alpha=0.5, linestyle='--')
-    # plt.xlabel("Comoving Distance of Overdensity (Gpc)")
-    # plt.ylabel("Convergence $\kappa$")
-    # plt.legend(frameon=0)
-    # plt.show()
-    #
-    # plt.plot(z_binsc, single_conv_c, label=f'Even $\chi$')
-    # plt.plot(z_binsz, single_conv_z, label=f'Even z')
-    # # plt.plot(z_binsc[-1] - z_binsc, single_conv_c, color=colours[0], alpha=0.5, linestyle='--')
-    # # plt.plot(z_binsz[-1] - z_binsz, single_conv_z, color=colours[1], alpha=0.5, linestyle='--')
-    # plt.xlabel("Redshift of Overdensity")
-    # plt.ylabel("Convergence $\kappa$")
-    # plt.legend(frameon=0)
-    # plt.show()
+    plt.plot(comoving_binsz, single_conv_z)
+    plt.plot([SN_chi/2, SN_chi/2], [0, max(single_conv_z)], linestyle='--')
+    plt.xlabel("Comoving Distance of Overdensity (Gpc)")
+    plt.ylabel("Convergence $\kappa$")
+    plt.legend(frameon=0)
+    plt.show()
 
-    num_test = 80
+    # plt.plot(z_binsc, single_conv_c, label=f'Even $\chi$')
+    plt.plot(z_binsz, single_conv_z)
+    plt.xlabel("Redshift of Overdensity")
+    plt.ylabel("Convergence $\kappa$")
+    plt.legend(frameon=0)
+    plt.show()
+
+    num_test = 100
     test_range = np.arange(3, num_test, 2)
     conv = np.zeros(len(test_range))
     mass_mag = 15
     mass = MSOL * 10 ** mass_mag
+    bin_lengths = np.zeros(len(test_range))
 
     for num, y in enumerate(test_range):
         (comoving_binwidths, comoving_bins, z_bins, z_widthsz) = create_chi_bins(0, SN_redshift, y+1)
@@ -244,12 +299,13 @@ if __name__ == "__main__":
         # d_m = mass / vol_bin / h ** 2 / OM / 1.88E-26 - 1
         d_m = mass / vol_bin * (8 * np.pi * G / 3 * (get_h_inv(z_bins[len(z_bins) // 2]) / H0 / 1000 * 3.068E22) ** 2)\
             - 1
-        print(1/(8 * np.pi * G / 3 * (get_h_inv(z_bins[len(z_bins) // 2]) / H0 / 1000 * 3.068E22) ** 2))
         conv[num] = single_m_convergence(comoving_binwidths, comoving_bins, z_bins, len(z_bins) // 2, d_m, SN_chi)
+        bin_lengths[num] = round(1000*comoving_binwidths[0], 1)
 
     plt.plot(test_range, conv, label='$M_{{gal}} = 10^{0} M_\odot$'.format({mass_mag}))
     plt.plot(test_range, np.zeros(len(test_range)), color=[0.5, 0.5, 0.5], linestyle='--')
-    plt.xlabel("Number of bins")
+    plt.xticks(test_range, bin_lengths, rotation=45)
+    plt.xlabel("Bin length (Mpc)")
     plt.ylabel("Convergence $\kappa$")
     plt.legend(frameon=0)
     plt.show()
