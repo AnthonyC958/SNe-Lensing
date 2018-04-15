@@ -178,7 +178,7 @@ def calc_single_m(chi_widths, chis, zs, z_SN):
     # # plt.plot(zs[-1] - zs, convergence, label=f'$\delta$ = {delta}')
     # # plt.xlabel("Comoving Distance of Overdensity (Gpc)")
     # plt.xlabel("Redshift of Overdensity")
-    # plt.ylabel("Convergence $\kappa$")
+    # plt.ylabel("$\kappa$")
     # # plt.title(f"Convergence as a function of overdensity location for SN at $\chi$ = {np.round(chi_SN, 2)} Gpc")
     # plt.legend(frameon=0)
     # plt.show()
@@ -258,54 +258,83 @@ if __name__ == "__main__":
     # plot_comoving()
     # plot_scalefactor()
 
-    SN_redshift = 15.0
+    SN_redshift = 5.0
     chi_to_SN = comoving(np.linspace(0, SN_redshift, 501))
     SN_chi = chi_to_SN[-1]
     print(SN_redshift, SN_chi)
-    # # # (comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc) = create_chi_bins(0, SN_redshift, 36)
+    (comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc) = create_chi_bins(0, SN_redshift, 80)
     (comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz) = create_z_bins(0, SN_redshift, 80)
 
-    # # # single_conv_c = calc_single_m(comoving_binwidthsc, comoving_binsc, z_binsc, SN_redshift)
+    single_conv_c = calc_single_m(comoving_binwidthsc, comoving_binsc, z_binsc, SN_redshift)
     single_conv_z = calc_single_m(comoving_binwidthsz, comoving_binsz, z_binsz, SN_redshift)
     # # # plot_smoothed_m(comoving_binwidthsc, comoving_binsc, z_binsc, SN_redshift, z_widthsc)
 
-    # plt.plot(comoving_binsc, single_conv_c, label=f'Even $\chi$')
-    plt.plot(comoving_binsz, single_conv_z)
-    plt.plot([SN_chi/2, SN_chi/2], [0, max(single_conv_z)], linestyle='--')
+    plt.plot(comoving_binsc, single_conv_c, label='Even $\chi$')
+    plt.plot(comoving_binsz, single_conv_z / (c / H0 * get_h_inv(z_binsz))*3/2, label='Even z')
+    plt.plot([SN_chi/2, SN_chi/2], [0, 1.1 * max(single_conv_c)], linestyle='--', color=[0.5, 0.5, 0.5])
     plt.xlabel("Comoving Distance of Overdensity (Gpc)")
-    plt.ylabel("Convergence $\kappa$")
+    plt.ylabel("$\kappa$")
     plt.legend(frameon=0)
     plt.show()
 
-    # plt.plot(z_binsc, single_conv_c, label=f'Even $\chi$')
-    plt.plot(z_binsz, single_conv_z)
+    plt.plot(z_binsc, single_conv_c, label='Even $\chi$')
+    plt.plot(z_binsz, single_conv_z / (c / H0 * get_h_inv(z_binsz))*3/2, label='Even z')
+    plt.plot([SN_redshift / 2, SN_redshift / 2], [0, 1.1 * max(single_conv_z)], linestyle='--', color=[0.5, 0.5, 0.5])
     plt.xlabel("Redshift of Overdensity")
-    plt.ylabel("Convergence $\kappa$")
+    plt.ylabel("$\kappa$")
     plt.legend(frameon=0)
     plt.show()
 
-    num_test = 100
-    test_range = np.arange(3, num_test, 2)
+    num_test = 300
+    # test_range = np.arange(3, num_test, 2)
+    test_range = 3*(np.arange(1, num_test))
     conv = np.zeros(len(test_range))
     mass_mag = 15
     mass = MSOL * 10 ** mass_mag
     bin_lengths = np.zeros(len(test_range))
+    stop_num_bins = 0
+    stop_index = 0
+    cluster_size = 7.0  # Mpc
+    d_final = 0
 
     for num, y in enumerate(test_range):
-        (comoving_binwidths, comoving_bins, z_bins, z_widthsz) = create_chi_bins(0, SN_redshift, y+1)
-        vol_bin = (comoving_binwidths[0] * (1 + z_bins[len(z_bins) // 2]) * 3.086E22) ** 3  # Gpc^3 -> m^3
-        # d_m = 2.0 * G * get_h_inv(z_bins[len(z_bins) // 2]) ** 2 / H0 ** 2 / \
-        #      OM * mass / ((comoving_binwidths[0] / (2.0 * (1 + z_bins[len(z_bins) // 2]))) ** 3) - 1
-        # d_m = mass / vol_bin / h ** 2 / OM / 1.88E-26 - 1
-        d_m = mass / vol_bin * (8 * np.pi * G / 3 * (get_h_inv(z_bins[len(z_bins) // 2]) / H0 / 1000 * 3.068E22) ** 2)\
-            - 1
+        (comoving_binwidths, comoving_bins, z_bins, z_widths) = create_chi_bins(0, SN_redshift, y+1)
+        vol_bin = (comoving_binwidths[0] * (1 + z_bins[len(z_bins) // 2])) ** 3
+        Hz = get_h_inv(z_bins[len(z_bins) // 2]) ** (-1) * H0
+        d_m = 8 * np.pi * G * mass / (3 * OM * vol_bin * Hz ** 2 * 3.086E31) - 1
         conv[num] = single_m_convergence(comoving_binwidths, comoving_bins, z_bins, len(z_bins) // 2, d_m, SN_chi)
         bin_lengths[num] = round(1000*comoving_binwidths[0], 1)
+        # print(d_m)
+        if bin_lengths[num] <= cluster_size:
+            stop_index += num
+            stop_num_bins += y
+            d_final = d_m
+            break
 
-    plt.plot(test_range, conv, label='$M_{{gal}} = 10^{0} M_\odot$'.format({mass_mag}))
-    plt.plot(test_range, np.zeros(len(test_range)), color=[0.5, 0.5, 0.5], linestyle='--')
-    plt.xticks(test_range, bin_lengths, rotation=45)
-    plt.xlabel("Bin length (Mpc)")
-    plt.ylabel("Convergence $\kappa$")
-    plt.legend(frameon=0)
-    plt.show()
+    if stop_index > 0:
+        for new_num, y in enumerate(test_range[stop_index+1::]):
+            num = new_num + stop_index + 1
+            (comoving_binwidths, comoving_bins, z_bins, z_widths) = create_chi_bins(0, SN_redshift, y+1)
+            vol_bin = (comoving_binwidths[0] * (1 + z_bins[len(z_bins) // 2])) ** 3
+            Hz = get_h_inv(z_bins[len(z_bins) // 2]) ** (-1) * H0
+            d_m = d_final / (new_num + 2)
+            d_arr = np.zeros(y)
+            if new_num % 2 == 0:
+                pos = (new_num + 2) // 2
+                d_arr[len(z_bins) // 2 - pos:len(z_bins) // 2 + pos] = d_m
+            else:
+                pos = (new_num + 1) // 2
+                d_arr[len(z_bins) // 2 - pos:len(z_bins) // 2 + pos + 1] = d_m
+            # print(sum(d_arr), d_m)
+            conv[num] = smoothed_m_convergence(comoving_binwidths, comoving_bins, z_bins, d_arr, SN_chi)
+            bin_lengths[num] = round(1000*comoving_binwidths[0], 1)
+
+    size_num = np.argmin(np.abs(bin_lengths - cluster_size))
+    # plt.plot(test_range[10::], conv[10::], label='$M_{{cluster}} = 10^{0} M_\odot$'.format({mass_mag}))
+    # plt.plot(test_range[10::], np.zeros(len(test_range[10::])), color=[0.5, 0.5, 0.5], linestyle='--')
+    # plt.plot([test_range[size_num], test_range[size_num]], [conv[10], -conv[12]], color=[0.5, 0.5, 0.5], linestyle='--')
+    # plt.xticks(test_range[10::num_test//20], bin_lengths[10::num_test//20], rotation=45)
+    # plt.xlabel("Bin length (Mpc)")
+    # plt.ylabel("$\kappa$")
+    # plt.legend(frameon=0)
+    # plt.show()
