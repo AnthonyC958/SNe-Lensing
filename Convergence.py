@@ -1,6 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.integrate as sp
+from astropy.visualization import astropy_mpl_style
+from astropy.utils.data import get_pkg_data_filename
+from astropy.io import fits
 
 colours = ['C0', 'C1', 'C2', 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5', 'C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']
 h = 0.738
@@ -51,23 +54,27 @@ def scalefactor(as_array):
     return time
 
 
-def plot_scalefactor():
-    aarr = np.linspace(1/101, 1, 1001)
+def plot_scalefactor(z):
+    aarr = np.linspace(1/(z+1), 1, 1001)
     timea = scalefactor(aarr)
+    zarr = 1 / aarr - 1
+    mid_a = aarr[np.argmin(np.abs(timea - max(timea) / 2))]
+
     plt.plot(timea, aarr)
     plt.xlabel('t')
     plt.ylabel('a')
     plt.show()
 
-    zarr = 1 / aarr - 1
     plt.plot(timea, zarr)
     plt.xlabel('t')
     plt.ylabel('z')
     plt.show()
 
+    print("a(t/2) =", mid_a)
 
-def plot_comoving():
-    zarr = np.linspace(0, 15, 2001)
+
+def plot_comoving(z):
+    zarr = np.linspace(0, z, 2001)
     comz = comoving(zarr)
     plt.plot(zarr, comz)
     plt.xlabel('z')
@@ -255,22 +262,23 @@ if __name__ == "__main__":
     vecGet_h_inv = np.vectorize(get_h_inv)
     vecGet_adot_inv = np.vectorize(get_adot_inv)
 
-    # plot_comoving()
-    # plot_scalefactor()
+    SN_redshift = 2.0
 
-    SN_redshift = 5.0
+    plot_comoving(SN_redshift)
+    plot_scalefactor(SN_redshift)
+
     chi_to_SN = comoving(np.linspace(0, SN_redshift, 501))
     SN_chi = chi_to_SN[-1]
-    print(SN_redshift, SN_chi)
-    (comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc) = create_chi_bins(0, SN_redshift, 80)
-    (comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz) = create_z_bins(0, SN_redshift, 80)
+    print("SN redshift", SN_redshift, "\nSN comoving distace", SN_chi)
+    (comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc) = create_chi_bins(0, SN_redshift, 100)
+    (comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz) = create_z_bins(0, SN_redshift, 100)
 
     single_conv_c = calc_single_m(comoving_binwidthsc, comoving_binsc, z_binsc, SN_redshift)
     single_conv_z = calc_single_m(comoving_binwidthsz, comoving_binsz, z_binsz, SN_redshift)
     # # # plot_smoothed_m(comoving_binwidthsc, comoving_binsc, z_binsc, SN_redshift, z_widthsc)
 
     plt.plot(comoving_binsc, single_conv_c, label='Even $\chi$')
-    plt.plot(comoving_binsz, single_conv_z / (c / H0 * get_h_inv(z_binsz))*3/2, label='Even z')
+    plt.plot(comoving_binsz, single_conv_z / (c / H0 * get_h_inv(z_binsz)), label='Even z')
     plt.plot([SN_chi/2, SN_chi/2], [0, 1.1 * max(single_conv_c)], linestyle='--', color=[0.5, 0.5, 0.5])
     plt.xlabel("Comoving Distance of Overdensity (Gpc)")
     plt.ylabel("$\kappa$")
@@ -278,7 +286,7 @@ if __name__ == "__main__":
     plt.show()
 
     plt.plot(z_binsc, single_conv_c, label='Even $\chi$')
-    plt.plot(z_binsz, single_conv_z / (c / H0 * get_h_inv(z_binsz))*3/2, label='Even z')
+    plt.plot(z_binsz, single_conv_z / (c / H0 * get_h_inv(z_binsz)), label='Even z')
     plt.plot([SN_redshift / 2, SN_redshift / 2], [0, 1.1 * max(single_conv_z)], linestyle='--', color=[0.5, 0.5, 0.5])
     plt.xlabel("Redshift of Overdensity")
     plt.ylabel("$\kappa$")
@@ -330,11 +338,19 @@ if __name__ == "__main__":
             bin_lengths[num] = round(1000*comoving_binwidths[0], 1)
 
     size_num = np.argmin(np.abs(bin_lengths - cluster_size))
-    # plt.plot(test_range[10::], conv[10::], label='$M_{{cluster}} = 10^{0} M_\odot$'.format({mass_mag}))
-    # plt.plot(test_range[10::], np.zeros(len(test_range[10::])), color=[0.5, 0.5, 0.5], linestyle='--')
-    # plt.plot([test_range[size_num], test_range[size_num]], [conv[10], -conv[12]], color=[0.5, 0.5, 0.5], linestyle='--')
-    # plt.xticks(test_range[10::num_test//20], bin_lengths[10::num_test//20], rotation=45)
-    # plt.xlabel("Bin length (Mpc)")
-    # plt.ylabel("$\kappa$")
-    # plt.legend(frameon=0)
-    # plt.show()
+    plt.plot(test_range[10::], conv[10::], label='$M_{{cluster}} = 10^{0} M_\odot$'.format({mass_mag}))
+    plt.plot(test_range[10::], np.zeros(len(test_range[10::])), color=[0.5, 0.5, 0.5], linestyle='--')
+    plt.plot([test_range[size_num], test_range[size_num]], [conv[10], -conv[12]], color=[0.5, 0.5, 0.5], linestyle='--')
+    plt.xticks(test_range[10::num_test//20], bin_lengths[10::num_test//20], rotation=45)
+    plt.xlabel("Bin length (Mpc)")
+    plt.ylabel("$\kappa$")
+    plt.legend(frameon=0)
+    plt.show()
+
+    plt.style.use(astropy_mpl_style)
+    img_file = get_pkg_data_filename('tutorials/FITS-images/HorseHead.fits')
+    img_data = fits.getdata(img_file, ext=0)
+    plt.figure()
+    plt.imshow(img_data, cmap='gray')
+    plt.colorbar()
+    plt.show()
