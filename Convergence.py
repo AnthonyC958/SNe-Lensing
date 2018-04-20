@@ -1,9 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.integrate as sp
-# from astropy.visualization import astropy_mpl_style
-# from astropy.utils.data import get_pkg_data_filename
-# from astropy.io import fits
 
 colours = ['C0', 'C1', 'C2', 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5', 'C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']
 h = 0.738
@@ -47,65 +44,65 @@ def comoving(zs_array):
     return dist
 
 
-def scalefactor(as_array):
-    adot_invs = vecGet_adot_inv(as_array)
-    time = sp.cumtrapz(adot_invs, x=as_array, initial=0)
-
-    return time
-
-
-def plot_scalefactor(z):
-    aarr = np.linspace(1/(z+1), 1, 1001)
-    zarr = 1 / aarr - 1
-    tarr = scalefactor(aarr)
-    mid_t = max(tarr) / 2
-    mid_a = aarr[np.argmin(np.abs(tarr - mid_t))]
-    mid_z = zarr[np.argmin(np.abs(tarr - mid_t))]
-
-    plt.plot(tarr, aarr)
-    plt.xlabel('t')
-    plt.ylabel('a')
-    plt.show()
-
-    plt.plot(tarr, zarr)
-    plt.xlabel('t')
-    plt.ylabel('z')
-    plt.show()
-
-    print("t/2 =", mid_t)
-    print("a(t/2) =", mid_a)
-    print("z(t/2) =", mid_z)
-
-
-def plot_comoving(z):
-    aarr = np.linspace(1 / (z + 1), 1, 1001)
-    zarr = 1 / aarr - 1
-    tarr = scalefactor(aarr)
-    carr = comoving(zarr)
-    mid_t = max(tarr) / 2
-    mid_a = aarr[np.argmin(np.abs(tarr - mid_t))]
-    mid_z = zarr[np.argmin(np.abs(tarr - mid_t))]
-    mid_c = carr[np.argmin(np.abs(tarr - mid_t))]
-
-    plt.plot(zarr, carr)
-    plt.xlabel('z')
-    plt.ylabel('$R_0\chi$')
-    plt.show()
-
-    plt.plot(aarr, carr)
-    plt.xlabel('a')
-    plt.ylabel('$R_0\chi$')
-    plt.show()
-
-    plt.plot(tarr, carr)
-    plt.xlabel('t')
-    plt.ylabel('$R_0\chi$')
-    plt.show()
-
-    print("t/2 =", mid_t)
-    print("a(t/2) =", mid_a)
-    print("z(t/2) =", mid_z)
-    print("$R_0\chi$(t/2) =", mid_c)
+# def scalefactor(as_array):
+#     adot_invs = vecGet_adot_inv(as_array)
+#     time = sp.cumtrapz(adot_invs, x=as_array, initial=0)
+#
+#     return time
+#
+#
+# def plot_scalefactor(z):
+#     aarr = np.linspace(1/(z+1), 1, 1001)
+#     zarr = 1 / aarr - 1
+#     tarr = scalefactor(aarr)
+#     mid_t = max(tarr) / 2
+#     mid_a = aarr[np.argmin(np.abs(tarr - mid_t))]
+#     mid_z = zarr[np.argmin(np.abs(tarr - mid_t))]
+#
+#     plt.plot(tarr, aarr)
+#     plt.xlabel('t')
+#     plt.ylabel('a')
+#     plt.show()
+#
+#     plt.plot(tarr, zarr)
+#     plt.xlabel('t')
+#     plt.ylabel('z')
+#     plt.show()
+#
+#     print("t/2 =", mid_t)
+#     print("a(t/2) =", mid_a)
+#     print("z(t/2) =", mid_z)
+#
+#
+# def plot_comoving(z):
+#     aarr = np.linspace(1 / (z + 1), 1, 1001)
+#     zarr = 1 / aarr - 1
+#     tarr = scalefactor(aarr)
+#     carr = comoving(zarr[::-1])
+#     mid_t = max(tarr) / 2
+#     mid_a = aarr[np.argmin(np.abs(tarr - mid_t))]
+#     mid_z = zarr[np.argmin(np.abs(tarr - mid_t))]
+#     mid_c = carr[np.argmin(np.abs(tarr - mid_t))]
+#
+#     plt.plot(zarr, carr)
+#     plt.xlabel('z')
+#     plt.ylabel('$R_0\chi$')
+#     plt.show()
+#
+#     plt.plot(aarr, carr)
+#     plt.xlabel('a')
+#     plt.ylabel('$R_0\chi$')
+#     plt.show()
+#
+#     plt.plot(tarr, carr)
+#     plt.xlabel('t')
+#     plt.ylabel('$R_0\chi$')
+#     plt.show()
+#
+#     print("t/2 =", mid_t)
+#     print("a(t/2) =", mid_a)
+#     print("z(t/2) =", mid_z)
+#     print("$R_0\chi$(t/2) =", mid_c)
 
 
 def create_chi_bins(z_lo, z_hi, num_bins):
@@ -278,8 +275,8 @@ if __name__ == "__main__":
 
     SN_redshift = 9.0
 
-    plot_comoving(SN_redshift)
-    plot_scalefactor(SN_redshift)
+    # plot_scalefactor(SN_redshift)
+    # plot_comoving(SN_redshift)
 
     chi_to_SN = comoving(np.linspace(0, SN_redshift, 501))
     SN_chi = chi_to_SN[-1]
@@ -364,11 +361,3 @@ if __name__ == "__main__":
     plt.ylabel("$\kappa$")
     plt.legend(frameon=0)
     plt.show()
-
-    # plt.style.use(astropy_mpl_style)
-    # img_file = get_pkg_data_filename('tutorials/FITS-images/HorseHead.fits')
-    # img_data = fits.getdata(img_file, ext=0)
-    # plt.figure()
-    # plt.imshow(img_data, cmap='gray')
-    # plt.colorbar()
-    # plt.show()
