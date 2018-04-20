@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.integrate as sp
-from astropy.visualization import astropy_mpl_style
-from astropy.utils.data import get_pkg_data_filename
-from astropy.io import fits
+# from astropy.visualization import astropy_mpl_style
+# from astropy.utils.data import get_pkg_data_filename
+# from astropy.io import fits
 
 colours = ['C0', 'C1', 'C2', 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5', 'C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']
 h = 0.738
@@ -56,42 +56,56 @@ def scalefactor(as_array):
 
 def plot_scalefactor(z):
     aarr = np.linspace(1/(z+1), 1, 1001)
-    timea = scalefactor(aarr)
     zarr = 1 / aarr - 1
-    mid_a = aarr[np.argmin(np.abs(timea - max(timea) / 2))]
+    tarr = scalefactor(aarr)
+    mid_t = max(tarr) / 2
+    mid_a = aarr[np.argmin(np.abs(tarr - mid_t))]
+    mid_z = zarr[np.argmin(np.abs(tarr - mid_t))]
 
-    plt.plot(timea, aarr)
+    plt.plot(tarr, aarr)
     plt.xlabel('t')
     plt.ylabel('a')
     plt.show()
 
-    plt.plot(timea, zarr)
+    plt.plot(tarr, zarr)
     plt.xlabel('t')
     plt.ylabel('z')
     plt.show()
 
+    print("t/2 =", mid_t)
     print("a(t/2) =", mid_a)
+    print("z(t/2) =", mid_z)
 
 
 def plot_comoving(z):
-    zarr = np.linspace(0, z, 2001)
-    comz = comoving(zarr)
-    plt.plot(zarr, comz)
+    aarr = np.linspace(1 / (z + 1), 1, 1001)
+    zarr = 1 / aarr - 1
+    tarr = scalefactor(aarr)
+    carr = comoving(zarr)
+    mid_t = max(tarr) / 2
+    mid_a = aarr[np.argmin(np.abs(tarr - mid_t))]
+    mid_z = zarr[np.argmin(np.abs(tarr - mid_t))]
+    mid_c = carr[np.argmin(np.abs(tarr - mid_t))]
+
+    plt.plot(zarr, carr)
     plt.xlabel('z')
     plt.ylabel('$R_0\chi$')
     plt.show()
 
-    aarr = 1 / (zarr + 1)
-    plt.plot(aarr, comz)
+    plt.plot(aarr, carr)
     plt.xlabel('a')
     plt.ylabel('$R_0\chi$')
     plt.show()
 
-    tarr = scalefactor(aarr)
-    plt.plot(tarr, comz)
+    plt.plot(tarr, carr)
     plt.xlabel('t')
     plt.ylabel('$R_0\chi$')
     plt.show()
+
+    print("t/2 =", mid_t)
+    print("a(t/2) =", mid_a)
+    print("z(t/2) =", mid_z)
+    print("$R_0\chi$(t/2) =", mid_c)
 
 
 def create_chi_bins(z_lo, z_hi, num_bins):
@@ -262,7 +276,7 @@ if __name__ == "__main__":
     vecGet_h_inv = np.vectorize(get_h_inv)
     vecGet_adot_inv = np.vectorize(get_adot_inv)
 
-    SN_redshift = 2.0
+    SN_redshift = 9.0
 
     plot_comoving(SN_redshift)
     plot_scalefactor(SN_redshift)
@@ -286,6 +300,7 @@ if __name__ == "__main__":
     plt.show()
 
     plt.plot(z_binsc, single_conv_c, label='Even $\chi$')
+    print("Peak at z =", z_binsc[np.argmin(np.abs(single_conv_c - max(single_conv_c)))])
     plt.plot(z_binsz, single_conv_z / (c / H0 * get_h_inv(z_binsz)), label='Even z')
     plt.plot([SN_redshift / 2, SN_redshift / 2], [0, 1.1 * max(single_conv_z)], linestyle='--', color=[0.5, 0.5, 0.5])
     plt.xlabel("Redshift of Overdensity")
@@ -293,64 +308,67 @@ if __name__ == "__main__":
     plt.legend(frameon=0)
     plt.show()
 
-    num_test = 300
-    # test_range = np.arange(3, num_test, 2)
-    test_range = 3*(np.arange(1, num_test))
+    num_test = 1000
+    test_range = np.arange(3, num_test, 2)
+    # test_range = 3*(np.arange(1, num_test))
     conv = np.zeros(len(test_range))
     mass_mag = 15
     mass = MSOL * 10 ** mass_mag
     bin_lengths = np.zeros(len(test_range))
     stop_num_bins = 0
     stop_index = 0
-    cluster_size = 7.0  # Mpc
+    cluster_size = 0.0  # Mpc
     d_final = 0
 
     for num, y in enumerate(test_range):
         (comoving_binwidths, comoving_bins, z_bins, z_widths) = create_chi_bins(0, SN_redshift, y+1)
-        vol_bin = (comoving_binwidths[0] * (1 + z_bins[len(z_bins) // 2])) ** 3
+        cone_rad = comoving_bins[len(z_bins) // 2] * (1 + z_bins[len(z_bins) // 2]) * 0.00349066 / 2
+        # distance * 12 arcmin / 2
+        vol_bin = (comoving_binwidths[0] * (1 + z_bins[len(z_bins) // 2])) * np.pi * cone_rad ** 2
         Hz = get_h_inv(z_bins[len(z_bins) // 2]) ** (-1) * H0
         d_m = 8 * np.pi * G * mass / (3 * OM * vol_bin * Hz ** 2 * 3.086E31) - 1
         conv[num] = single_m_convergence(comoving_binwidths, comoving_bins, z_bins, len(z_bins) // 2, d_m, SN_chi)
         bin_lengths[num] = round(1000*comoving_binwidths[0], 1)
         # print(d_m)
-        if bin_lengths[num] <= cluster_size:
-            stop_index += num
-            stop_num_bins += y
-            d_final = d_m
-            break
-
-    if stop_index > 0:
-        for new_num, y in enumerate(test_range[stop_index+1::]):
-            num = new_num + stop_index + 1
-            (comoving_binwidths, comoving_bins, z_bins, z_widths) = create_chi_bins(0, SN_redshift, y+1)
-            vol_bin = (comoving_binwidths[0] * (1 + z_bins[len(z_bins) // 2])) ** 3
-            Hz = get_h_inv(z_bins[len(z_bins) // 2]) ** (-1) * H0
-            d_m = d_final / (new_num + 2)
-            d_arr = np.zeros(y)
-            if new_num % 2 == 0:
-                pos = (new_num + 2) // 2
-                d_arr[len(z_bins) // 2 - pos:len(z_bins) // 2 + pos] = d_m
-            else:
-                pos = (new_num + 1) // 2
-                d_arr[len(z_bins) // 2 - pos:len(z_bins) // 2 + pos + 1] = d_m
-            # print(sum(d_arr), d_m)
-            conv[num] = smoothed_m_convergence(comoving_binwidths, comoving_bins, z_bins, d_arr, SN_chi)
-            bin_lengths[num] = round(1000*comoving_binwidths[0], 1)
+    #     if bin_lengths[num] <= cluster_size:
+    #         stop_index += num
+    #         stop_num_bins += y
+    #         break
+    #
+    # if stop_index > 0:
+    #     for new_num, y in enumerate(test_range[stop_index+1::]):
+    #         num = new_num + stop_index + 1
+    #         (comoving_binwidths, comoving_bins, z_bins, z_widths) = create_chi_bins(0, SN_redshift, y+1)
+    #         cone_rad = comoving_bins[len(z_bins) // 2] * (1 + z_bins[len(z_bins) // 2]) * 0.00349066 / 2
+    #         # distance * 12 arcmin / 2
+    #         vol_bin = (comoving_binwidths[0] * (1 + z_bins[len(z_bins) // 2])) * np.pi * cone_rad ** 2
+    #         Hz = get_h_inv(z_bins[len(z_bins) // 2]) ** (-1) * H0
+    #         d_m = 8 * np.pi * G * mass / (new_num + 2) / (3 * OM * vol_bin * Hz ** 2 * 3.086E31) - 1
+    #         d_arr = np.zeros(y)
+    #         if new_num % 2 == 0:
+    #             pos = (new_num + 2) // 2
+    #             d_arr[len(z_bins) // 2 - pos:len(z_bins) // 2 + pos] = d_m
+    #         else:
+    #             pos = (new_num + 1) // 2
+    #             d_arr[len(z_bins) // 2 - pos:len(z_bins) // 2 + pos + 1] = d_m
+    #         # print(sum(d_arr), d_m)
+    #         conv[num] = smoothed_m_convergence(comoving_binwidths, comoving_bins, z_bins, d_arr, SN_chi)
+    #         bin_lengths[num] = round(1000*comoving_binwidths[0], 1)
 
     size_num = np.argmin(np.abs(bin_lengths - cluster_size))
     plt.plot(test_range[10::], conv[10::], label='$M_{{cluster}} = 10^{0} M_\odot$'.format({mass_mag}))
     plt.plot(test_range[10::], np.zeros(len(test_range[10::])), color=[0.5, 0.5, 0.5], linestyle='--')
-    plt.plot([test_range[size_num], test_range[size_num]], [conv[10], -conv[12]], color=[0.5, 0.5, 0.5], linestyle='--')
+    # plt.plot([test_range[size_num], test_range[size_num]], [conv[10], -conv[12]], color=[0.5, 0.5, 0.5], linestyle='--')
     plt.xticks(test_range[10::num_test//20], bin_lengths[10::num_test//20], rotation=45)
     plt.xlabel("Bin length (Mpc)")
     plt.ylabel("$\kappa$")
     plt.legend(frameon=0)
     plt.show()
 
-    plt.style.use(astropy_mpl_style)
-    img_file = get_pkg_data_filename('tutorials/FITS-images/HorseHead.fits')
-    img_data = fits.getdata(img_file, ext=0)
-    plt.figure()
-    plt.imshow(img_data, cmap='gray')
-    plt.colorbar()
-    plt.show()
+    # plt.style.use(astropy_mpl_style)
+    # img_file = get_pkg_data_filename('tutorials/FITS-images/HorseHead.fits')
+    # img_data = fits.getdata(img_file, ext=0)
+    # plt.figure()
+    # plt.imshow(img_data, cmap='gray')
+    # plt.colorbar()
+    # plt.show()
