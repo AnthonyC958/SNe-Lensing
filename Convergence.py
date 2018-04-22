@@ -36,6 +36,7 @@ def get_adot_inv(a_val):
 
 
 def comoving(zs_array):
+    vecGet_h_inv = np.vectorize(get_h_inv)
     h_invs = vecGet_h_inv(zs_array)
     comoving_coord = sp.cumtrapz(h_invs, x=zs_array, initial=0)
 
@@ -270,7 +271,6 @@ def smoothed_m_convergence(chi_widths, chis, zs, d_arr, SN_dist):
 
 
 if __name__ == "__main__":
-    vecGet_h_inv = np.vectorize(get_h_inv)
     vecGet_adot_inv = np.vectorize(get_adot_inv)
 
     SN_redshift = 9.0
@@ -319,8 +319,8 @@ if __name__ == "__main__":
 
     for num, y in enumerate(test_range):
         (comoving_binwidths, comoving_bins, z_bins, z_widths) = create_chi_bins(0, SN_redshift, y+1)
-        cone_rad = comoving_bins[len(z_bins) // 2] * (1 + z_bins[len(z_bins) // 2]) * 0.00349066 / 2
-        # distance * 12 arcmin / 2
+        cone_rad = comoving_bins[len(z_bins) // 2] * (1 + z_bins[len(z_bins) // 2]) * 0.1
+        # distance * 12 arcmin / 2 = 0.1 degrees
         vol_bin = (comoving_binwidths[0] * (1 + z_bins[len(z_bins) // 2])) * np.pi * cone_rad ** 2
         Hz = get_h_inv(z_bins[len(z_bins) // 2]) ** (-1) * H0
         d_m = 8 * np.pi * G * mass / (3 * OM * vol_bin * Hz ** 2 * 3.086E31) - 1
