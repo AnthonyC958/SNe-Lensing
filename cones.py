@@ -80,7 +80,6 @@ if __name__ == "__main__":
             plt.legend()
             plt.show()
 
-
     # plt.style.use(astropy_mpl_style)
     # img_file = get_pkg_data_filename('tutorials/FITS-images/HorseHead.fits')
     # img_data = fits.getdata(img_file, ext=0)
