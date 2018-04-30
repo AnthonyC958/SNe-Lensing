@@ -69,127 +69,139 @@ if __name__ == "__main__":
                 pickle_in = open("conts.pickle", "rb")
                 lenses = pickle.load(pickle_in)
 
-            fig, ax = plt.subplots()
-            ax.plot(RA1, DEC1, marker='o', linestyle='', markersize=1, color=[0.5, 0.5, 0.5])
-            for SN, dict1, in lenses.items():
-                RAs = np.array(dict1['RAs'])
-                DECs = np.array(dict1['DECs'])
-                indices1 = dict1['Zs'] < dict1['ZSN']
-                indices2 = dict1['Zs'] > dict1['ZSN']
-                # print("Galaxies:", len(dict1['RAs']), "with z < z_SN:", len(RAs[indices]),
-                #       f"at around: ({RAs[0]}, {DECs[0]})")
-                ax.plot(RAs[indices1], DECs[indices1], marker='o', linestyle='', markersize=3, color=colours[0],
-                        label="Foreground" if SN == 'SN1' else "")
-                ax.plot(RAs[indices2], DECs[indices2], marker='o', linestyle='', markersize=1, color='k',
-                        label="Background" if SN == 'SN1' else "")
-            p = PatchCollection(patches, alpha=0.4)
-            ax.add_collection(p)
-            ax.plot(RA2, DEC2, marker='o', linestyle='', markersize=3, label='Supernova', color=colours[1])
-            plt.xlabel('Right Ascension')
-            plt.ylabel('Declination')
-            plt.legend(loc='lower right')
-            plt.axis('equal')
-            plt.xlim([24.5, 27.5])
-            plt.ylim([-1, 1])
-            plt.show()
+    fig, ax = plt.subplots()
+    ax.plot(RA1, DEC1, marker='o', linestyle='', markersize=1, color=[0.5, 0.5, 0.5])
+    for SN, dict1, in lenses.items():
+        RAs = np.array(dict1['RAs'])
+        DECs = np.array(dict1['DECs'])
+        indices1 = dict1['Zs'] < dict1['ZSN']
+        indices2 = dict1['Zs'] > dict1['ZSN']
+        # print("Galaxies:", len(dict1['RAs']), "with z < z_SN:", len(RAs[indices]),
+        #       f"at around: ({RAs[0]}, {DECs[0]})")
+        ax.plot(RAs[indices1], DECs[indices1], marker='o', linestyle='', markersize=3, color=colours[0],
+                label="Foreground" if SN == 'SN1' else "")
+        ax.plot(RAs[indices2], DECs[indices2], marker='o', linestyle='', markersize=1, color='k',
+                label="Background" if SN == 'SN1' else "")
+    p = PatchCollection(patches, alpha=0.4)
+    ax.add_collection(p)
+    ax.plot(RA2, DEC2, marker='o', linestyle='', markersize=3, label='Supernova', color=colours[1])
+    plt.xlabel('Right Ascension')
+    plt.ylabel('Declination')
+    plt.legend(loc='lower right')
+    plt.axis('equal')
+    plt.xlim([24.5, 27.5])
+    plt.ylim([-1, 1])
+    # plt.show()
 
-            # print(repr(hdul1[1].header))
-            labels = ['Galaxies', 'Supernovae']
-            for num, z in enumerate([z1, z2]):
-                plt.hist([i for i in z if i <= 0.6], bins=np.arange(0, 0.6+0.025, 0.025), normed='max', alpha=0.5,
-                         edgecolor=colours[num], linewidth=2, label=f'{labels[num]}')
-            plt.xlabel('z')
-            plt.ylabel('Normalised Count')
-            plt.legend(frameon=0)
-            plt.show()
+    # print(repr(hdul1[1].header))
+    labels = ['Galaxies', 'Supernovae']
+    for num, z in enumerate([z1, z2]):
+        plt.hist([i for i in z if i <= 0.6], bins=np.arange(0, 0.6+0.025, 0.025), normed='max', alpha=0.5,
+                 edgecolor=colours[num], linewidth=2, label=f'{labels[num]}')
+    plt.xlabel('z')
+    plt.ylabel('Normalised Count')
+    plt.legend(frameon=0)
+    # plt.show()
 
-            tests = []
-            for a in range(272):
-                for b in range(6):
-                    test = [-50.6, 1.0]
-                    test[0] += a * 0.4
-                    test[1] -= b * 0.4
-                    test[0] = round(test[0], 1)
-                    test[1] = round(test[1], 1)
-                    tests.append(test)
+    tests = []
+    for a in range(272):
+        for b in range(6):
+            test = [-50.6, 1.0]
+            test[0] += a * 0.4
+            test[1] -= b * 0.4
+            test[0] = round(test[0], 1)
+            test[1] = round(test[1], 1)
+            tests.append(test)
 
-            if False:
-                cones = {}
-                for num, loc, in enumerate(tests):
-                    cones[f'c{int(num)+1}'] = {}
-                    cones[f'c{int(num)+1}']['Total'] = 0
-                    cones[f'c{int(num)+1}']['Zs'] = []
-                    for GRA, GDE, GZ in zip(RA1, DEC1, z1):
-                        if (GRA - loc[0]) ** 2 + (GDE - loc[1]) ** 2 <= 0.2 ** 2:
-                            cones[f'c{int(num)+1}']['Zs'].append(GZ)
-                        cones[f'c{int(num)+1}']['Total'] = len(cones[f'c{int(num)+1}']['Zs'])
-                    print(f'Finished {int(num)+1}/{len(tests)}')
+    if False:
+        cones = {}
+        for num, loc, in enumerate(tests):
+            cones[f'c{int(num)+1}'] = {}
+            cones[f'c{int(num)+1}']['Total'] = 0
+            cones[f'c{int(num)+1}']['Zs'] = []
+            for GRA, GDE, GZ in zip(RA1, DEC1, z1):
+                if (GRA - loc[0]) ** 2 + (GDE - loc[1]) ** 2 <= 0.2 ** 2:
+                    cones[f'c{int(num)+1}']['Zs'].append(GZ)
+                cones[f'c{int(num)+1}']['Total'] = len(cones[f'c{int(num)+1}']['Zs'])
+            print(f'Finished {int(num)+1}/{len(tests)}')
 
-                pickle_out = open("cones.pickle", "wb")
-                pickle.dump(cones, pickle_out)
-                pickle_out.close()
-            else:
-                pickle_in = open("cones.pickle", "rb")
-                cones = pickle.load(pickle_in)
+        pickle_out = open("cones.pickle", "wb")
+        pickle.dump(cones, pickle_out)
+        pickle_out.close()
+    else:
+        pickle_in = open("cones.pickle", "rb")
+        cones = pickle.load(pickle_in)
 
-            plt.hist([cones[f'c{i+1}']['Total'] for i in range(len(cones))], density=1,
-                     bins=20, edgecolor=colours[0], alpha=.5, linewidth=2)
-            plt.show()
-            # print("Max:", max([max(cones[f'c{i+1}']['Zs']) for i in range(len(cones))]))
+    plt.hist([cones[f'c{i+1}']['Total'] for i in range(len(cones))], density=1,
+             bins=20, edgecolor=colours[0], alpha=.5, linewidth=2)
+    # plt.show()
+    # print("Max:", max([max(cones[f'c{i+1}']['Zs']) for i in range(len(cones))]))
 
-            width = 0.02
-            limits = np.linspace(width, 6.9, int(6.9 / width))
-            if False:
-                expected = np.zeros((len(limits), len(cones)))
-                c = 0
-                for num1, lim in enumerate(limits):
-                    for num2, cone in enumerate(cones.items()):
-                        expected[num1][num2] = sum([cones[f'c{num2+1}']['Zs'][i] < lim
-                                                    for i in range(len(cones[f'c{num2+1}']['Zs']))])
-                        c += 1
-                        if c % 5000 == 0:
-                            print(f"Finished {c}/{len(limits)*len(cones)}")
-                print("Finished")
+    chi_widths, chis, zs, widths = create_chi_bins(0, max([max(cones[f'c{i+1}']['Zs']) for i in range(len(cones))]), 100)
+    limits = np.cumsum(widths)
+    print(limits)
+    if False:
+        expected = np.zeros((len(limits), len(cones)))
+        c = 0
+        for num1, lim in enumerate(limits):
+            for num2, _ in enumerate(cones.items()):
+                expected[num1][num2] = sum([cones[f'c{num2+1}']['Zs'][i] < lim
+                                            for i in range(len(cones[f'c{num2+1}']['Zs']))])
+                c += 1
+                if c % 1000 == 0:
+                    print(f"Finished {c}/{len(limits)*len(cones)}")
+        print("Finished")
 
-                pickle_out = open("expected.pickle", "wb")
-                pickle.dump(expected, pickle_out)
-                pickle_out.close()
-            else:
-                pickle_in = open("expected.pickle", "rb")
-                expected = pickle.load(pickle_in)
+        pickle_out = open("expected.pickle", "wb")
+        pickle.dump(expected, pickle_out)
+        pickle_out.close()
+    else:
+        pickle_in = open("expected.pickle", "rb")
+        expected = pickle.load(pickle_in)
 
-            plt.plot(limits[:-1], np.diff([np.mean(expected[i][:]) for i in range(len(limits))]))
-            plt.show()
+    expected_counts = np.diff([np.mean(expected[i][:]) for i in range(len(limits))])
+    plt.plot(limits[1:], expected_counts)
+    plt.show()
 
-            ZSNs = []
-            for _, SN in lenses.items():
-                ZSNs.append(SN['ZSN'])
+    ZSNs = []
+    for _, SN in lenses.items():
+        ZSNs.append(SN['ZSN'])
 
-            Zbins = {}
-            Zwidths = {}
-            Zedges = {}
-            for num, ZSN in enumerate(ZSNs):
-                _, _, Zbins[f"{num}"], Zwidths[f"{num}"] = create_chi_bins(0, ZSN, ZSN / width)
-                Zedges = np.cumsum(Zwidths[f"{num}"])
+    chiSNs = []
+    for SN in ZSNs:
+        chi = comoving(np.linspace(0, SN, 1001))
+        chiSNs.append(chi[-1])
 
-            if False:
-                counts = np.array((len(limits), len(cones)))
-                c = 0
-                for num1, edge in enumerate(Zedges):
-                    for num2, _ in enumerate(cones.items()):
-                        counts[num1][num2] = sum([cones[f'c{num2+1}']['Zs'][i] < lim
-                                                    for i in range(len(cones[f'c{num2+1}']['Zs']))])
-                        c += 1
-                        if c % 5000 == 0:
-                            print(f"Finished {c}/{len(limits)*len(cones)}")
-                print("Finished")
+    counts = {}
+    c = 0
+    for num1 in range(len(lenses)):
+        bin_c = range(np.argmin(np.abs(limits - lenses[f"SN{num1+1}"]["ZSN"])))
+        counts[f"SN{num1+1}"] = np.zeros(len(bin_c))
+        for num2 in bin_c:
+            counts[f"SN{num1+1}"][num2] = sum([limits[num2] < lenses[f'SN{num1+1}']['Zs'][i]
+                                               <= limits[num2 + 1]
+                                               for i in range(len(lenses[f'SN{num1+1}']['Zs']))])
+        c += 1
+        print(f"Finished {c}/{len(lenses)}")
 
-            #     pickle_out = open("counts.pickle", "wb")
-            #     pickle.dump(counts, pickle_out)
-            #     pickle_out.close()
-            # else:
-            #     pickle_in = open("counts.pickle", "rb")
-            #     counts = pickle.load(pickle_in)
+    density = {}
+    convergence = []
+    c = 0
+    for key, SN in counts.items():
+        density[f"{key}"] = (SN - expected_counts[:len(SN)])/expected_counts[:(len(SN))]
+        convergence.append(smoothed_m_convergence(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
+                                                  density[f"{key}"], chiSNs[c]))
+        c += 1
+
+    plt.plot(ZSNs, [abs(convergence[i]) for i in range(len(convergence))], linestyle='', marker='o')
+    plt.show()
+
+    #     pickle_out = open("counts.pickle", "wb")
+    #     pickle.dump(counts, pickle_out)
+    #     pickle_out.close()
+    # else:
+    #     pickle_in = open("counts.pickle", "rb")
+    #     counts = pickle.load(pickle_in)
 
     # plt.style.use(astropy_mpl_style)
     # img_file = get_pkg_data_filename('tutorials/FITS-images/HorseHead.fits')
