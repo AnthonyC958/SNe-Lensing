@@ -163,9 +163,11 @@ if __name__ == "__main__":
     plt.plot(limits[1:], expected_counts)
     plt.show()
 
-    ZSNs = []
+    ZSNs = np.zeros(len(lenses))
+    c = 0
     for _, SN in lenses.items():
-        ZSNs.append(SN['ZSN'])
+        ZSNs[c] = SN['ZSN']
+        c += 1
 
     chiSNs = []
     for SN in ZSNs:
@@ -185,15 +187,18 @@ if __name__ == "__main__":
         print(f"Finished {c}/{len(lenses)}")
 
     density = {}
-    convergence = []
+    convergence = np.zeros(len(counts))
     c = 0
     for key, SN in counts.items():
         density[f"{key}"] = (SN - expected_counts[:len(SN)])/expected_counts[:(len(SN))]
-        convergence.append(smoothed_m_convergence(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
-                                                  density[f"{key}"], chiSNs[c]))
+        convergence[c] = smoothed_m_convergence(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
+                                                  density[f"{key}"], chiSNs[c])
         c += 1
 
-    plt.plot(ZSNs, [abs(convergence[i]) for i in range(len(convergence))], linestyle='', marker='o')
+    plt.plot(ZSNs[[ZSNs[i] < 0.65 for i in range(len(ZSNs))]], convergence[[ZSNs[i] < 0.65 for i in range(len(ZSNs))]],
+             linestyle='', marker='o', markersize=2)
+    plt.xlabel("z")
+    plt.ylabel("$\kappa$")
     plt.show()
 
     #     pickle_out = open("counts.pickle", "wb")
