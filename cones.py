@@ -45,15 +45,19 @@ if __name__ == "__main__":
 
             z1 = hdul1[1].data['Z']
             z2 = hdul2[1].data['Z_BOSS']
+            mu = hdul2[1].data['MU']
+            mu_err = hdul2[1].data['DMU1']
 
             if False:  # Change if dictionary needs to be made again
                 lenses = {}
-                for num, SRA, SDE, SZ in zip(np.linspace(0, len(RA2)-1, len(RA2)), RA2, DEC2, z2):
+                for num, SRA, SDE, SZ, SM, SE in zip(np.linspace(0, len(RA2)-1, len(RA2)), RA2, DEC2, z2, mu, mu_err):
                     lenses[f'SN{int(num)+1}'] = {}
                     lenses[f'SN{int(num)+1}']['RAs'] = []
                     lenses[f'SN{int(num)+1}']['DECs'] = []
                     lenses[f'SN{int(num)+1}']['Zs'] = []
-                    lenses[f'SN{int(num)+1}']['ZSN'] = SZ
+                    lenses[f'SN{int(num)+1}']['SNZ'] = SZ
+                    lenses[f'SN{int(num)+1}']['SNMU'] = SM
+                    lenses[f'SN{int(num)+1}']['SNMU_ERR'] = SE
                     for GRA, GDE, GZ in zip(RA1, DEC1, z1):
                         if (GRA - SRA) ** 2 + (GDE - SDE) ** 2 <= 0.2 ** 2:
                             lenses[f'SN{int(num)+1}']['RAs'].append(GRA)
@@ -62,11 +66,11 @@ if __name__ == "__main__":
                     print(f'Finished {int(num)+1}/{len(RA2)}')
                     # print(contribs[f'SN{int(num)+1}'])
 
-                pickle_out = open("conts.pickle", "wb")
+                pickle_out = open("lenses.pickle", "wb")
                 pickle.dump(lenses, pickle_out)
                 pickle_out.close()
             else:
-                pickle_in = open("conts.pickle", "rb")
+                pickle_in = open("lenses.pickle", "rb")
                 lenses = pickle.load(pickle_in)
 
     fig, ax = plt.subplots()
@@ -74,8 +78,8 @@ if __name__ == "__main__":
     for SN, dict1, in lenses.items():
         RAs = np.array(dict1['RAs'])
         DECs = np.array(dict1['DECs'])
-        indices1 = dict1['Zs'] < dict1['ZSN']
-        indices2 = dict1['Zs'] > dict1['ZSN']
+        indices1 = dict1['Zs'] < dict1['SNZ']
+        indices2 = dict1['Zs'] > dict1['SNZ']
         # print("Galaxies:", len(dict1['RAs']), "with z < z_SN:", len(RAs[indices]),
         #       f"at around: ({RAs[0]}, {DECs[0]})")
         ax.plot(RAs[indices1], DECs[indices1], marker='o', linestyle='', markersize=3, color=colours[0],
@@ -93,7 +97,7 @@ if __name__ == "__main__":
     plt.ylim([-1, 1])
     # plt.show()
 
-    # print(repr(hdul1[1].header))
+    # print(repr(hdul2[1].header))
     labels = ['Galaxies', 'Supernovae']
     for num, z in enumerate([z1, z2]):
         plt.hist([i for i in z if i <= 0.6], bins=np.arange(0, 0.6+0.025, 0.025), normed='max', alpha=0.5,
@@ -114,39 +118,38 @@ if __name__ == "__main__":
             tests.append(test)
 
     if False:
-        cones = {}
+        test_cones = {}
         for num, loc, in enumerate(tests):
-            cones[f'c{int(num)+1}'] = {}
-            cones[f'c{int(num)+1}']['Total'] = 0
-            cones[f'c{int(num)+1}']['Zs'] = []
+            test_cones[f'c{int(num)+1}'] = {}
+            test_cones[f'c{int(num)+1}']['Total'] = 0
+            test_cones[f'c{int(num)+1}']['Zs'] = []
             for GRA, GDE, GZ in zip(RA1, DEC1, z1):
                 if (GRA - loc[0]) ** 2 + (GDE - loc[1]) ** 2 <= 0.2 ** 2:
-                    cones[f'c{int(num)+1}']['Zs'].append(GZ)
-                cones[f'c{int(num)+1}']['Total'] = len(cones[f'c{int(num)+1}']['Zs'])
+                    test_cones[f'c{int(num)+1}']['Zs'].append(GZ)
+                test_cones[f'c{int(num)+1}']['Total'] = len(test_cones[f'c{int(num)+1}']['Zs'])
             print(f'Finished {int(num)+1}/{len(tests)}')
 
-        pickle_out = open("cones.pickle", "wb")
-        pickle.dump(cones, pickle_out)
+        pickle_out = open("test_cones.pickle", "wb")
+        pickle.dump(test_cones, pickle_out)
         pickle_out.close()
     else:
-        pickle_in = open("cones.pickle", "rb")
-        cones = pickle.load(pickle_in)
+        pickle_in = open("test_cones.pickle", "rb")
+        test_cones = pickle.load(pickle_in)
 
-    plt.hist([cones[f'c{i+1}']['Total'] for i in range(len(cones))], density=1,
+    plt.hist([test_cones[f'c{i+1}']['Total'] for i in range(len(test_cones))], density=1,
              bins=20, edgecolor=colours[0], alpha=.5, linewidth=2)
     # plt.show()
     # print("Max:", max([max(cones[f'c{i+1}']['Zs']) for i in range(len(cones))]))
 
-    chi_widths, chis, zs, widths = create_chi_bins(0, max([max(cones[f'c{i+1}']['Zs']) for i in range(len(cones))]), 100)
+    chi_widths, chis, zs, widths = create_chi_bins(0, max([max(test_cones[f'c{i+1}']['Zs']) for i in range(len(test_cones))]), 100)
     limits = np.cumsum(widths)
-    print(limits)
     if False:
-        expected = np.zeros((len(limits), len(cones)))
+        expected = np.zeros((len(limits), len(test_cones)))
         c = 0
         for num1, lim in enumerate(limits):
-            for num2, _ in enumerate(cones.items()):
-                expected[num1][num2] = sum([cones[f'c{num2+1}']['Zs'][i] < lim
-                                            for i in range(len(cones[f'c{num2+1}']['Zs']))])
+            for num2, _ in enumerate(test_cones.items()):
+                expected[num1][num2] = sum([test_cones[f'c{num2+1}']['Zs'][i] < lim
+                                            for i in range(len(test_cones[f'c{num2+1}']['Zs']))])
                 c += 1
                 if c % 1000 == 0:
                     print(f"Finished {c}/{len(limits)*len(cones)}")
@@ -163,28 +166,33 @@ if __name__ == "__main__":
     plt.plot(limits[1:], expected_counts)
     plt.show()
 
-    ZSNs = np.zeros(len(lenses))
+    SNzs = np.zeros(len(lenses))
+    SNmus = np.zeros(len(lenses))
+    SNmu_err = np.zeros(len(lenses))
     c = 0
     for _, SN in lenses.items():
-        ZSNs[c] = SN['ZSN']
+        SNzs[c] = SN['SNZ']
+        SNmus[c] = SN['SNMU']
+        SNmu_err[c] = SN['SNMU_ERR']
         c += 1
 
     chiSNs = []
-    for SN in ZSNs:
+    for SN in SNzs:
         chi = comoving(np.linspace(0, SN, 1001))
         chiSNs.append(chi[-1])
 
     counts = {}
     c = 0
     for num1 in range(len(lenses)):
-        bin_c = range(np.argmin(np.abs(limits - lenses[f"SN{num1+1}"]["ZSN"])))
+        bin_c = range(np.argmin(np.abs(limits - lenses[f"SN{num1+1}"]['SNZ'])))
         counts[f"SN{num1+1}"] = np.zeros(len(bin_c))
         for num2 in bin_c:
             counts[f"SN{num1+1}"][num2] = sum([limits[num2] < lenses[f'SN{num1+1}']['Zs'][i]
                                                <= limits[num2 + 1]
                                                for i in range(len(lenses[f'SN{num1+1}']['Zs']))])
         c += 1
-        print(f"Finished {c}/{len(lenses)}")
+        if c % 50 == 0:
+            print(f"Finished {c}/{len(lenses)}")
 
     density = {}
     convergence = np.zeros(len(counts))
@@ -192,14 +200,42 @@ if __name__ == "__main__":
     for key, SN in counts.items():
         density[f"{key}"] = (SN - expected_counts[:len(SN)])/expected_counts[:(len(SN))]
         convergence[c] = smoothed_m_convergence(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
-                                                  density[f"{key}"], chiSNs[c])
+                                                density[f"{key}"], chiSNs[c])
         c += 1
 
-    plt.plot(ZSNs[[ZSNs[i] < 0.65 for i in range(len(ZSNs))]], convergence[[ZSNs[i] < 0.65 for i in range(len(ZSNs))]],
+    plt.plot(SNzs[[SNzs[i] < 0.65 for i in range(len(SNzs))]], convergence[[SNzs[i] < 0.65 for i in range(len(SNzs))]],
              linestyle='', marker='o', markersize=2)
     plt.xlabel("z")
     plt.ylabel("$\kappa$")
     plt.show()
+
+    ax = plt.subplot2grid((2, 1), (0, 0))
+    ax2 = plt.subplot2grid((2, 1), (1, 0))
+
+    ax.set_ylabel("$\mu$", fontsize=16)
+    ax2.set_xlabel("z", fontsize=16)
+    ax2.set_ylabel("$\Delta\mu$", fontsize=16)
+    ax.set_xticklabels([])
+    plt.subplots_adjust(wspace=0, hspace=0)
+
+    ax.errorbar(SNzs[[SNzs[i] < 0.65 for i in range(len(SNzs))]], SNmus[[SNzs[i] < 0.65 for i in range(len(SNzs))]],
+                SNmu_err[[SNzs[i] < 0.65 for i in range(len(SNzs))]], linestyle='', linewidth=0.8, marker='o',
+                markersize=2, capsize=2, color=colours[1], zorder=0)
+    z_array = np.linspace(0.0, 0.61, 1001)
+    mu_cosm = 5 * np.log10((1 + z_array) * comoving(z_array) * 1000) + 25
+    mu_cosm_interp = np.interp(SNzs[[SNzs[i] < 0.65 for i in range(len(SNzs))]], z_array, mu_cosm)
+    mu_diff = SNmus[[SNzs[i] < 0.65 for i in range(len(SNzs))]] - mu_cosm_interp
+    ax.set_ylim([35, 45])
+    ax.set_xlim([0, 0.6])
+    ax.plot(z_array, mu_cosm, linestyle='--', linewidth=0.8, color=colours[0], zorder=10)
+    ax2.errorbar(SNzs[[SNzs[i] < 0.65 for i in range(len(SNzs))]], mu_diff,
+                 SNmu_err[[SNzs[i] < 0.65 for i in range(len(SNzs))]], linestyle='', linewidth=0.8, marker='o',
+                 markersize=2, capsize=2, color=colours[1], zorder=0)
+    ax2.plot(z_array, np.zeros(len(z_array)), zorder=10, color=colours[0], linewidth=0.8, linestyle='--')
+    ax2.set_ylim(-1.49, 1.49)
+    ax2.set_xlim([0, 0.6])
+    plt.show()
+
 
     #     pickle_out = open("counts.pickle", "wb")
     #     pickle.dump(counts, pickle_out)
