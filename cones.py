@@ -194,6 +194,8 @@ if __name__ == "__main__":
         if c % 50 == 0:
             print(f"Finished {c}/{len(lenses)}")
 
+    SNZs = SNzs[[SNzs[i] < 0.65 for i in range(len(SNzs))]]
+
     density = {}
     convergence = np.zeros(len(counts))
     c = 0
@@ -203,7 +205,7 @@ if __name__ == "__main__":
                                                 density[f"{key}"], chiSNs[c])
         c += 1
 
-    plt.plot(SNzs[[SNzs[i] < 0.65 for i in range(len(SNzs))]], convergence[[SNzs[i] < 0.65 for i in range(len(SNzs))]],
+    plt.plot(SNZs, convergence[[SNzs[i] < 0.65 for i in range(len(SNzs))]],
              linestyle='', marker='o', markersize=2)
     plt.xlabel("z")
     plt.ylabel("$\kappa$")
@@ -218,17 +220,21 @@ if __name__ == "__main__":
     ax.set_xticklabels([])
     plt.subplots_adjust(wspace=0, hspace=0)
 
-    ax.errorbar(SNzs[[SNzs[i] < 0.65 for i in range(len(SNzs))]], SNmus[[SNzs[i] < 0.65 for i in range(len(SNzs))]],
+    ax.errorbar(SNZs, SNmus[[SNzs[i] < 0.65 for i in range(len(SNzs))]],
                 SNmu_err[[SNzs[i] < 0.65 for i in range(len(SNzs))]], linestyle='', linewidth=0.8, marker='o',
                 markersize=2, capsize=2, color=colours[1], zorder=0)
     z_array = np.linspace(0.0, 0.61, 1001)
     mu_cosm = 5 * np.log10((1 + z_array) * comoving(z_array) * 1000) + 25
-    mu_cosm_interp = np.interp(SNzs[[SNzs[i] < 0.65 for i in range(len(SNzs))]], z_array, mu_cosm)
+    mu_cosm_interp = np.interp(SNZs, z_array, mu_cosm)
     mu_diff = SNmus[[SNzs[i] < 0.65 for i in range(len(SNzs))]] - mu_cosm_interp
+    mu_diff_std = np.std(mu_diff)
+    mu_diff_mean = np.mean(mu_diff)
+    mu_diff_cut = [i for i in mu_diff if mu_diff_mean - 5 * mu_diff_std < i < mu_diff_mean + 5 * mu_diff_std]
+    print(mu_diff_std, mu_diff_mean)
     ax.set_ylim([35, 45])
     ax.set_xlim([0, 0.6])
     ax.plot(z_array, mu_cosm, linestyle='--', linewidth=0.8, color=colours[0], zorder=10)
-    ax2.errorbar(SNzs[[SNzs[i] < 0.65 for i in range(len(SNzs))]], mu_diff,
+    ax2.errorbar(SNZs, mu_diff,
                  SNmu_err[[SNzs[i] < 0.65 for i in range(len(SNzs))]], linestyle='', linewidth=0.8, marker='o',
                  markersize=2, capsize=2, color=colours[1], zorder=0)
     ax2.plot(z_array, np.zeros(len(z_array)), zorder=10, color=colours[0], linewidth=0.8, linestyle='--')
@@ -236,7 +242,17 @@ if __name__ == "__main__":
     ax2.set_xlim([0, 0.6])
     plt.show()
 
+    mag = 1 + 2 * convergence[[SNzs[i] < 0.65 for i in range(len(SNzs))]]
+    plt.plot(mag, mu_diff, linestyle='', marker='o', markersize=2)
+    plt.xlabel('Magnitude from Convergence')
+    plt.ylabel('$\Delta\mu$')
+    plt.show()
 
+    mu_mag = -2.5 * np.log10(mag)
+    plt.plot(mu_mag, mu_diff, linestyle='', marker='o', markersize=2)
+    plt.xlabel('Expected $\Delta\mu$')
+    plt.ylabel('$\Delta\mu$')
+    plt.show()
     #     pickle_out = open("counts.pickle", "wb")
     #     pickle.dump(counts, pickle_out)
     #     pickle_out.close()
