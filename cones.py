@@ -1,7 +1,4 @@
 from Convergence import *
-from mpl_toolkits.mplot3d import Axes3D
-# from astropy.visualization import astropy_mpl_style
-# from astropy.utils.data import get_pkg_data_filename
 from astropy.io import fits
 from matplotlib.patches import Circle
 from matplotlib.collections import PatchCollection
@@ -141,7 +138,8 @@ if __name__ == "__main__":
     # plt.show()
     # print("Max:", max([max(cones[f'c{i+1}']['Zs']) for i in range(len(cones))]))
 
-    chi_widths, chis, zs, widths = create_chi_bins(0, max([max(test_cones[f'c{i+1}']['Zs']) for i in range(len(test_cones))]), 100)
+    chi_widths, chis, zs, widths = create_chi_bins(0, max([max(test_cones[f'c{i+1}']['Zs'])
+                                                           for i in range(len(test_cones))]), 100)
     limits = np.cumsum(widths)
     if False:
         expected = np.zeros((len(limits), len(test_cones)))
@@ -152,7 +150,7 @@ if __name__ == "__main__":
                                             for i in range(len(test_cones[f'c{num2+1}']['Zs']))])
                 c += 1
                 if c % 1000 == 0:
-                    print(f"Finished {c}/{len(limits)*len(cones)}")
+                    print(f"Finished {c}/{len(limits)*len(test_cones)}")
         print("Finished")
 
         pickle_out = open("expected.pickle", "wb")
@@ -187,14 +185,14 @@ if __name__ == "__main__":
         bin_c = range(np.argmin(np.abs(limits - lenses[f"SN{num1+1}"]['SNZ'])))
         counts[f"SN{num1+1}"] = np.zeros(len(bin_c))
         for num2 in bin_c:
-            counts[f"SN{num1+1}"][num2] = sum([limits[num2] < lenses[f'SN{num1+1}']['Zs'][i]
-                                               <= limits[num2 + 1]
+            counts[f"SN{num1+1}"][num2] = sum([limits[num2] < lenses[f'SN{num1+1}']['Zs'][i] <= limits[num2 + 1]
                                                for i in range(len(lenses[f'SN{num1+1}']['Zs']))])
         c += 1
         if c % 50 == 0:
             print(f"Finished {c}/{len(lenses)}")
 
-    SNZs = SNzs[[SNzs[i] < 0.65 for i in range(len(SNzs))]]
+    cuts1 = [SNzs[i] < 0.65 for i in range(len(SNzs))]
+    SNzs_cut = SNzs[cuts1]
 
     density = {}
     convergence = np.zeros(len(counts))
@@ -205,7 +203,7 @@ if __name__ == "__main__":
                                                 density[f"{key}"], chiSNs[c])
         c += 1
 
-    plt.plot(SNZs, convergence[[SNzs[i] < 0.65 for i in range(len(SNzs))]],
+    plt.plot(SNzs_cut, convergence[cuts1],
              linestyle='', marker='o', markersize=2)
     plt.xlabel("z")
     plt.ylabel("$\kappa$")
@@ -220,50 +218,36 @@ if __name__ == "__main__":
     ax.set_xticklabels([])
     plt.subplots_adjust(wspace=0, hspace=0)
 
-    ax.errorbar(SNZs, SNmus[[SNzs[i] < 0.65 for i in range(len(SNzs))]],
-                SNmu_err[[SNzs[i] < 0.65 for i in range(len(SNzs))]], linestyle='', linewidth=0.8, marker='o',
-                markersize=2, capsize=2, color=colours[1], zorder=0)
     z_array = np.linspace(0.0, 0.61, 1001)
     mu_cosm = 5 * np.log10((1 + z_array) * comoving(z_array) * 1000) + 25
-    mu_cosm_interp = np.interp(SNZs, z_array, mu_cosm)
-    mu_diff = SNmus[[SNzs[i] < 0.65 for i in range(len(SNzs))]] - mu_cosm_interp
-    mu_diff_std = np.std(mu_diff)
-    mu_diff_mean = np.mean(mu_diff)
-    mu_diff_cut = [i for i in mu_diff if mu_diff_mean - 5 * mu_diff_std < i < mu_diff_mean + 5 * mu_diff_std]
-    print(mu_diff_std, mu_diff_mean)
+    mu_cosm_interp = np.interp(SNzs_cut, z_array, mu_cosm)
+    mu_diff_cut = SNmus[cuts1] - mu_cosm_interp
+    mu_diff_std = np.std(mu_diff_cut)
+    mu_diff_mean = np.mean(mu_diff_cut)
+    SNmu_err_cut = SNmu_err[cuts1]
+    cuts2 = [-3.9 * mu_diff_std < mu_diff_cut[i] < 3.9 * mu_diff_std
+             for i in range(len(mu_diff_cut))]
+    SNmus_cut = SNmus[cuts1]
+
+    ax.errorbar(SNzs_cut[cuts2], SNmus_cut[cuts2],
+                SNmu_err_cut[cuts2], linestyle='', linewidth=0.8, marker='o',
+                markersize=2, capsize=2, color=colours[1], zorder=0)
     ax.set_ylim([35, 45])
     ax.set_xlim([0, 0.6])
     ax.plot(z_array, mu_cosm, linestyle='--', linewidth=0.8, color=colours[0], zorder=10)
-    ax2.errorbar(SNZs, mu_diff,
-                 SNmu_err[[SNzs[i] < 0.65 for i in range(len(SNzs))]], linestyle='', linewidth=0.8, marker='o',
+    ax2.errorbar(SNzs_cut[cuts2], mu_diff_cut[cuts2],
+                 SNmu_err_cut[cuts2], linestyle='', linewidth=1, marker='o',
                  markersize=2, capsize=2, color=colours[1], zorder=0)
     ax2.plot(z_array, np.zeros(len(z_array)), zorder=10, color=colours[0], linewidth=0.8, linestyle='--')
-    ax2.set_ylim(-1.49, 1.49)
+    ax2.set_ylim(-1.4, 1.4)
     ax2.set_xlim([0, 0.6])
     plt.show()
 
-    mag = 1 + 2 * convergence[[SNzs[i] < 0.65 for i in range(len(SNzs))]]
-    plt.plot(mag, mu_diff, linestyle='', marker='o', markersize=2)
+    convergence_cut = convergence[cuts1]
+    mag = -5 / np.log(10) * convergence_cut[cuts2]
+    plt.plot(convergence_cut[cuts2], mu_diff_cut[cuts2], linestyle='', marker='o', markersize=2)
     plt.xlabel('Magnitude from Convergence')
     plt.ylabel('$\Delta\mu$')
     plt.show()
 
-    mu_mag = -2.5 * np.log10(mag)
-    plt.plot(mu_mag, mu_diff, linestyle='', marker='o', markersize=2)
-    plt.xlabel('Expected $\Delta\mu$')
-    plt.ylabel('$\Delta\mu$')
-    plt.show()
-    #     pickle_out = open("counts.pickle", "wb")
-    #     pickle.dump(counts, pickle_out)
-    #     pickle_out.close()
-    # else:
-    #     pickle_in = open("counts.pickle", "rb")
-    #     counts = pickle.load(pickle_in)
 
-    # plt.style.use(astropy_mpl_style)
-    # img_file = get_pkg_data_filename('tutorials/FITS-images/HorseHead.fits')
-    # img_data = fits.getdata(img_file, ext=0)
-    # plt.figure()
-    # plt.imshow(img_data)
-    # plt.colorbar()
-    # plt.show()
