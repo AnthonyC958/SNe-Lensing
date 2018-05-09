@@ -244,8 +244,8 @@ def plot_smoothed_m(chi_widths, chis, zs, z_SN, z_widths):
     delta_cor[size//2:] = delta[size//2:]+correction
 
     for j in range(size):
-        convergence[j] = (smoothed_m_convergence(chi_widths, chis, zs, delta[j], chi_SN))
-        convergence_cor[j] = (smoothed_m_convergence(chi_widths, chis, zs, delta_cor[j], chi_SN))
+        convergence[j] = (general_convergence(chi_widths, chis, zs, delta[j], chi_SN))
+        convergence_cor[j] = (general_convergence(chi_widths, chis, zs, delta_cor[j], chi_SN))
 
     # convergence = np.delete(convergence, size // 2, 0)
     convergence_cor = np.delete(convergence_cor, size // 2, 0)
@@ -263,7 +263,7 @@ def plot_smoothed_m(chi_widths, chis, zs, z_SN, z_widths):
     plt.show()
 
 
-def smoothed_m_convergence(chi_widths, chis, zs, d_arr, SN_dist):
+def general_convergence(chi_widths, chis, zs, d_arr, SN_dist):
     """Calculates convergence from an overdensity in redshift bin i.
 
     Inputs:
@@ -277,6 +277,13 @@ def smoothed_m_convergence(chi_widths, chis, zs, d_arr, SN_dist):
     coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
     sf_arr = 1.0 / (1.0 + zs)
     k_i = coeff * chis * chi_widths * (SN_dist - chis) / SN_dist * d_arr / sf_arr
+    return np.sum(k_i)
+
+
+def convergence_error(chi_widths, chis, zs, expected_arr, SN_dist):
+    coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
+    sf_arr = 1.0 / (1.0 + zs)
+    k_i = coeff * chis * chi_widths * (SN_dist - chis) / SN_dist / sf_arr / expected_arr
     return np.sum(k_i)
 
 

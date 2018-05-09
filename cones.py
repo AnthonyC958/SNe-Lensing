@@ -2,9 +2,15 @@ from Convergence import *
 from astropy.io import fits
 from matplotlib.patches import Circle
 from matplotlib.collections import PatchCollection
+from scipy.optimize import curve_fit
 import pickle
 
 colours = ['C0', 'C1', 'C2', 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5', 'C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']
+
+
+def f(x, A):
+    return A * x
+
 
 if __name__ == "__main__":
     names = ['STRIPE82_SPECTROSCOPIC_CHAZ_NOTCLEANED_ms77.fit', 'boss_206+SDSS_213_all_cuts_new_mu_dmu1_new.fits']
@@ -196,15 +202,30 @@ if __name__ == "__main__":
 
     density = {}
     convergence = np.zeros(len(counts))
+    conv_err = np.zeros(len(counts))
     c = 0
     for key, SN in counts.items():
         density[f"{key}"] = (SN - expected_counts[:len(SN)])/expected_counts[:(len(SN))]
-        convergence[c] = smoothed_m_convergence(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
-                                                density[f"{key}"], chiSNs[c])
+        convergence[c] = general_convergence(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
+                                             density[f"{key}"], chiSNs[c])
+        conv_err[c] = general_convergence(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
+                                          expected_counts[:len(SN)], chiSNs[c])
         c += 1
 
-    plt.plot(SNzs_cut, convergence[cuts1],
-             linestyle='', marker='o', markersize=2)
+    z_array = np.linspace(0.0, 0.61, 1001)
+    mu_cosm = 5 * np.log10((1 + z_array) * comoving(z_array) * 1000) + 25
+    mu_cosm_interp = np.interp(SNzs_cut, z_array, mu_cosm)
+    mu_diff_cut = SNmus[cuts1] - mu_cosm_interp
+    mu_diff_std = np.std(mu_diff_cut)
+    mu_diff_mean = np.mean(mu_diff_cut)
+    SNmu_err_cut = SNmu_err[cuts1]
+    cuts2 = [-3.9 * mu_diff_std < mu_diff_cut[i] < 3.9 * mu_diff_std
+             for i in range(len(mu_diff_cut))]
+    SNmus_cut = SNmus[cuts1]
+    convergence_cut = convergence[cuts1]
+    conv_err_cut = conv_err[cuts1]
+
+    plt.errorbar(SNzs_cut[cuts2], convergence_cut[cuts2], conv_err_cut[cuts2], linestyle='', marker='o', markersize=2)
     plt.xlabel("z")
     plt.ylabel("$\kappa$")
     plt.show()
@@ -217,17 +238,6 @@ if __name__ == "__main__":
     ax2.set_ylabel("$\Delta\mu$", fontsize=16)
     ax.set_xticklabels([])
     plt.subplots_adjust(wspace=0, hspace=0)
-
-    z_array = np.linspace(0.0, 0.61, 1001)
-    mu_cosm = 5 * np.log10((1 + z_array) * comoving(z_array) * 1000) + 25
-    mu_cosm_interp = np.interp(SNzs_cut, z_array, mu_cosm)
-    mu_diff_cut = SNmus[cuts1] - mu_cosm_interp
-    mu_diff_std = np.std(mu_diff_cut)
-    mu_diff_mean = np.mean(mu_diff_cut)
-    SNmu_err_cut = SNmu_err[cuts1]
-    cuts2 = [-3.9 * mu_diff_std < mu_diff_cut[i] < 3.9 * mu_diff_std
-             for i in range(len(mu_diff_cut))]
-    SNmus_cut = SNmus[cuts1]
 
     ax.errorbar(SNzs_cut[cuts2], SNmus_cut[cuts2],
                 SNmu_err_cut[cuts2], linestyle='', linewidth=0.8, marker='o',
@@ -243,11 +253,14 @@ if __name__ == "__main__":
     ax2.set_xlim([0, 0.6])
     plt.show()
 
-    convergence_cut = convergence[cuts1]
     mag = -5 / np.log(10) * convergence_cut[cuts2]
+    grad = curve_fit(f, convergence_cut[cuts2], mu_diff_cut[cuts2])[0]
+    fit = convergence_cut[cuts2] * grad
     plt.plot(convergence_cut[cuts2], mu_diff_cut[cuts2], linestyle='', marker='o', markersize=2)
+    plt.plot(convergence_cut[cuts2], fit)
     plt.xlabel('Magnitude from Convergence')
     plt.ylabel('$\Delta\mu$')
+    plt.xlim([-0.008, 0.011])
+    plt.ylim([-0.3, 0.3])
+    print(grad)
     plt.show()
-
-
