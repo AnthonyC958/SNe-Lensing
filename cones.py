@@ -9,6 +9,7 @@ colours = ['C0', 'C1', 'C2', 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5', 'C0', 'C1
 
 
 def f(x, A):
+    """Linear function for fitting correlation."""
     return A * x
 
 
@@ -45,7 +46,6 @@ if __name__ == "__main__":
             for x, y in zip(RA2, DEC2):
                 circle = Circle((x, y), 0.2)
                 patches.append(circle)
-
             z1 = hdul1[1].data['Z']
             z2 = hdul2[1].data['Z_BOSS']
             mu = hdul2[1].data['MU']
@@ -92,13 +92,14 @@ if __name__ == "__main__":
     p = PatchCollection(patches, alpha=0.4)
     ax.add_collection(p)
     ax.plot(RA2, DEC2, marker='o', linestyle='', markersize=3, label='Supernova', color=colours[1])
-    plt.xlabel('Right Ascension')
-    plt.ylabel('Declination')
-    plt.legend(loc='lower right')
+    plt.xlabel('Right Ascension', fontsize=16)
+    plt.ylabel('Declination', fontsize=16)
+    plt.legend(loc='lower right', fontsize=12)
     plt.axis('equal')
     plt.xlim([24.5, 27.5])
     plt.ylim([-1, 1])
-    # plt.show()
+    plt.tick_params(labelsize=12)
+    plt.show()
 
     # print(repr(hdul2[1].header))
     labels = ['Galaxies', 'Supernovae']
@@ -108,7 +109,7 @@ if __name__ == "__main__":
     plt.xlabel('z')
     plt.ylabel('Normalised Count')
     plt.legend(frameon=0)
-    # plt.show()
+    plt.show()
 
     tests = []
     for a in range(272):
@@ -141,7 +142,7 @@ if __name__ == "__main__":
 
     plt.hist([test_cones[f'c{i+1}']['Total'] for i in range(len(test_cones))], density=1,
              bins=20, edgecolor=colours[0], alpha=.5, linewidth=2)
-    # plt.show()
+    plt.show()
     # print("Max:", max([max(cones[f'c{i+1}']['Zs']) for i in range(len(cones))]))
 
     chi_widths, chis, zs, widths = create_chi_bins(0, max([max(test_cones[f'c{i+1}']['Zs'])
@@ -198,7 +199,7 @@ if __name__ == "__main__":
             print(f"Finished {c}/{len(lenses)}")
 
     cuts1 = [SNzs[i] < 0.65 for i in range(len(SNzs))]
-    SNzs_cut = SNzs[cuts1]
+    SNzs_cut = SNzs  # SNzs[cuts1]
 
     density = {}
     convergence = np.zeros(len(counts))
@@ -212,22 +213,34 @@ if __name__ == "__main__":
                                           expected_counts[:len(SN)], chiSNs[c])
         c += 1
 
+    SNmus_cut = SNmus  # SNmus[cuts1]
+    convergence_cut = convergence  # convergence[cuts1]
+    conv_err_cut = conv_err  # conv_err[cuts1]
+    SNmu_err_cut = SNmu_err # SNmu_err[cuts1]
     z_array = np.linspace(0.0, 0.61, 1001)
     mu_cosm = 5 * np.log10((1 + z_array) * comoving(z_array) * 1000) + 25
     mu_cosm_interp = np.interp(SNzs_cut, z_array, mu_cosm)
-    mu_diff_cut = SNmus[cuts1] - mu_cosm_interp
+    mu_diff_cut = SNmus_cut - mu_cosm_interp
     mu_diff_std = np.std(mu_diff_cut)
     mu_diff_mean = np.mean(mu_diff_cut)
-    SNmu_err_cut = SNmu_err[cuts1]
     cuts2 = [-3.9 * mu_diff_std < mu_diff_cut[i] < 3.9 * mu_diff_std
              for i in range(len(mu_diff_cut))]
-    SNmus_cut = SNmus[cuts1]
-    convergence_cut = convergence[cuts1]
-    conv_err_cut = conv_err[cuts1]
 
-    plt.errorbar(SNzs_cut[cuts2], convergence_cut[cuts2], conv_err_cut[cuts2], linestyle='', marker='o', markersize=2)
-    plt.xlabel("z")
-    plt.ylabel("$\kappa$")
+    ax = plt.subplot2grid((1, 2), (0, 0))
+    ax2 = plt.subplot2grid((1, 2), (0, 1))
+    ax.set_ylabel("$\kappa$", fontsize=16)
+    ax.set_xlabel("z", fontsize=16)
+    ax2.set_xlabel("Count", fontsize=16)
+    ax.tick_params(labelsize=12)
+    ax2.tick_params(labelsize=12)
+    ax2.set_yticklabels([])
+    plt.subplots_adjust(wspace=0, hspace=0)
+    ax.plot([0, 0.6], [0, 0], color=[0.75, 0.75, 0.75], linestyle='--')
+    ax.axis([0, 0.6, -0.015, 0.02])
+    ax2.axis([0, 140, -0.015, 0.02])
+    ax.set_xticks([0, 0.2, 0.4, 0.6], [0, 0.2, 0.4, 0])
+    ax.plot(SNzs_cut[cuts2], convergence_cut[cuts2], linestyle='', marker='o', markersize=2)
+    ax2.hist(convergence_cut[cuts2], 50, orientation='horizontal', alpha=0.3, edgecolor=colours[0])
     plt.show()
 
     ax = plt.subplot2grid((2, 1), (0, 0))
@@ -237,22 +250,27 @@ if __name__ == "__main__":
     ax2.set_xlabel("z", fontsize=16)
     ax2.set_ylabel("$\Delta\mu$", fontsize=16)
     ax.set_xticklabels([])
-    plt.subplots_adjust(wspace=0, hspace=0)
+    ax.tick_params(labelsize=12)
+
 
     ax.errorbar(SNzs_cut[cuts2], SNmus_cut[cuts2],
                 SNmu_err_cut[cuts2], linestyle='', linewidth=0.8, marker='o',
-                markersize=2, capsize=2, color=colours[1], zorder=0)
+                markersize=2, capsize=2, color=colours[3], zorder=0)
     ax.set_ylim([35, 45])
     ax.set_xlim([0, 0.6])
     ax.plot(z_array, mu_cosm, linestyle='--', linewidth=0.8, color=colours[0], zorder=10)
     ax2.errorbar(SNzs_cut[cuts2], mu_diff_cut[cuts2],
                  SNmu_err_cut[cuts2], linestyle='', linewidth=1, marker='o',
-                 markersize=2, capsize=2, color=colours[1], zorder=0)
+                 markersize=2, capsize=2, color=colours[3], zorder=0)
     ax2.plot(z_array, np.zeros(len(z_array)), zorder=10, color=colours[0], linewidth=0.8, linestyle='--')
     ax2.set_ylim(-1.4, 1.4)
     ax2.set_xlim([0, 0.6])
+    ax2.tick_params(labelsize=12)
     plt.show()
-
+    print(len(SNzs_cut[cuts2]), np.sum(np.sum([[lenses[f'SN{int(i)+1}']['Zs'][j] <= lenses[f'SN{int(i)+1}']['SNZ']
+                                              for j in range(len(lenses[f'SN{int(i)+1}']['Zs']))]
+                                              for i in range(len(lenses))
+                                              if lenses[f'SN{int(i)+1}']['SNZ'] in SNzs_cut])))
     mag = -5 / np.log(10) * convergence_cut[cuts2]
     grad = curve_fit(f, convergence_cut[cuts2], mu_diff_cut[cuts2])[0]
     fit = convergence_cut[cuts2] * grad
@@ -262,5 +280,8 @@ if __name__ == "__main__":
     plt.ylabel('$\Delta\mu$')
     plt.xlim([-0.008, 0.011])
     plt.ylim([-0.3, 0.3])
+    # print([convergence_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
+    # print([mu_diff_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
+    # print([SNmu_err_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
     print(grad)
     plt.show()

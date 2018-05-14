@@ -124,11 +124,13 @@ def create_chi_bins(z_lo, z_hi, num_bins):
 
     # plt.plot(z_to_end, chi_to_end)
     # plt.plot(zs, chis, linestyle='', marker='o', markersize=3)
-    # plt.plot([z_bin_edges, z_bin_edges], [chi_bin_edges[0], chi_bin_edges[-1]], color=[0.5, 0.5, 0.5],
-    #          linestyle='--', linewidth=0.5)
-    # plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.5, 0.5, 0.5], linestyle='--', linewidth=0.5)
-    # plt.xlabel('$z$')
-    # plt.ylabel('$R_0\chi$')
+    # plt.plot([z_bin_edges, z_bin_edges], [chi_bin_edges[0], chi_bin_edges[-1]], color=[0.75, 0.75, 0.73],
+    #          linestyle='-', linewidth=0.8)
+    # plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.75, 0.75, 0.75], linestyle='-', linewidth=0.8)
+    # plt.xlabel('$z$', fontsize=16)
+    # plt.tick_params(labelsize=12)
+    # plt.axis([0, z_hi, 0, chi_end])
+    # plt.ylabel('$R_0\chi$ (Gpc)', fontsize=16)
     # plt.show()
 
     return chi_widths, chis, zs, z_widths
@@ -151,11 +153,13 @@ def create_z_bins(z_lo, z_hi, num_bins):
 
     # plt.plot(np.linspace(z_lo, z_hi, 1001), comoving(np.linspace(z_lo, z_hi, 1001)))
     # plt.plot(zs, chis, linestyle='', marker='o', markersize=3)
-    # plt.plot([z_bin_edges, z_bin_edges], [chi_bin_edges[0], chi_bin_edges[-1]], color=[0.5, 0.5, 0.5],
-    #          linestyle='--', linewidth=0.5)
-    # plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.5, 0.5, 0.5], linestyle='--', linewidth=0.5)
-    # plt.xlabel('$z$')
-    # plt.ylabel('$R_0\chi$')
+    # plt.plot([z_bin_edges, z_bin_edges], [chi_bin_edges[0], chi_bin_edges[-1]], color=[0.75, 0.75, 0.75],
+    #          linestyle='-', linewidth=0.8)
+    # plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.75, 0.75, 0.75], linestyle='-', linewidth=0.8)
+    # plt.xlabel('$z$', fontsize=16)
+    # plt.tick_params(labelsize=12)
+    # plt.ylabel('$R_0\chi$ (Gpc)', fontsize=16)
+    # plt.axis([0, z_hi, 0, chis[-1]+chi_widths[-1]/2])
     # plt.show()
 
     return chi_widths, chis, zs, z_widths
@@ -250,16 +254,20 @@ def plot_smoothed_m(chi_widths, chis, zs, z_SN, z_widths):
     # convergence = np.delete(convergence, size // 2, 0)
     convergence_cor = np.delete(convergence_cor, size // 2, 0)
 
+    plt.plot([size // 2 - 1, size // 2 - 1], [convergence[0], convergence[-1]], color=[0.75, 0.75, 0.75],
+             linestyle='--')
+    plt.plot([0, size - 1], [0, 0], color=[0.75, 0.75, 0.75], linestyle='--')
     plt.plot(range(size // 2), convergence[:size // 2], label=f'Total $|\delta|$ = 1', color=colours[0])
     plt.plot(range(size // 2 - 1, size - 1), convergence[size // 2:], color=colours[0])
-    plt.plot([size // 2 - 1, size // 2 - 1], [convergence[0], convergence[-1]], color=[0.5, 0.5, 0.5],
-             linestyle='--')
-    plt.plot([0, size - 1], [0, 0], color=[0.5, 0.5, 0.5], linestyle='--')
     plt.plot(range(size - 1), convergence_cor, label=f'Total $|\delta|$ = 0', color=colours[1])
-    plt.xlabel("Number of bins smoothed over")
-    plt.ylabel("$\kappa$")
+    plt.xlabel("Number of bins smoothed over", fontsize=16)
+    plt.ylabel("$\kappa$", fontsize=16)
+    plt.tick_params(labelsize=12)
     # plt.title(f"Convergence as a function of central overdensity smoothing (z$_S$$_N$ = {z_SN})")
-    plt.legend(frameon=0)
+    plt.legend(frameon=0, fontsize=12)
+    plt.xticks([0, 12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100], [0, 25, 50, 75, 100, 75, 50, 25, 0])
+    plt.axis([0, size, min(convergence)-0.0003, max(convergence)+0.0003])
+
     plt.show()
 
 
@@ -305,24 +313,30 @@ if __name__ == "__main__":
     single_conv_z = calc_single_m(comoving_binwidthsz, comoving_binsz, z_binsz, SN_redshift)
     plot_smoothed_m(comoving_binwidthsc, comoving_binsc, z_binsc, SN_redshift, z_widthsc)
 
+    plt.plot([SN_chi / 2, SN_chi / 2], [0, 1.1 * max(single_conv_c)], linestyle='--', color=[0.75, 0.75, 0.75],
+             linewidth=1)
     plt.plot(comoving_binsc, single_conv_c, label='Even $\chi$')
     plt.plot(comoving_binsz, single_conv_z / (c / H0 * get_h_inv(z_binsz)), label='Even z')
-    plt.plot([SN_chi/2, SN_chi/2], [0, 1.1 * max(single_conv_c)], linestyle='--', color=[0.5, 0.5, 0.5])
-    plt.xlabel("Comoving Distance of Overdensity (Gpc)")
-    plt.ylabel("$\kappa$")
-    plt.legend(frameon=0)
+    plt.xlabel("$\chi_{Overdensity}$ (Gpc)", fontsize=16)
+    plt.ylabel("$\kappa$", fontsize=16)
+    plt.tick_params(labelsize=12)
+    plt.legend(frameon=0, fontsize=12)
+    plt.axis([0, SN_chi, 0, 1.1 * max(single_conv_c)])
     plt.show()
 
+    plt.plot([SN_redshift / 2, SN_redshift / 2], [0, 1.1 * max(single_conv_c)], linestyle='--',
+             color=[0.75, 0.75, 0.75], linewidth=1)
     plt.plot(z_binsc, single_conv_c, label='Even $\chi$')
     print("Peak at z =", z_binsc[np.argmin(np.abs(single_conv_c - max(single_conv_c)))])
     plt.plot(z_binsz, single_conv_z / (c / H0 * get_h_inv(z_binsz)), label='Even z')
-    plt.plot([SN_redshift / 2, SN_redshift / 2], [0, 1.1 * max(single_conv_z)], linestyle='--', color=[0.5, 0.5, 0.5])
-    plt.xlabel("Redshift of Overdensity")
-    plt.ylabel("$\kappa$")
-    plt.legend(frameon=0)
+    plt.xlabel("$z_{Overdensity}$", fontsize=16)
+    plt.ylabel("$\kappa$", fontsize=16)
+    plt.legend(frameon=0, fontsize=12)
+    plt.tick_params(labelsize=12)
+    plt.axis([0, SN_redshift, 0, 1.1 * max(single_conv_c)])
     plt.show()
 
-    num_test = 500
+    num_test = 800
     test_range = np.arange(3, num_test, 2)
     # test_range = 3*(np.arange(1, num_test))
     conv = np.zeros(len(test_range))
@@ -371,10 +385,12 @@ if __name__ == "__main__":
 
     # size_num = np.argmin(np.abs(bin_lengths - cluster_size))
     plt.plot(test_range[10::], conv[10::], label='$M_{{cluster}} = 10^{0} M_\odot$'.format({mass_mag}))
-    plt.plot(test_range[10::], np.zeros(len(test_range[10::])), color=[0.5, 0.5, 0.5], linestyle='--')
+    plt.plot(test_range[10::], np.zeros(len(test_range[10::])), color=[0.75, 0.75, 0.75], linestyle='--')
     # plt.plot([test_range[size_num], test_range[size_num]], [conv[10], -conv[12]], color=[0.5, 0.5, 0.5], linestyle='--')
     plt.xticks(test_range[10::num_test//20], bin_lengths[10::num_test//20], rotation=45)
-    plt.xlabel("Bin length (Mpc)")
-    plt.ylabel("$\kappa$")
-    plt.legend(frameon=0)
+    plt.xlabel("Bin length (Mpc)", fontsize=16)
+    plt.ylabel("$\kappa$", fontsize=16)
+    plt.tick_params(labelsize=12)
+    plt.legend(frameon=0, fontsize=12)
+    plt.axis([18, 799, -0.002325, 0.0017])
     plt.show()
