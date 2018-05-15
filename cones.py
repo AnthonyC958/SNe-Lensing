@@ -6,7 +6,8 @@ from scipy.optimize import curve_fit
 import pickle
 
 colours = ['C0', 'C1', 'C2', 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5', 'C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']
-
+blue = [23/255, 114/255, 183/255, 0.75]
+orange = [255/255, 119/255, 15/255, 0.75]
 
 def f(x, A):
     """Linear function for fitting correlation."""
@@ -85,10 +86,15 @@ if __name__ == "__main__":
         indices2 = dict1['Zs'] > dict1['SNZ']
         # print("Galaxies:", len(dict1['RAs']), "with z < z_SN:", len(RAs[indices]),
         #       f"at around: ({RAs[0]}, {DECs[0]})")
-        ax.plot(RAs[indices1], DECs[indices1], marker='o', linestyle='', markersize=3, color=colours[0],
-                label="Foreground" if SN == 'SN1' else "")
         ax.plot(RAs[indices2], DECs[indices2], marker='o', linestyle='', markersize=1, color='k',
                 label="Background" if SN == 'SN1' else "")
+    for SN, dict1, in lenses.items():
+        RAs = np.array(dict1['RAs'])
+        DECs = np.array(dict1['DECs'])
+        indices1 = dict1['Zs'] < dict1['SNZ']
+        indices2 = dict1['Zs'] > dict1['SNZ']
+        ax.plot(RAs[indices1], DECs[indices1], marker='o', linestyle='', markersize=3, color=colours[0],
+                label="Foreground" if SN == 'SN1' else "")
     p = PatchCollection(patches, alpha=0.4)
     ax.add_collection(p)
     ax.plot(RA2, DEC2, marker='o', linestyle='', markersize=3, label='Supernova', color=colours[1])
@@ -103,12 +109,14 @@ if __name__ == "__main__":
 
     # print(repr(hdul2[1].header))
     labels = ['Galaxies', 'Supernovae']
+    cols = [blue, orange]
     for num, z in enumerate([z1, z2]):
-        plt.hist([i for i in z if i <= 0.6], bins=np.arange(0, 0.6+0.025, 0.025), normed='max', alpha=0.5,
-                 edgecolor=colours[num], linewidth=2, label=f'{labels[num]}')
-    plt.xlabel('z')
-    plt.ylabel('Normalised Count')
-    plt.legend(frameon=0)
+        plt.hist([i for i in z if i <= 0.6], bins=np.arange(0, 0.6+0.025, 0.025), normed='max', linewidth=1,
+                 fc=cols[num], label=f'{labels[num]}', edgecolor=colours[num])
+    plt.xlabel('z', fontsize=16)
+    plt.ylabel('Normalised Count', fontsize=16)
+    plt.legend(frameon=0, fontsize=12)
+    plt.tick_params(labelsize=12)
     plt.show()
 
     tests = []
@@ -141,7 +149,10 @@ if __name__ == "__main__":
         test_cones = pickle.load(pickle_in)
 
     plt.hist([test_cones[f'c{i+1}']['Total'] for i in range(len(test_cones))], density=1,
-             bins=20, edgecolor=colours[0], alpha=.5, linewidth=2)
+             bins=20, edgecolor=colours[0], fc=blue, linewidth=1)
+    plt.xlabel('Number of Galaxies', fontsize=16)
+    plt.ylabel('Count', fontsize=16)
+    plt.tick_params(labelsize=12)
     plt.show()
     # print("Max:", max([max(cones[f'c{i+1}']['Zs']) for i in range(len(cones))]))
 
@@ -168,7 +179,12 @@ if __name__ == "__main__":
         expected = pickle.load(pickle_in)
 
     expected_counts = np.diff([np.mean(expected[i][:]) for i in range(len(limits))])
-    plt.plot(limits[1:], expected_counts)
+    plt.plot([0, 5], [0, 0], color=[0.75, 0.75, 0.75], linestyle='--')
+    plt.plot(limits[1:], expected_counts, marker='o', markersize=2.5)
+    plt.xlabel('z', fontsize=16)
+    plt.ylabel('Expected Count', fontsize=16)
+    plt.tick_params(labelsize=12)
+    plt.xlim([0, 5])
     plt.show()
 
     SNzs = np.zeros(len(lenses))
@@ -216,7 +232,7 @@ if __name__ == "__main__":
     SNmus_cut = SNmus  # SNmus[cuts1]
     convergence_cut = convergence  # convergence[cuts1]
     conv_err_cut = conv_err  # conv_err[cuts1]
-    SNmu_err_cut = SNmu_err # SNmu_err[cuts1]
+    SNmu_err_cut = SNmu_err  # SNmu_err[cuts1]
     z_array = np.linspace(0.0, 0.61, 1001)
     mu_cosm = 5 * np.log10((1 + z_array) * comoving(z_array) * 1000) + 25
     mu_cosm_interp = np.interp(SNzs_cut, z_array, mu_cosm)
@@ -238,9 +254,9 @@ if __name__ == "__main__":
     ax.plot([0, 0.6], [0, 0], color=[0.75, 0.75, 0.75], linestyle='--')
     ax.axis([0, 0.6, -0.015, 0.02])
     ax2.axis([0, 140, -0.015, 0.02])
-    ax.set_xticks([0, 0.2, 0.4, 0.6], [0, 0.2, 0.4, 0])
+    ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
     ax.plot(SNzs_cut[cuts2], convergence_cut[cuts2], linestyle='', marker='o', markersize=2)
-    ax2.hist(convergence_cut[cuts2], 50, orientation='horizontal', alpha=0.3, edgecolor=colours[0])
+    ax2.hist(convergence_cut[cuts2], 50, orientation='horizontal', fc=blue, edgecolor=colours[0])
     plt.show()
 
     ax = plt.subplot2grid((2, 1), (0, 0))
@@ -251,7 +267,6 @@ if __name__ == "__main__":
     ax2.set_ylabel("$\Delta\mu$", fontsize=16)
     ax.set_xticklabels([])
     ax.tick_params(labelsize=12)
-
 
     ax.errorbar(SNzs_cut[cuts2], SNmus_cut[cuts2],
                 SNmu_err_cut[cuts2], linestyle='', linewidth=0.8, marker='o',
