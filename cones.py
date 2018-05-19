@@ -3,21 +3,26 @@ from astropy.io import fits
 from matplotlib.patches import Circle
 from matplotlib.collections import PatchCollection
 from scipy.optimize import curve_fit
+from scipy.stats import rankdata
 import pickle
 
-colours = ['C0', 'C1', 'C2', 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5', 'C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']
+colours = [[0, 165/255, 124/255], [253/255, 170/255, 0], 'C2', 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
 blue = [23/255, 114/255, 183/255, 0.75]
 orange = [255/255, 119/255, 15/255, 0.75]
+green = [0, 165/255, 124/255, 0.75]
+yellow = [253/255, 170/255, 0, 0.75]
+grey = [0.75, 0.75, 0.75]
 names = ['STRIPE82_SPECTROSCOPIC_CHAZ_NOTCLEANED_ms77.fit', 'boss_206+SDSS_213_all_cuts_new_mu_dmu1_new.fits']
 
-rc('text', usetex=True)
 plt.rcParams['font.family'] = 'serif'
-plt.rcParams['font.size'] = 12
-plt.rcParams['axes.labelsize'] = 16
+plt.rcParams['font.serif'] = 'Stixgeneral'
+plt.rcParams['mathtext.fontset'] = 'stix'
+
+plt.rcParams['axes.labelsize'] = 20
 plt.rcParams['axes.titlesize'] = 16
-plt.rcParams['xtick.labelsize'] = 12
-plt.rcParams['ytick.labelsize'] = 12
-plt.rcParams['legend.fontsize'] = 12
+plt.rcParams['xtick.labelsize'] = 16
+plt.rcParams['ytick.labelsize'] = 16
+plt.rcParams['legend.fontsize'] = 16
 plt.rcParams['figure.titlesize'] = 20
 plt.rcParams['xtick.top'] = True
 plt.rcParams['ytick.right'] = True
@@ -148,7 +153,7 @@ def plot_cones(RA1, RA2, DEC1, DEC2, z1, z2, lenses, patches):
         indices1 = dict1['Zs'] < dict1['SNZ']
         ax.plot(RAs[indices1], DECs[indices1], marker='o', linestyle='', markersize=3, color=colours[0],
                 label="Foreground" if SN == 'SN1' else "")
-    p = PatchCollection(patches, alpha=0.4)
+    p = PatchCollection(patches, alpha=0.4, color=colours[0])
     ax.add_collection(p)
     ax.plot(RA2, DEC2, marker='o', linestyle='', markersize=3, label='Supernova', color=colours[1])
     plt.xlabel('$\\alpha$')
@@ -161,11 +166,11 @@ def plot_cones(RA1, RA2, DEC1, DEC2, z1, z2, lenses, patches):
     plt.show()
 
     labels = ['Galaxies', 'Supernovae']
-    cols = [blue, orange]
+    cols = [green, yellow]
     for num, z in enumerate([z1, z2]):
         plt.hist([i for i in z if i <= 0.6], bins=np.arange(0, 0.6 + 0.025, 0.025), normed='max', linewidth=1,
                  fc=cols[num], label=f'{labels[num]}', edgecolor=colours[num])
-    plt.xlabel('z')
+    plt.xlabel('$z$')
     plt.ylabel('Normalised Count')
     plt.legend(frameon=0)
     
@@ -211,7 +216,7 @@ def make_test_cones(RA1, DEC1, z1, redo=False):
         test_cones = pickle.load(pickle_in)
 
     plt.hist([test_cones[f'c{i+1}']['Total'] for i in range(len(test_cones))], density=1,
-             bins=20, edgecolor=colours[0], fc=blue, linewidth=1)
+             bins=20, edgecolor=colours[0], fc=green, linewidth=1)
     plt.xlabel('Number of Galaxies')
     plt.ylabel('Count')
     plt.show()
@@ -227,8 +232,8 @@ def find_expected_counts(test_cones, bins, redo=False):
      bins -- number of bins along the line of sight to maximum SN comoving distance.
      redo -- boolean that determines whether expected counts are calculated or loaded. Default false.
     """
-    chi_bin_widths, chi_bins, z_bins, z_bin_widths = create_chi_bins(0, max([max(test_cones[f'c{i+1}']['Zs'])
-                                                                             for i in range(len(test_cones))]), bins)
+    max_z = max([max(test_cones[f'c{i+1}']['Zs']) for i in range(len(test_cones))])
+    chi_bin_widths, chi_bins, z_bins, z_bin_widths = create_chi_bins(0, max_z, bins)
     limits = np.cumsum(z_bin_widths)
     if redo:
         expected = np.zeros((len(limits), len(test_cones)))
@@ -250,24 +255,25 @@ def find_expected_counts(test_cones, bins, redo=False):
         expected = pickle.load(pickle_in)
 
     expected = np.diff([np.mean(expected[i][:]) for i in range(len(limits))])
-    plt.plot([0, 5], [0, 0], color=[0.75, 0.75, 0.75], linestyle='--')
-    plt.plot(limits[1:], expected, marker='o', markersize=2.5)
-    plt.xlabel('z')
+    plt.plot([0, 5], [0, 0], color=grey, linestyle='--')
+    plt.plot(limits[1:], expected, marker='o', markersize=2.5, color=colours[0])
+    plt.xlabel('$z$')
     plt.ylabel('Expected Count')
-    plt.xlim([0, 5])
+    plt.xlim([0, 3])
     plt.show()
 
     return limits, expected, chi_bin_widths, chi_bins, z_bins
 
 
 def find_convergence(lenses, SNz, cut, cut2, limits):
+    # ################################# Still references globals; need to fix ##################################### #
     """Finds the convergence along each line of sight to a SN.
 
     Inputs:
      lenses -- dictionary containing all galaxies that contribute to lensing.
      SNz -- redshifts of each SN.
-     cut -- logical array of SNe that have z<0.65.
-     cut2 -- logical array of SNe that are <5sigma from mean.
+     cut -- logical array that select SNe that have z<0.65.
+     cut2 -- logical array that select SNe that are <5sigma from mean.
      limits -- bin edges.
     """
     chiSNs = []
@@ -296,7 +302,7 @@ def find_convergence(lenses, SNz, cut, cut2, limits):
         d_arr[f"{key}"] = (SN - exp[:len(SN)]) / exp[:(len(SN))]
         convergence[num] = general_convergence(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
                                                d_arr[f"{key}"], chiSNs[num])
-        conv_err[num] = general_convergence(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
+        conv_err[num] = convergence_error(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
                                             exp[:len(SN)], chiSNs[num])
         num += 1
 
@@ -307,45 +313,51 @@ def find_convergence(lenses, SNz, cut, cut2, limits):
     ax = plt.subplot2grid((1, 2), (0, 0))
     ax2 = plt.subplot2grid((1, 2), (0, 1))
     ax.set_ylabel("$\kappa$")
-    ax.set_xlabel("z")
+    ax.set_xlabel("$z$")
     ax2.set_xlabel("Count")
     ax.tick_params(labelsize=12)
     ax2.tick_params(labelsize=12)
     ax2.set_yticklabels([])
     plt.subplots_adjust(wspace=0, hspace=0)
-    ax.plot([0, 0.6], [0, 0], color=[0.75, 0.75, 0.75], linestyle='--')
+    ax.plot([0, 0.6], [0, 0], color=grey, linestyle='--')
     ax.axis([0, 0.6, -0.015, 0.02])
-    ax2.axis([0, 140, -0.015, 0.02])
-    ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
-    ax.plot(SNzs_new[cut2], convergence_new[cut2], linestyle='', marker='o', markersize=2)
-    ax2.hist(convergence_new[cut2], 50, orientation='horizontal', fc=blue, edgecolor=colours[0])
+    ax2.axis([0, 160, -0.015, 0.02])
+    # ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
+    ax.set_xticklabels([0, 0.2, 0.4, 0])
+    ax.plot(SNzs_new[cut2], convergence_new[cut2], linestyle='', marker='o', markersize=2, color=colours[0])
+    ax2.hist(convergence_new[cut2], bins=np.arange(-0.015, 0.02 + 0.001, 0.001), orientation='horizontal',
+             fc=green, edgecolor=colours[0])
     plt.show()
 
     return convergence_new
 
 
-def plot_Hubble(z, mu, mu_err, mu_diff, z_arr):
-    """Plots the Hubble diagram (distance modulus agaionst redshift), including the best fitting cosmology, and
+def plot_Hubble(z, mu, mu_err, OM=0.27, OL=0.73, max_x=0.6):
+    """Plots the Hubble diagram (distance modulus against redshift), including the best fitting cosmology, and
     residuals from best cosmology.
     """
+    z_arr = np.linspace(0.0, max(z) + 0.2, 1001)
+    cosm = 5 * np.log10((1 + z_arr) * comoving(z_arr, OM, OL) * 1000) + 25
+    cosm_interp = np.interp(z, z_arr, cosm)
+    mu_diff = mu - cosm_interp
     ax = plt.subplot2grid((2, 1), (0, 0))
     ax2 = plt.subplot2grid((2, 1), (1, 0))
     ax.set_ylabel("$\mu$")
-    ax2.set_xlabel("z")
+    ax2.set_xlabel("$z$")
     ax2.set_ylabel("$\Delta\mu$")
     plt.subplots_adjust(wspace=0, hspace=0)
     ax.set_xticklabels([])
     ax.tick_params(labelsize=12)
     ax.errorbar(z, mu, mu_err, linestyle='', linewidth=0.8, marker='o',
-                markersize=2, capsize=2, color=colours[3], zorder=0)
+                markersize=2, capsize=2, color='C3', zorder=0)
     ax.set_ylim([35, 45])
-    ax.set_xlim([0, 0.6])
-    ax.plot(z_arr, mu_cosm, linestyle='--', linewidth=0.8, color=colours[0], zorder=10)
+    ax.set_xlim([0, max_x])
+    ax.plot(z_arr, cosm, linestyle='--', linewidth=0.8, color='C0', zorder=10)
     ax2.errorbar(z, mu_diff, mu_err, linestyle='', linewidth=1, marker='o',
-                 markersize=2, capsize=2, color=colours[3], zorder=0)
-    ax2.plot(z_arr, np.zeros(len(z_arr)), zorder=10, color=colours[0], linewidth=0.8, linestyle='--')
+                 markersize=2, capsize=2, color='C3', zorder=0)
+    ax2.plot(z_arr, np.zeros(len(z_arr)), zorder=10, color='C0', linewidth=0.8, linestyle='--')
     ax2.set_ylim(-1.4, 1.4)
-    ax2.set_xlim([0, 0.6])
+    ax2.set_xlim([0, max_x])
     ax2.tick_params(labelsize=12)
     plt.show()
 
@@ -358,14 +370,31 @@ def find_correlation(conv, mu_diff):
      conv -- convergence.
      mu_diff -- residuals.
     """
+    conv_mean = np.mean(conv)
+    mu_mean = np.mean(mu_diff)
+    conv_std = np.std(conv)
+    mu_std = np.std(mu_diff)
+    r = 1 / (len(conv) - 1) * np.sum(((mu_diff - mu_mean) / mu_std) * ((conv - conv_mean) / conv_std))
+    r_err = np.sqrt((1 - r ** 2) / (len(conv) - 1))
+
+    conv_rank = rankdata(conv)
+    mu_rank = rankdata(mu_diff)
+    diff = np.abs(conv_rank - mu_rank)
+    rho = 1 - 6 / (len(conv) * (len(conv) ** 2 - 1)) * np.sum(diff ** 2)
+    rho_err = np.sqrt((1 - rho ** 2) / (len(conv) - 1))
+    print(f"Pearson Correlation: {round(r, 3)} +/- {round(r_err, 3)}.")
+    print(f"Spearman Rank: {round(rho, 3)} +/- {round(rho_err, 3)}.")
     grad = curve_fit(f, conv, mu_diff)[0]
-    fit = convergence_cut[cuts2] * grad
-    plt.plot(convergence_cut[cuts2], mu_diff_cut[cuts2], linestyle='', marker='o', markersize=2)
-    plt.plot(convergence_cut[cuts2], fit)
-    plt.xlabel('Magnitude from Convergence')
+    fit = conv * grad
+    plt.plot([min(conv), max(conv)], [0, 0], color=grey, linestyle='--')
+    plt.plot(conv, mu_diff, linestyle='', marker='o', markersize=2, color=colours[0])
+    plt.plot(conv, fit, color=colours[1], label=f'$\Delta\mu = {round(float(grad),3)}\kappa$')
+    plt.xlabel('$\kappa$')
     plt.ylabel('$\Delta\mu$')
     plt.xlim([-0.008, 0.011])
+    plt.legend(frameon=0, loc='lower right')
     plt.ylim([-0.3, 0.3])
+    plt.text(0.0038, 0.09, f'$\\rho$ = {round(rho, 3)} $\pm$ {round(rho_err, 3)}', fontsize=16)
     # print([convergence_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
     # print([mu_diff_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
     # print([SNmu_err_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
@@ -379,7 +408,7 @@ if __name__ == "__main__":
     # plot_cones(RAgal, RASN, DECgal, DECSN, zgal, zSN, lensing_gals, circles)
     cone_array = make_test_cones(RAgal, DECgal, zgal)
     bin_limits, exp, chi_widths, chis, zs = find_expected_counts(cone_array, 100)
-
+    print(max([max(cone_array[f'c{i+1}']['Zs']) for i in range(len(cone_array))]))
     SNzs = np.zeros(len(lensing_gals))
     SNmus = np.zeros(len(lensing_gals))
     SNmu_err = np.zeros(len(lensing_gals))
@@ -401,11 +430,11 @@ if __name__ == "__main__":
     mu_diff_cut = SNmus_cut - mu_cosm_interp
     mu_diff_std = np.std(mu_diff_cut)
     mu_diff_mean = np.mean(mu_diff_cut)
-    cuts2 = [-3.9 * mu_diff_std < mu_diff_cut[i] < 3.9 * mu_diff_std
+    cuts2 = [-3.9 * mu_diff_std < mu_diff_cut[i] < 3.9 * mu_diff_std  # and SNzs_cut[i] > 0.2
              for i in range(len(mu_diff_cut))]  # really broken
 
     convergence_cut = find_convergence(lensing_gals, SNzs, cuts1, cuts2, bin_limits)
 
-    plot_Hubble(SNzs_cut[cuts2], SNmus_cut[cuts2], SNmu_err_cut[cuts2], mu_diff_cut[cuts2], z_array)
+    plot_Hubble(SNzs_cut[cuts2], SNmus_cut[cuts2], SNmu_err_cut[cuts2], mu_diff_cut[cuts2])
 
     find_correlation(convergence_cut[cuts2], mu_diff_cut[cuts2])
