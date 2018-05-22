@@ -104,13 +104,7 @@ def sort_SN_gals(RA1, DEC1, RA2, DEC2, z1, z2, mu, mu_err, redo=False):
     if redo:
         lenses = {}
         for num, SRA, SDE, SZ, SM, SE in zip(np.linspace(0, len(RA2) - 1, len(RA2)), RA2, DEC2, z2, mu, mu_err):
-            lenses[f'SN{int(num)+1}'] = {}
-            lenses[f'SN{int(num)+1}']['RAs'] = []
-            lenses[f'SN{int(num)+1}']['DECs'] = []
-            lenses[f'SN{int(num)+1}']['Zs'] = []
-            lenses[f'SN{int(num)+1}']['SNZ'] = SZ
-            lenses[f'SN{int(num)+1}']['SNMU'] = SM
-            lenses[f'SN{int(num)+1}']['SNMU_ERR'] = SE
+            lenses[f'SN{int(num)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [], 'SNZ': SZ, 'SNMU': SM, 'SNMU_ERR': SE}
             for GRA, GDE, GZ in zip(RA1, DEC1, z1):
                 if (GRA - SRA) ** 2 + (GDE - SDE) ** 2 <= 0.2 ** 2:
                     lenses[f'SN{int(num)+1}']['RAs'].append(GRA)
@@ -199,9 +193,7 @@ def make_test_cones(RA1, DEC1, z1, redo=False):
     if redo:
         test_cones = {}
         for num, loc, in enumerate(tests):
-            test_cones[f'c{int(num)+1}'] = {}
-            test_cones[f'c{int(num)+1}']['Total'] = 0
-            test_cones[f'c{int(num)+1}']['Zs'] = []
+            test_cones[f'c{int(num)+1}'] = {'Total': 0, 'Zs': []}
             for GRA, GDE, GZ in zip(RA1, DEC1, z1):
                 if (GRA - loc[0]) ** 2 + (GDE - loc[1]) ** 2 <= 0.2 ** 2:
                     test_cones[f'c{int(num)+1}']['Zs'].append(GZ)

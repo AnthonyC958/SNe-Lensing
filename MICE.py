@@ -26,7 +26,7 @@ plt.rcParams['xtick.minor.visible'] = True
 plt.rcParams['ytick.minor.visible'] = True
 
 
-def find_convergence(gal_chi, gal_z, limits, exp, chi_widths, chi_bins, z_bins, gal_kappa, z_all, redo=False):
+def find_convergence(gal_chi, gal_z, limits, exp, chi_widths, chi_bins, z_bins, gal_kappa, data, redo=False):
     if redo:
         counts = {}
         num = 0
@@ -34,7 +34,8 @@ def find_convergence(gal_chi, gal_z, limits, exp, chi_widths, chi_bins, z_bins, 
             bin_c = range(int(np.argmin(np.abs(limits - z))))
             counts[f"g{num}"] = np.zeros(len(bin_c))
             for num2 in bin_c:
-                counts[f"g{num}"][num2] = sum([limits[num2] < z_all[i] <= limits[num2 + 1] for i in range(len(z_all))])
+                counts[f"g{num}"][num2] = sum([limits[num2] < data[f'SN{num+1}']['zs'][i] <= limits[num2 + 1]
+                                               for i in range(len(data[f'SN{num+1}']['zs']))])
             num += 1
             if num % 5 == 0:
                 print(f"Finished {num}/{len(gal_z)}")
@@ -43,7 +44,7 @@ def find_convergence(gal_chi, gal_z, limits, exp, chi_widths, chi_bins, z_bins, 
         num = 0
         d_arr = {}
         for key, SN in counts.items():
-            d_arr[f"{key}"] = (SN - exp[:len(SN)]) / exp[:(len(SN))]
+            d_arr[key] = (SN - exp[:len(SN)]) / exp[:(len(SN))]
             convergence[num] = general_convergence(chi_widths[:len(SN)], chi_bins[:len(SN)], z_bins[:len(SN)],
                                                    d_arr[f"{key}"], gal_chi[num])
             conv_err[num] = convergence_error(chi_widths[:len(SN)], chi_bins[:len(SN)], z_bins[:len(SN)],
@@ -72,8 +73,8 @@ def find_convergence(gal_chi, gal_z, limits, exp, chi_widths, chi_bins, z_bins, 
     plt.plot([0, 1.5], [0, 0], color=grey, linestyle='--')
     ax.axis([0, 1.5, -0.04, 0.14])
     ax2.axis([0, 270, -0.04, 0.14])
-    ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
-    ax.set_xticklabels([0, 0.2, 0.4, 0])
+    # ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
+    # ax.set_xticklabels([0, 0.2, 0.4, 0])
     ax.plot(gal_z, convergence, linestyle='', marker='o', markersize=2, color=colours[0], label="Cone Method")
     ax.plot(gal_z, gal_kappa, linestyle='', marker='o', markersize=2, color=colours[1], label="Actual Value")
     ax2.hist(convergence, bins=np.arange(-0.04, 0.14 + 0.025/4, 0.025/4), orientation='horizontal',
@@ -92,6 +93,7 @@ if __name__ == "__main__":
         # print(repr(hdul1[1].data['dec']))
 
         max_z = max(hdul1[1].data['z'])
+        print(len(hdul1[1].data['z']))
         redo = False
         bins = 100
         chi_bin_widths, chi_bins, z_bins, z_bin_widths = create_chi_bins(0, max_z, bins)
@@ -102,86 +104,86 @@ if __name__ == "__main__":
         kappas = hdul1[1].data['kappa']
         MICEdata = [RAs, DECs, zs, kappas]
 
-        loc = [(min(RAs) + max(RAs)) / 2, (min(DECs) + max(DECs)) / 2]
+    loc = [(min(RAs) + max(RAs)) / 2, (min(DECs) + max(DECs)) / 2]
+    counter = 0
+    if redo:
+        big_cone = {'zs': [], 'kaps': []}
+        for RA, DEC, z, kap in zip(RAs, DECs, zs, kappas):
+            if (RA - loc[0]) ** 2 + (DEC - loc[1]) ** 2 <= 3.0 ** 2 and z >= 0.01:
+                big_cone['zs'].append(z)
+                big_cone['kaps'].append(kap)
+                counter += 1
+            if counter % 10000 == 0:
+                print(f"Found {counter}/{len(RAs)}")
+
+        random.seed(1337)
+        rand_samp_size = 10
+        rand_gal_z = random.sample(list(zs), rand_samp_size)
+        indices = [np.argmin(np.abs(zs - rand_gal_z[i])) for i in range(rand_samp_size)]
+        rand_gal_kap = [kappas[indices[i]] for i in range(rand_samp_size)]
+        rand_gal_RA = [RAs[indices[i]] for i in range(rand_samp_size)]
+        rand_gal_DEC = [DECs[indices[i]] for i in range(rand_samp_size)]
+
+        rand_cones = {}
         counter = 0
-        if redo:
-            big_cone = {'zs': [], 'kaps': []}
-            for RA, DEC, z, kap in zip(RAs, DECs, zs, kappas):
-                if (RA - loc[0]) ** 2 + (DEC - loc[1]) ** 2 <= 3.0 ** 2 and z >= 0.01:
-                    big_cone['zs'].append(z)
-                    big_cone['kaps'].append(kap)
-                    counter += 1
-                if counter % 10000 == 0:
-                    print(f"Found {counter}/{len(RAs)}")
+        for randRA, randDEC, randZ, randKap in zip(rand_gal_RA, rand_gal_DEC, rand_gal_z, rand_gal_kap):
+            rand_cones[f'SN{int(counter)+1}'] = {'ras': [], 'decs': [], 'zs': [], 'zSN': randZ, 'kapSN': randKap}
+            for RA, DEC, z in zip(RAs, DECs, zs):
+                if (randRA - RA) ** 2 + (randDEC - DEC) ** 2 <= 0.2 ** 2 and z >= 0.01:
+                    rand_cones[f'SN{int(counter)+1}']['zs'].append(z)
+                    rand_cones[f'SN{int(counter)+1}']['ras'].append(RA)
+                    rand_cones[f'SN{int(counter)+1}']['decs'].append(DEC)
+            counter += 1
+            print(f"Sorted {counter}/{rand_samp_size}")
 
-            little_cone = {'zs': [], 'kaps': []}
-            counter = 0
-            for RA, DEC, z, kap in zip(RAs, DECs, zs, kappas):
-                if (RA - loc[0]) ** 2 + (DEC - loc[1]) ** 2 <= 0.2 ** 2 and z >= 0.01:
-                    little_cone['zs'].append(z)
-                    little_cone['kaps'].append(kap)
-                    counter += 1
-                if counter % 10000 == 0:
-                    print(f"Found {counter}/{len(RAs)}")
+        pickle_out = open("big_cone.pickle", "wb")
+        pickle.dump([big_cone, rand_cones], pickle_out)
+        pickle_out.close()
+    else:
+        pickle_in = open("big_cone.pickle", "rb")
+        cones = pickle.load(pickle_in)
+        big_cone = cones[0]
+        rand_cones = cones[1]
 
-            pickle_out = open("big_cone.pickle", "wb")
-            pickle.dump([big_cone, little_cone], pickle_out)
-            pickle_out.close()
-        else:
-            pickle_in = open("big_cone.pickle", "rb")
-            cones = pickle.load(pickle_in)
-            big_cone = cones[0]
-            little_cone = cones[1]
+    if redo:
+        MICEexpected = []
+        num = 0
+        for num1, lim in enumerate(lims):
+            MICEexpected.append(sum([big_cone['zs'][i] < lim for i in range(len(big_cone['zs']))]))
+            num += 1
+            print(f"Sorted {num}/{len(lims)}")
 
-        if redo:
-            MICEexpected = []
-            num = 0
-            for num1, lim in enumerate(lims):
-                MICEexpected.append(sum([big_cone['zs'][i] < lim for i in range(len(big_cone['zs']))]))
-                num += 1
-                print(f"Sorted {num}/{len(lims)}")
+        pickle_out = open("MICEexpected.pickle", "wb")
+        pickle.dump(MICEexpected, pickle_out)
+        pickle_out.close()
+    else:
+        pickle_in = open("MICEexpected.pickle", "rb")
+        MICEexpected = pickle.load(pickle_in)
 
-            pickle_out = open("MICEexpected.pickle", "wb")
-            pickle.dump(MICEexpected, pickle_out)
-            pickle_out.close()
-        else:
-            pickle_in = open("MICEexpected.pickle", "rb")
-            MICEexpected = pickle.load(pickle_in)
+    expected_big = np.diff([MICEexpected[i] for i in range(len(lims))])
+    expected = [expected_big[i] * (0.2 / 3.0) ** 2 for i in range(len(expected_big))]
+    plt.plot([0, 5], [0, 0], color=grey, linestyle='--')
+    plt.plot(lims[1:], expected, marker='o', markersize=2.5, color=colours[0])
+    plt.xlabel('$z$')
+    plt.ylabel('Expected Count')
+    plt.xlim([0, 1.5])
+    plt.show()
 
-        expected_big = np.diff([MICEexpected[i] for i in range(len(lims))])
-        expected = [expected_big[i] * (0.2 / 3.0) ** 2 for i in range(len(expected_big))]
-        plt.plot([0, 5], [0, 0], color=grey, linestyle='--')
-        plt.plot(lims[1:], expected, marker='o', markersize=2.5, color=colours[0])
-        plt.xlabel('$z$')
-        plt.ylabel('Expected Count')
-        plt.xlim([0, 1.5])
-        plt.show()
+    rand_gal_z = np.zeros(len(rand_cones))
+    rand_gal_kap = np.zeros(len(rand_cones))
+    c = 0
+    for _, supernova in rand_cones.items():
+        rand_gal_z[c] = supernova['zSN']
+        rand_gal_kap[c] = supernova['kapSN']
+        c += 1
 
-        if redo:
-            random.seed(1337)
-            rand_samp_size = 1000
-            sample = random.sample(little_cone['zs'], rand_samp_size)
-            indices = [np.argmin(np.abs(little_cone['zs'] - sample[i])) for i in range(rand_samp_size)]
-            kaps = [little_cone['kaps'][indices[i]] for i in range(rand_samp_size)]
-            random_gals = [sample, kaps]
-            pickle_out = open("random_gals.pickle", "wb")
-            pickle.dump(random_gals, pickle_out)
-            pickle_out.close()
-        else:
-            pickle_in = open("random_gals.pickle", "rb")
-            random_gals = pickle.load(pickle_in)
-            sample = random_gals[0]
-            kaps = random_gals[1]
-
-        ds = []
-        chis = []
-        for z in sample:
-            chi_to_z = comoving(np.linspace(0, z, 1000), 0.25, 0.75)
-            ds.append(chi_to_z[-1] * (1 + z))
-            chis.append(chi_to_z[-1])
-
-        mu = 5 * np.log10(np.array(ds) / 10 * 1E9)
-
-        # plot_Hubble(sample, mu, np.zeros(len(sample)), OM=0.25, OL=0.75, max_x=1.5)
-        conv = find_convergence(chis, sample, lims, expected, chi_bin_widths, chi_bins, z_bins, kaps, little_cone['zs'],
-                                redo=False)
+    ds = []
+    chis = []
+    for z in rand_gal_z:
+        chi_to_z = comoving(np.linspace(0, z, 1000), 0.25, 0.75)
+        ds.append(chi_to_z[-1] * (1 + z))
+        chis.append(chi_to_z[-1])
+    mu = 5 * np.log10(np.array(ds) / 10 * 1E9)
+    # plot_Hubble(sample, mu, np.zeros(len(sample)), OM=0.25, OL=0.75, max_x=1.5)
+    conv = find_convergence(chis, rand_gal_z, lims, expected, chi_bin_widths, chi_bins, z_bins, rand_gal_kap, rand_cones,
+                                redo=True)
