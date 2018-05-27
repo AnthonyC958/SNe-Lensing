@@ -4,7 +4,8 @@ import scipy.integrate as sp
 from matplotlib import rc
 from matplotlib.backends.backend_pdf import PdfPages
 
-colours = [[0, 165/255, 124/255], [253/255, 170/255, 0], 'C2', 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
+colours = [[0, 150/255, 100/255], [253/255, 170/255, 0], 'C2', 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
+grey = [0.75, 0.75, 0.75]
 h = 0.738
 H0 = 1000 * 100 * h  # km/s/Gpc
 c = 2.998E5  # km/s
@@ -65,6 +66,38 @@ def comoving(zs_array, OM=0.27, OL=0.73):
     return dist
 
 
+def b_comoving_integrand(a_val, OM=0.27, OL=0.73):
+    OK = 1 - OM - OL
+    return 1 / np.sqrt(a_val * OM + a_val ** 2 * OK + a_val ** 4 * OL)
+
+
+def b_propdist_integrand(a_val, OM=0.27, OL=0.73):
+    OK = 1 - OM - OL
+    return 1 / np.sqrt(OM / a_val + OK + a_val ** 2 * OL)
+
+
+def b_comoving(z1, z2, OM=0.27, OL=0.73, n=1001):
+    vecIntegrand = np.vectorize(b_comoving_integrand)
+    a1 = 1 / (1 + z2)  # backwards in a
+    a2 = 1 / (1 + z1)
+    a_arr = np.linspace(a1, a2, n)
+    integrands = vecIntegrand(a_arr, OM, OL)
+    comoving_coord = sp.cumtrapz(integrands, x=a_arr, initial=0)
+
+    return comoving_coord * c / H0
+
+
+def b_propdist(z1, z2, OM=0.27, OL=0.73, n=1001):
+    vecIntegrand = np.vectorize(b_propdist_integrand)
+    a1 = 1 / (1 + z2)  # backwards in a
+    a2 = 1 / (1 + z1)
+    a_arr = np.linspace(a1, a2, n)
+    integrands = vecIntegrand(a_arr, OM, OL)
+    comoving_coord = sp.cumtrapz(integrands, x=a_arr, initial=0)
+
+    return comoving_coord * c / H0
+
+
 def create_chi_bins(z_lo, z_hi, num_bins, plot=False):
     """Takes a line sight from z_lo to z_hi and divides it into bins even in comoving distance.
 
@@ -75,7 +108,7 @@ def create_chi_bins(z_lo, z_hi, num_bins, plot=False):
      plot -- boolean to create plot of chi versus z with bins. Defaults to False.
      """
     z_to_end = np.linspace(z_lo, z_hi, 1001)
-    chi_to_end = comoving(z_to_end)
+    chi_to_end = b_comoving(z_lo, z_hi)
     chi_start = chi_to_end[0]
     chi_end = chi_to_end[-1]
 
@@ -121,7 +154,7 @@ def create_z_bins(z_lo, z_hi, num_bins, plot=False):
 
     chi_values = np.linspace(0, 0, len(z_values))
     for k in range(len(z_values)):
-        chi = comoving(np.linspace(z_lo, z_values[k], 1001))
+        chi = b_comoving(z_lo, z_values[k])
         chi_values[k] = chi[-1]
 
     chi_bin_edges = chi_values[0::2]
@@ -132,7 +165,7 @@ def create_z_bins(z_lo, z_hi, num_bins, plot=False):
         plt.plot([z_bin_edges, z_bin_edges], [chi_bin_edges[0], chi_bin_edges[-1]], color=[0.75, 0.75, 0.75],
                  linestyle='-', linewidth=0.8)
         plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.75, 0.75, 0.75], linestyle='-', linewidth=0.8)
-        plt.plot(np.linspace(z_lo, z_hi, 1001), comoving(np.linspace(z_lo, z_hi, 1001)), color=colours[1])
+        plt.plot(np.linspace(z_lo, z_hi, 1001), b_comoving(z_lo, z_hi), color=colours[1])
         plt.plot(zs, chis, linestyle='', marker='o', markersize=3, color=colours[0])
         plt.xlabel(' $z$')
         
@@ -166,11 +199,18 @@ def single_d_convergence(chi_widths, chis, zs, index, density, SN_dist, OM=0.27)
 def single_d_convergence_z(z_widths, chi_widths, chis, zs, index, density, SN_dist, OM=0.27):
     """Same as single_d_convergence but for making dealing with bins equal in z.
     """
+    dist = np.interp(np.append(zs, [zs[-1]+z_widths[0]]), np.linspace(zs[0], zs[-1], 1001), b_propdist(zs[0], zs[-1]))
+    ddist_dz = np.diff(dist)
+    # plt.plot(np.linspace(0, 40, 1001), b_comoving(0, 40))
+    # plt.plot(zs, ddist_dz)
+    # plt.show()
     coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
     d_arr = np.linspace(0, 0, len(zs))
     d_arr[index] = density
     sf_arr = 1.0 / (1.0 + zs)
-    k_i = coeff * chis * chi_widths * (SN_dist - chis) / SN_dist * d_arr / sf_arr * (c * get_h_inv(zs) / H0)
+    k_i = coeff * chis * z_widths * (SN_dist - chis) / SN_dist * d_arr / sf_arr# ** 2 * ddist_dz
+
+
     return np.sum(k_i)
 
 
@@ -215,7 +255,7 @@ def calc_single_d(chi_widths, chis, zs, z_widths, z_SN, use_chi=True):
      zs -- the mean redshift of each bin, for the scale factor.
      z_SN -- the reshift of the SN.
      """
-    comoving_to_SN = comoving(np.linspace(0, z_SN, 1001))
+    comoving_to_SN = b_comoving(0, z_SN)
     chi_SN = comoving_to_SN[-1]
 
     convergence = np.linspace(0, 0, len(chis))
@@ -239,7 +279,7 @@ def plot_smoothed_d(chi_widths, chis, zs, z_SN):
      zs -- the mean redshift of each bin, for the scale factor.
      z_SN -- the reshift of the SN.
      """
-    comoving_to_SN = comoving(np.linspace(0, z_SN, 1001))
+    comoving_to_SN = b_comoving(0, z_SN)
     chi_SN = comoving_to_SN[-1]
 
     size = 2 * len(zs)//2 + 1
@@ -299,7 +339,7 @@ def compare_z_chi(conv_c_arr, conv_z_arr, chi_bins_c, chi_bins_z, z_bins_z, SN_d
     plt.plot([SN_dist / 2, SN_dist / 2], [0, 1.1 * max(conv_c_arr)], linestyle='--', color=[0.75, 0.75, 0.75],
              linewidth=1)
     plt.plot(chi_bins_c, conv_c_arr, label='Even $\chi$', color=colours[0])
-    plt.plot(chi_bins_z, conv_z_arr / (get_h_inv(z_bins_z)), label='Even $z$', color=colours[1])
+    plt.plot(chi_bins_z, conv_z_arr, label='Even $z$', color=colours[1])
     plt.xlabel("$\chi_{Overdensity}$ (Gpc)")
     plt.ylabel("$\kappa$")
     
@@ -311,7 +351,7 @@ def compare_z_chi(conv_c_arr, conv_z_arr, chi_bins_c, chi_bins_z, z_bins_z, SN_d
              color=[0.75, 0.75, 0.75], linewidth=1)
     plt.plot(z_binsc, conv_c_arr, label='Even $\chi$', color=colours[0])
     print("Peak at z =", z_binsc[np.argmin(np.abs(conv_c_arr - max(conv_c_arr)))])
-    plt.plot(z_bins_z, conv_z_arr / (get_h_inv(z_bins_z)), label='Even $z$', color=colours[1])
+    plt.plot(z_bins_z, conv_z_arr, label='Even $z$', color=colours[1])
     plt.xlabel("$z_{Overdensity}$")
     plt.ylabel("$\kappa$")
     plt.legend(frameon=0)
@@ -336,7 +376,7 @@ def smoothed_m_convergence(tests, OM=0.27):
         conv[num] = single_d_convergence(comoving_binwidths, comoving_bins, z_bins, len(z_bins) // 2, d_m, SN_chi)
         bin_lengths[num] = round(1000 * comoving_binwidths[0], 1)
     plt.plot(test_range[10::], conv[10::], label='$M_{{cluster}} = 10^{0} M_\odot$'.format({mass_mag}),
-             color=colours[1])
+             color=colours[0])
     plt.plot(test_range[10::], np.zeros(len(test_range[10::])), color=[0.75, 0.75, 0.75], linestyle='--')
     plt.xticks(test_range[10::tests // 20], bin_lengths[10::tests // 20], rotation=45)
     plt.xlabel("Bin length (Mpc)")
@@ -347,17 +387,18 @@ def smoothed_m_convergence(tests, OM=0.27):
 
 
 if __name__ == "__main__":
-    SN_redshift = 7.0
+    SN_redshift = 1.0
     num_bin = 100
 
-    chi_to_SN = comoving(np.linspace(0, SN_redshift, 501))
+    chi_to_SN = b_comoving(0, SN_redshift)
+    # chi_to_SN = b_comoving(0, SN_redshift)
     SN_chi = chi_to_SN[-1]
     print("SN redshift", SN_redshift, "\nSN comoving distace", SN_chi)
     (comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc) = create_chi_bins(0, SN_redshift, num_bin)
     (comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz) = create_z_bins(0, SN_redshift, num_bin)
 
     single_conv_c = calc_single_d(comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc, SN_redshift)
-    single_conv_z = calc_single_d(comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz, SN_redshift)
+    single_conv_z = calc_single_d(comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz, SN_redshift, use_chi=True)
     plot_smoothed_d(comoving_binwidthsc, comoving_binsc, z_binsc, SN_redshift)
 
     compare_z_chi(single_conv_c, single_conv_z, comoving_binsc, comoving_binsz, z_binsz, SN_chi, SN_redshift)

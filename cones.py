@@ -6,10 +6,10 @@ from scipy.optimize import curve_fit
 from scipy.stats import rankdata
 import pickle
 
-colours = [[0, 165/255, 124/255], [253/255, 170/255, 0], 'C2', 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
+colours = [[0, 150/255, 100/255], [253/255, 170/255, 0], 'C2', 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
 blue = [23/255, 114/255, 183/255, 0.75]
 orange = [255/255, 119/255, 15/255, 0.75]
-green = [0, 165/255, 124/255, 0.75]
+green = [0, 150/255, 100/255, 0.75]
 yellow = [253/255, 170/255, 0, 0.75]
 grey = [0.75, 0.75, 0.75]
 names = ['STRIPE82_SPECTROSCOPIC_CHAZ_NOTCLEANED_ms77.fit', 'boss_206+SDSS_213_all_cuts_new_mu_dmu1_new.fits']
@@ -324,16 +324,55 @@ def find_convergence(lenses, SNz, cut, cut2, limits):
     return convergence_new
 
 
-def plot_Hubble(z, mu, mu_err, OM=0.27, OL=0.73, max_x=0.6):
-    """Plots the Hubble diagram (distance modulus against redshift), including the best fitting cosmology, and
+# def plot_Hubble(z, mu, mu_err, OM=0.27, OL=0.73, max_x=0.6):
+#     """Plots the Hubble diagram (distance modulus against redshift), including the best fitting cosmology, and
+#     residuals from best cosmology.
+#     """
+#     z_arr = np.linspace(0.0, max(z) + 0.2, 1001)
+#     cosm = 5 * np.log10((1 + z_arr) * b_comoving(0, max(z), OM, OL) * 1000) + 25
+#     cosm_interp = np.interp(z, z_arr, cosm)
+#     mu_diff = mu - cosm_interp
+#     ax = plt.subplot2grid((2, 1), (0, 0))
+#     ax2 = plt.subplot2grid((2, 1), (1, 0))
+#     ax.set_ylabel("$\mu$")
+#     ax2.set_xlabel("$z$")
+#     ax2.set_ylabel("$\Delta\mu$")
+#     plt.subplots_adjust(wspace=0, hspace=0)
+#     ax.set_xticklabels([])
+#     ax.tick_params(labelsize=12)
+#     ax.errorbar(z, mu, mu_err, linestyle='', linewidth=0.8, marker='o',
+#                 markersize=2, capsize=2, color='C3', zorder=0)
+#     ax.set_ylim([35, 45])
+#     ax.set_xlim([0, max_x])
+#     ax.plot(z_arr, cosm, linestyle='--', linewidth=0.8, color='C0', zorder=10)
+#     ax2.errorbar(z, mu_diff, mu_err, linestyle='', linewidth=1, marker='o',
+#                  markersize=2, capsize=2, color='C3', zorder=0)
+#     ax2.plot(z_arr, np.zeros(len(z_arr)), zorder=10, color='C0', linewidth=0.8, linestyle='--')
+#     ax2.set_ylim(-1.4, 1.4)
+#     ax2.set_xlim([0, max_x])
+#     ax2.tick_params(labelsize=12)
+#     ax.axvspan(0, 0.2, alpha=0.1, color=colours[1])
+#     ax.axvspan(0.2, 0.6, alpha=0.1, color=colours[0])
+#     ax2.axvspan(0, 0.2, alpha=0.1, color=colours[1])
+#     ax2.axvspan(0.2, 0.6, alpha=0.1, color=colours[0])
+#     ax.text(0.05, 41, 'Peculiar\nVelocities', color=colours[1], fontsize=16)
+#     ax.text(0.35, 38, 'Lensing', color=colours[0], fontsize=16)
+#
+#     plt.show()
+
+
+def plot_Hubble(z, mu, mu_err, mu_diff, z_arr):
+    """Plots the Hubble diagram (distance modulus agaionst redshift), including the best fitting cosmology, and
     residuals from best cosmology.
     """
-    z_arr = np.linspace(0.0, max(z) + 0.2, 1001)
-    cosm = 5 * np.log10((1 + z_arr) * comoving(z_arr, OM, OL) * 1000) + 25
-    cosm_interp = np.interp(z, z_arr, cosm)
-    mu_diff = mu - cosm_interp
     ax = plt.subplot2grid((2, 1), (0, 0))
     ax2 = plt.subplot2grid((2, 1), (1, 0))
+    ax.axvspan(0, 0.2, alpha=0.1, color=colours[1])
+    ax.axvspan(0.2, 0.6, alpha=0.1, color=colours[0])
+    ax2.axvspan(0, 0.2, alpha=0.1, color=colours[1])
+    ax2.axvspan(0.2, 0.6, alpha=0.1, color=colours[0])
+    ax.text(0.05, 41, 'Peculiar\nVelocities', color=colours[1], fontsize=16)
+    ax.text(0.35, 38, 'Lensing', color=colours[0], fontsize=16)
     ax.set_ylabel("$\mu$")
     ax2.set_xlabel("$z$")
     ax2.set_ylabel("$\Delta\mu$")
@@ -343,14 +382,15 @@ def plot_Hubble(z, mu, mu_err, OM=0.27, OL=0.73, max_x=0.6):
     ax.errorbar(z, mu, mu_err, linestyle='', linewidth=0.8, marker='o',
                 markersize=2, capsize=2, color='C3', zorder=0)
     ax.set_ylim([35, 45])
-    ax.set_xlim([0, max_x])
-    ax.plot(z_arr, cosm, linestyle='--', linewidth=0.8, color='C0', zorder=10)
+    ax.set_xlim([0, 0.6])
+    ax.plot(z_arr, mu_cosm, linestyle='--', linewidth=0.8, color='C0', zorder=10)
     ax2.errorbar(z, mu_diff, mu_err, linestyle='', linewidth=1, marker='o',
                  markersize=2, capsize=2, color='C3', zorder=0)
     ax2.plot(z_arr, np.zeros(len(z_arr)), zorder=10, color='C0', linewidth=0.8, linestyle='--')
     ax2.set_ylim(-1.4, 1.4)
-    ax2.set_xlim([0, max_x])
+    ax2.set_xlim([0, 0.6])
     ax2.tick_params(labelsize=12)
+
     plt.show()
 
 
@@ -422,11 +462,12 @@ if __name__ == "__main__":
     mu_diff_cut = SNmus_cut - mu_cosm_interp
     mu_diff_std = np.std(mu_diff_cut)
     mu_diff_mean = np.mean(mu_diff_cut)
-    cuts2 = [-3.9 * mu_diff_std < mu_diff_cut[i] < 3.9 * mu_diff_std  # and SNzs_cut[i] > 0.2
+    cuts2 = [-3.9 * mu_diff_std < mu_diff_cut[i] < 3.9 * mu_diff_std and SNzs_cut[i] > 0.2
              for i in range(len(mu_diff_cut))]  # really broken
 
     convergence_cut = find_convergence(lensing_gals, SNzs, cuts1, cuts2, bin_limits)
 
-    plot_Hubble(SNzs_cut[cuts2], SNmus_cut[cuts2], SNmu_err_cut[cuts2], mu_diff_cut[cuts2])
+    # plot_Hubble(SNzs_cut[cuts2], SNmus_cut[cuts2], SNmu_err_cut[cuts2], mu_diff_cut[cuts2])
+    plot_Hubble(SNzs_cut[cuts2], SNmus_cut[cuts2], SNmu_err_cut[cuts2], mu_diff_cut[cuts2], z_array)
 
     find_correlation(convergence_cut[cuts2], mu_diff_cut[cuts2])
