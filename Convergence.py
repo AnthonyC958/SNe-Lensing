@@ -1,10 +1,15 @@
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import scipy.integrate as sp
 from matplotlib import rc
 from matplotlib.backends.backend_pdf import PdfPages
 
 colours = [[0, 150/255, 100/255], [253/255, 170/255, 0], 'C2', 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
+blue = [23/255, 114/255, 183/255, 0.75]
+orange = [255/255, 119/255, 15/255, 0.75]
+green = [0, 150/255, 100/255, 0.25]
+yellow = [253/255, 170/255, 0, 0.75]
 grey = [0.75, 0.75, 0.75]
 h = 0.738
 H0 = 1000 * 100 * h  # km/s/Gpc
@@ -176,7 +181,7 @@ def create_z_bins(z_lo, z_hi, num_bins, plot=False):
     return chi_widths, chis, zs, z_widths
 
 
-def single_d_convergence(chi_widths, chis, zs, index, density, SN_dist, OM=0.27):
+def single_d_convergence(chi_widths, chis, zs, index, mass, SN_dist, OM=0.27):
     """Calculates convergence along the line of sight for a single overdensity in redshift bin i.
 
     Inputs:
@@ -190,27 +195,30 @@ def single_d_convergence(chi_widths, chis, zs, index, density, SN_dist, OM=0.27)
     """
     coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
     d_arr = np.linspace(0, 0, len(zs))
-    d_arr[index] = density
+    rho_0 = 3 * OM * H0 ** 2 / (8 * np.pi * G)
+    rho_bar = 1 / (1 + zs[index]) ** 3 * rho_0
+    rho = 10E17
+    d_m = rho / rho_bar - 1
+    d_arr[index] = d_m
+    print(d_arr[index])
     sf_arr = 1.0 / (1.0 + zs)
     k_i = coeff * chis * chi_widths * (SN_dist - chis) / SN_dist * d_arr / sf_arr
     return np.sum(k_i)
 
 
-def single_d_convergence_z(z_widths, chi_widths, chis, zs, index, density, SN_dist, OM=0.27):
+def single_d_convergence_z(z_widths, chi_widths, chis, zs, index, mass, SN_dist, OM=0.27):
     """Same as single_d_convergence but for making dealing with bins equal in z.
     """
-    dist = np.interp(np.append(zs, [zs[-1]+z_widths[0]]), np.linspace(zs[0], zs[-1], 1001), b_propdist(zs[0], zs[-1]))
-    ddist_dz = np.diff(dist)
-    # plt.plot(np.linspace(0, 40, 1001), b_comoving(0, 40))
-    # plt.plot(zs, ddist_dz)
-    # plt.show()
     coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
     d_arr = np.linspace(0, 0, len(zs))
-    d_arr[index] = density
+    rho_0 = 3 * OM * H0 ** 2 / (8 * np.pi * G)
+    rho_bar = 1 / (1 + zs[index]) ** 3 * rho_0
+    rho = 10E17
+    d_m = rho / rho_bar - 1
+    d_arr[index] = d_m
+    print(d_arr[index])
     sf_arr = 1.0 / (1.0 + zs)
-    k_i = coeff * chis * z_widths * (SN_dist - chis) / SN_dist * d_arr / sf_arr# ** 2 * ddist_dz
-
-
+    k_i = coeff * chis * z_widths * (SN_dist - chis) / SN_dist * d_arr / sf_arr * c / H0 * get_h_inv(zs)
     return np.sum(k_i)
 
 
@@ -259,12 +267,12 @@ def calc_single_d(chi_widths, chis, zs, z_widths, z_SN, use_chi=True):
     chi_SN = comoving_to_SN[-1]
 
     convergence = np.linspace(0, 0, len(chis))
-    delta = 1.0
+    mass = MSOL * 10 ** 15
     for i in range(0, len(chis)):
         if use_chi:
-            convergence[i] = single_d_convergence(chi_widths, chis, zs, i, delta, chi_SN)
+            convergence[i] = single_d_convergence(chi_widths, chis, zs, i, mass, chi_SN)
         else:
-            convergence[i] = single_d_convergence_z(z_widths, chi_widths, chis, zs, i, delta, chi_SN)
+            convergence[i] = single_d_convergence_z(z_widths, chi_widths, chis, zs, i, mass, chi_SN)
 
     return convergence
 
@@ -320,8 +328,20 @@ def plot_smoothed_d(chi_widths, chis, zs, z_SN):
     plt.legend(frameon=0)
     plt.xticks([0, 12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100], [0, 25, 50, 75, 100, 75, 50, 25, 0])
     plt.axis([0, size - 1, min(convergence)-0.0003, max(convergence)+0.0003])
-
     plt.show()
+
+    # for array in delta_cor[:len(delta_cor) // 2]:
+    #     plt.bar(chis, array, width=chi_widths[0], edgecolor=[colours[0]]*len(chis), fc=green)
+    #     plt.tick_params(labelsize=26)
+    #     plt.xlabel("$\chi$ (Gpc)", fontsize=30)
+    #     plt.ylabel("$\delta_i$", fontsize=30)
+    #     plt.plot([-0.2, 8.68563], [0, 0], color='k', linestyle='-')
+    #     plt.xlim([-0.2, 8.68563])
+    #     plt.ylim([-0.08, 1])
+    # fig = matplotlib.pyplot.gcf()
+    # fig.tight_layout()
+    # fig.set_size_inches(7, 5.5)
+    # plt.show()
 
 
 def compare_z_chi(conv_c_arr, conv_z_arr, chi_bins_c, chi_bins_z, z_bins_z, SN_dist, z_SN):
@@ -344,7 +364,7 @@ def compare_z_chi(conv_c_arr, conv_z_arr, chi_bins_c, chi_bins_z, z_bins_z, SN_d
     plt.ylabel("$\kappa$")
     
     plt.legend(frameon=0)
-    plt.axis([0, SN_dist, 0, 1.1 * max(conv_c_arr)])
+    # plt.axis([0, SN_dist, 0, 1.1 * max(conv_c_arr)])
     plt.show()
 
     plt.plot([z_SN / 2, z_SN / 2], [0, 1.1 * max(conv_c_arr)], linestyle='--',
@@ -355,8 +375,8 @@ def compare_z_chi(conv_c_arr, conv_z_arr, chi_bins_c, chi_bins_z, z_bins_z, SN_d
     plt.xlabel("$z_{Overdensity}$")
     plt.ylabel("$\kappa$")
     plt.legend(frameon=0)
-    
-    plt.axis([0, z_SN, 0, 1.1 * max(conv_c_arr)])
+
+    # plt.axis([0, z_SN, 0, 1.1 * max(conv_c_arr)])
     plt.show()
 
 
@@ -373,7 +393,7 @@ def smoothed_m_convergence(tests, OM=0.27):
         vol_bin = (comoving_binwidths[0] * (1 + z_bins[len(z_bins) // 2])) * np.pi * cone_rad ** 2
         Hz = get_h_inv(z_bins[len(z_bins) // 2]) ** (-1) * H0
         d_m = 8 * np.pi * G * mass / (3 * OM * vol_bin * Hz ** 2 * 3.086E31) - 1
-        conv[num] = single_d_convergence(comoving_binwidths, comoving_bins, z_bins, len(z_bins) // 2, d_m, SN_chi)
+        conv[num] = single_d_convergence(comoving_binwidths, comoving_bins, z_bins, len(z_bins) // 2, mass, SN_chi)
         bin_lengths[num] = round(1000 * comoving_binwidths[0], 1)
     plt.plot(test_range[10::], conv[10::], label='$M_{{cluster}} = 10^{0} M_\odot$'.format({mass_mag}),
              color=colours[0])
@@ -398,7 +418,7 @@ if __name__ == "__main__":
     (comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz) = create_z_bins(0, SN_redshift, num_bin)
 
     single_conv_c = calc_single_d(comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc, SN_redshift)
-    single_conv_z = calc_single_d(comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz, SN_redshift, use_chi=True)
+    single_conv_z = calc_single_d(comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz, SN_redshift, use_chi=False)
     plot_smoothed_d(comoving_binwidthsc, comoving_binsc, z_binsc, SN_redshift)
 
     compare_z_chi(single_conv_c, single_conv_z, comoving_binsc, comoving_binsz, z_binsz, SN_chi, SN_redshift)

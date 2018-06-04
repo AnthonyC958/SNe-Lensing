@@ -87,6 +87,11 @@ def find_convergence(gal_chi, gal_z, limits, exp, chi_widths, chi_bins, z_bins, 
     ax.legend(frameon=0)
     plt.show()
 
+    plt.plot(gal_kappa, convergence, linestyle='', marker='o', markersize=2, color=colours[0])
+    plt.plot(gal_kappa, gal_kappa, linestyle='--', color=colours[1])
+    plt.ylim([-0.05, 0.04])
+    plt.show()
+
     return convergence
 
 

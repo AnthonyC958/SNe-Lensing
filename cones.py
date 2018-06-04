@@ -435,9 +435,9 @@ def find_correlation(conv, mu_diff):
 
 
 if __name__ == "__main__":
-    (RAgal, DECgal, RASN, DECSN, circles, zgal, zSN, muSN, mu_errSN) = get_data()
-    lensing_gals = sort_SN_gals(RAgal, DECgal, RASN, DECSN, zgal, zSN, muSN, mu_errSN)
-    # plot_cones(RAgal, RASN, DECgal, DECSN, zgal, zSN, lensing_gals, circles)
+    (RAgal, DECgal, RASN, DECSN, circles, zgal, zSN, muSN, mu_errSN) = get_data(new_data=False)
+    lensing_gals = sort_SN_gals(RAgal, DECgal, RASN, DECSN, zgal, zSN, muSN, mu_errSN, redo=False)
+    plot_cones(RAgal, RASN, DECgal, DECSN, zgal, zSN, lensing_gals, circles)
     cone_array = make_test_cones(RAgal, DECgal, zgal)
     bin_limits, exp, chi_widths, chis, zs = find_expected_counts(cone_array, 100)
     print(max([max(cone_array[f'c{i+1}']['Zs']) for i in range(len(cone_array))]))
@@ -462,12 +462,12 @@ if __name__ == "__main__":
     mu_diff_cut = SNmus_cut - mu_cosm_interp
     mu_diff_std = np.std(mu_diff_cut)
     mu_diff_mean = np.mean(mu_diff_cut)
-    cuts2 = [-3.9 * mu_diff_std < mu_diff_cut[i] < 3.9 * mu_diff_std and SNzs_cut[i] > 0.2
+    cuts2 = [-3.9 * mu_diff_std < mu_diff_cut[i] < 3.9 * mu_diff_std# and SNzs_cut[i] > 0.2
              for i in range(len(mu_diff_cut))]  # really broken
 
     convergence_cut = find_convergence(lensing_gals, SNzs, cuts1, cuts2, bin_limits)
 
     # plot_Hubble(SNzs_cut[cuts2], SNmus_cut[cuts2], SNmu_err_cut[cuts2], mu_diff_cut[cuts2])
-    plot_Hubble(SNzs_cut[cuts2], SNmus_cut[cuts2], SNmu_err_cut[cuts2], mu_diff_cut[cuts2], z_array)
+    # plot_Hubble(SNzs_cut[cuts2], SNmus_cut[cuts2], SNmu_err_cut[cuts2], mu_diff_cut[cuts2], z_array)
 
     find_correlation(convergence_cut[cuts2], mu_diff_cut[cuts2])
