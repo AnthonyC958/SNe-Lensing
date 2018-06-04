@@ -423,5 +423,5 @@ if __name__ == "__main__":
 
     compare_z_chi(single_conv_c, single_conv_z, comoving_binsc, comoving_binsz, z_binsz, SN_chi, SN_redshift)
 
-    num_test = 800
-    smoothed_m_convergence(num_test)
+    # num_test = 800
+    # smoothed_m_convergence(num_test)

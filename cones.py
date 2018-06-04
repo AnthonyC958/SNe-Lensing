@@ -104,7 +104,8 @@ def sort_SN_gals(RA1, DEC1, RA2, DEC2, z1, z2, mu, mu_err, redo=False):
     if redo:
         lenses = {}
         for num, SRA, SDE, SZ, SM, SE in zip(np.linspace(0, len(RA2) - 1, len(RA2)), RA2, DEC2, z2, mu, mu_err):
-            lenses[f'SN{int(num)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [], 'SNZ': SZ, 'SNMU': SM, 'SNMU_ERR': SE}
+            lenses[f'SN{int(num)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [], 'SNZ': SZ, 'SNMU': SM, 'SNMU_ERR': SE,
+                                         'SNRA': SRA, 'SNDEC': SDE}
             for GRA, GDE, GZ in zip(RA1, DEC1, z1):
                 if (GRA - SRA) ** 2 + (GDE - SDE) ** 2 <= 0.2 ** 2:
                     lenses[f'SN{int(num)+1}']['RAs'].append(GRA)
@@ -122,15 +123,14 @@ def sort_SN_gals(RA1, DEC1, RA2, DEC2, z1, z2, mu, mu_err, redo=False):
     return lenses
 
 
-def plot_cones(RA1, RA2, DEC1, DEC2, z1, z2, lenses, patches):
+def plot_cones(RA1, DEC1, z1, lenses, patches):
     """Plots all galaxies and SNe along with visualisation of cones and galaxies contributing to lensing.
 
     Input:
-     RA1 -- right ascensions of galaxies.
-     RA2 -- right ascensions of SNe.
-     DEC1 -- declinations of galaxies.
-     DEC2 -- declinations of SNe.
-     lenses -- sorted galaxy dictionary.
+     RA1 -- right ascensions of all galaxies.
+     DEC1 -- declinations of all galaxies.
+     z1 -- redshifts of all galaxies.
+     lenses -- dictionary of galaxies into cones.
      patches -- circles that represent the cones in the plot.
     """
     fig, ax = plt.subplots()
@@ -144,12 +144,18 @@ def plot_cones(RA1, RA2, DEC1, DEC2, z1, z2, lenses, patches):
     for SN, dict1, in lenses.items():
         RAs = np.array(dict1['RAs'])
         DECs = np.array(dict1['DECs'])
-        indices1 = dict1['Zs'] < dict1['SNZ']
+        indices1 = dict1['Zs'] <= dict1['SNZ']
         ax.plot(RAs[indices1], DECs[indices1], marker='o', linestyle='', markersize=3, color=colours[0],
                 label="Foreground" if SN == 'SN1' else "")
     p = PatchCollection(patches, alpha=0.4, color=colours[0])
     ax.add_collection(p)
-    ax.plot(RA2, DEC2, marker='o', linestyle='', markersize=3, label='Supernova', color=colours[1])
+    SNRA = []
+    SNDEC = []
+    for SN, dict1, in lenses.items():
+        SNRA.append(dict1['SNRA'])
+        SNDEC.append(dict1['SNDEC'])
+
+    ax.plot(SNRA, SNDEC, marker='o', linestyle='', markersize=3, label='Supernova', color=colours[1])
     plt.xlabel('$\\alpha$')
     plt.ylabel('$\delta$')
     plt.legend(loc='lower right')
@@ -159,16 +165,16 @@ def plot_cones(RA1, RA2, DEC1, DEC2, z1, z2, lenses, patches):
     plt.tick_params(axis='both', which='both', top=False, bottom=False, left=False, right=False)
     plt.show()
 
-    labels = ['Galaxies', 'Supernovae']
-    cols = [green, yellow]
-    for num, z in enumerate([z1, z2]):
-        plt.hist([i for i in z if i <= 0.6], bins=np.arange(0, 0.6 + 0.025, 0.025), normed='max', linewidth=1,
-                 fc=cols[num], label=f'{labels[num]}', edgecolor=colours[num])
-    plt.xlabel('$z$')
-    plt.ylabel('Normalised Count')
-    plt.legend(frameon=0)
-    
-    plt.show()
+    # labels = ['Galaxies', 'Supernovae']
+    # cols = [green, yellow]
+    # for num, z in enumerate([z1, z2]):
+    #     plt.hist([i for i in z if i <= 0.6], bins=np.arange(0, 0.6 + 0.025, 0.025), normed='max', linewidth=1,
+    #              fc=cols[num], label=f'{labels[num]}', edgecolor=colours[num])
+    # plt.xlabel('$z$')
+    # plt.ylabel('Normalised Count')
+    # plt.legend(frameon=0)
+    #
+    # plt.show()
 
 
 def make_test_cones(RA1, DEC1, z1, redo=False):
@@ -246,15 +252,15 @@ def find_expected_counts(test_cones, bins, redo=False):
         pickle_in = open("expected.pickle", "rb")
         expected = pickle.load(pickle_in)
 
-    expected = np.diff([np.mean(expected[i][:]) for i in range(len(limits))])
+    expected = np.array([np.mean(expected[i][:]) for i in range(len(limits))])
     plt.plot([0, 5], [0, 0], color=grey, linestyle='--')
-    plt.plot(limits[1:], expected, marker='o', markersize=2.5, color=colours[0])
+    plt.plot(limits, expected, marker='o', markersize=2.5, color=colours[0])
     plt.xlabel('$z$')
     plt.ylabel('Expected Count')
     plt.xlim([0, 3])
     plt.show()
 
-    return limits, expected, chi_bin_widths, chi_bins, z_bins
+    return limits, np.diff(expected), chi_bin_widths, chi_bins, z_bins
 
 
 def find_convergence(lenses, SNz, cut, cut2, limits):
@@ -300,8 +306,20 @@ def find_convergence(lenses, SNz, cut, cut2, limits):
 
     convergence_new = convergence[cut]
     conv_err_new = conv_err[cut]
-    conv_err_new += 0
 
+    bins = np.linspace(0.025, 0.575, 12)
+    edges = np.linspace(0, 0.6, 13)
+
+    mean_kappa = []
+    standard_error = []
+    for bin in bins:
+        kappas = []
+        for z, kappa, err in zip(SNzs_new[cut2], convergence_new[cut2], conv_err_new[cut2]):
+            if bin - 0.025 < z <= bin + 0.025:
+                kappas.append(kappa)
+
+        mean_kappa.append(np.mean(kappas))
+        standard_error.append(np.std(kappas) / np.sqrt(len(kappas)))
     ax = plt.subplot2grid((1, 2), (0, 0))
     ax2 = plt.subplot2grid((1, 2), (0, 1))
     ax.set_ylabel("$\kappa$")
@@ -312,8 +330,9 @@ def find_convergence(lenses, SNz, cut, cut2, limits):
     ax2.set_yticklabels([])
     plt.subplots_adjust(wspace=0, hspace=0)
     ax.plot([0, 0.6], [0, 0], color=grey, linestyle='--')
-    ax.axis([0, 0.6, -0.015, 0.02])
-    ax2.axis([0, 160, -0.015, 0.02])
+    ax.axis([0, 0.6, -0.01, 0.01])
+    ax.errorbar(bins, mean_kappa, standard_error, marker='s', color='r', markersize=3, capsize=3)
+    ax2.axis([0, 180, -0.01, 0.01])
     # ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
     ax.set_xticklabels([0, 0.2, 0.4, 0])
     ax.plot(SNzs_new[cut2], convergence_new[cut2], linestyle='', marker='o', markersize=2, color=colours[0])
@@ -367,12 +386,12 @@ def plot_Hubble(z, mu, mu_err, mu_diff, z_arr):
     """
     ax = plt.subplot2grid((2, 1), (0, 0))
     ax2 = plt.subplot2grid((2, 1), (1, 0))
-    ax.axvspan(0, 0.2, alpha=0.1, color=colours[1])
-    ax.axvspan(0.2, 0.6, alpha=0.1, color=colours[0])
-    ax2.axvspan(0, 0.2, alpha=0.1, color=colours[1])
-    ax2.axvspan(0.2, 0.6, alpha=0.1, color=colours[0])
-    ax.text(0.05, 41, 'Peculiar\nVelocities', color=colours[1], fontsize=16)
-    ax.text(0.35, 38, 'Lensing', color=colours[0], fontsize=16)
+    # ax.axvspan(0, 0.2, alpha=0.1, color=colours[1])
+    # ax.axvspan(0.2, 0.6, alpha=0.1, color=colours[0])
+    # ax2.axvspan(0, 0.2, alpha=0.1, color=colours[1])
+    # ax2.axvspan(0.2, 0.6, alpha=0.1, color=colours[0])
+    # ax.text(0.05, 41, 'Peculiar\nVelocities', color=colours[1], fontsize=16)
+    # ax.text(0.35, 38, 'Lensing', color=colours[0], fontsize=16)
     ax.set_ylabel("$\mu$")
     ax2.set_xlabel("$z$")
     ax2.set_ylabel("$\Delta\mu$")
@@ -435,11 +454,11 @@ def find_correlation(conv, mu_diff):
 
 
 if __name__ == "__main__":
-    (RAgal, DECgal, RASN, DECSN, circles, zgal, zSN, muSN, mu_errSN) = get_data(new_data=False)
+    (RAgal, DECgal, RASN, DECSN, circles, zgal, zSN, muSN,    mu_errSN) = get_data(new_data=False)
     lensing_gals = sort_SN_gals(RAgal, DECgal, RASN, DECSN, zgal, zSN, muSN, mu_errSN, redo=False)
-    plot_cones(RAgal, RASN, DECgal, DECSN, zgal, zSN, lensing_gals, circles)
+    plot_cones(RAgal, DECgal, zgal, lensing_gals, circles)
     cone_array = make_test_cones(RAgal, DECgal, zgal)
-    bin_limits, exp, chi_widths, chis, zs = find_expected_counts(cone_array, 100)
+    bin_limits, exp, chi_widths, chis, zs = find_expected_counts(cone_array, 1000, redo=False)
     print(max([max(cone_array[f'c{i+1}']['Zs']) for i in range(len(cone_array))]))
     SNzs = np.zeros(len(lensing_gals))
     SNmus = np.zeros(len(lensing_gals))
