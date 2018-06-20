@@ -194,11 +194,11 @@ def single_d_convergence(chi_widths, chis, zs, index, mass, SN_dist, OM=0.27):
      SN_dist -- comoving distance to SN along line of sight.
     """
     coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
-    print(chi_widths)
+    # print(chi_widths)
     chi_widths[0] = chis[1] / 2
     chi_widths[-1] = (SN_dist - chis[-2]) / 2
     chi_widths[1:-1] = (chis[2:] - chis[:-2]) / 2
-    print(chi_widths)
+    # print(chi_widths)
     d_arr = np.linspace(0, 0, len(zs))
     # rho_0 = 3 * OM * H0 ** 2 / (8 * np.pi * G)
     # rho_bar = 1 / (1 + zs[index]) ** 3 * rho_0
@@ -439,30 +439,41 @@ def distance_ratio(z_source):
     z_source = zs[-1]
     # z_arr = np.linspace(0, z_source, 1001)
     D_S = b_comoving(0, z_source)[-1] / (1+z_source)
+    chi_S = b_comoving(0, z_source)[-1]
     D_L = np.array([(b_comoving(0, i)[-1] / (1+i)) for i in zs])
+    chi_L = np.array([(b_comoving(0, i)[-1]) for i in zs])
     D_LS = np.array([((b_comoving(0, z_source)[-1] - b_comoving(0, i)[-1]) / (1+z_source)) for i in zs])
     D_ratio = D_L * D_LS / D_S
+    chi_ratio = chi_L * (np.linspace(chi_S, chi_S, 1001) - chi_L) / np.linspace(chi_S, chi_S, 1001) * (1 + zs)
     D_A = comoving(zs) / (1 + zs)
     z_peak = np.array(zs)[np.argmin(np.abs(D_ratio - max(D_ratio)))]
+    z_peak2 = np.array(zs)[np.argmin(np.abs(chi_ratio - max(chi_ratio)))]
     plt.plot(zs, np.linspace(D_S, D_S, 1001), color=[0.75, 0.75, 0.75], linestyle='--', label='$D_S$')
     plt.plot(zs, D_L, color=colours[0], label='$D_L$')
     plt.plot(zs, D_LS, color=colours[1], label='$D_{LS}$')
     plt.plot(zs, D_ratio, color=colours[2], label='$D_LD_{LS}/D_S$')
+    plt.plot(zs, chi_ratio, color=colours[4], label='$\chi_L\chi_{LS}/\chi_Sa_L$')
     plt.legend(frameon=0)
-    plt.plot(z_peak, max(D_ratio), marker='x', color=colours[3])
-    plt.text(z_peak, D_S/5, f'$z$ = {round(z_peak, 2)}', fontsize=16, ha='center', color=colours[3])
+    plt.plot(z_peak, max(D_ratio), marker='x', color=colours[2])
+    plt.text(z_peak, D_S / 4, f'$z$ = {round(z_peak, 2)}', fontsize=16, ha='center', color=colours[2])
+    plt.plot(z_peak2, max(chi_ratio), marker='x', color=colours[4])
+    plt.text(z_peak2, chi_S / 2.5, f'$z$ = {round(z_peak2, 2)}', fontsize=16, ha='center', color=colours[4])
     plt.xlabel('$z$')
-    plt.ylabel('$D_A$ (Gpc)')
+    plt.ylabel('$Distance$ (Gpc)')
     plt.show()
 
     chi_peak = np.array(chis)[np.argmin(np.abs(D_ratio - max(D_ratio)))]
+    chi_peak2 = np.array(chis)[np.argmin(np.abs(chi_ratio - max(chi_ratio)))]
     plt.plot(chis, np.linspace(D_S, D_S, 1001), color=[0.75, 0.75, 0.75], linestyle='--', label='$D_S$')
     plt.plot(chis, D_L, color=colours[0], label='$D_L$')
     plt.plot(chis, D_LS, color=colours[1], label='$D_{LS}$')
     plt.plot(chis, D_ratio, color=colours[2], label='$D_LD_{LS}/D_S$')
+    plt.plot(chis, chi_ratio, color=colours[4], label='$\chi_L\chi_{LS}/\chi_Sa_L$')
     plt.legend(frameon=0)
-    plt.plot(chi_peak, max(D_ratio), marker='x', color=colours[3])
-    plt.text(chi_peak, D_S / 5, f'$\chi$ = {round(chi_peak, 2)} Gpc', fontsize=16, ha='center', color=colours[3])
+    plt.plot(chi_peak, max(D_ratio), marker='x', color=colours[2])
+    plt.text(chi_peak, D_S / 5, f'$\chi$ = {round(chi_peak, 2)} Gpc', fontsize=16, ha='center', color=colours[2])
+    plt.plot(chi_peak2, max(chi_ratio), marker='x', color=colours[4])
+    plt.text(chi_peak2, chi_S / 2.5, f'$\chi$ = {round(chi_peak2, 2)} Gpc', fontsize=16, ha='center', color=colours[4])
     plt.xlabel('$\chi$ (Gpc)')
     plt.ylabel('$D_A$ (Gpc)')
     plt.show()
