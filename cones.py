@@ -4,6 +4,7 @@ from matplotlib.patches import Circle
 from matplotlib.collections import PatchCollection
 from scipy.optimize import curve_fit
 from scipy.stats import rankdata
+import csv
 import pickle
 
 colours = [[0, 150/255, 100/255], [253/255, 170/255, 0], 'C2', 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
@@ -12,12 +13,12 @@ orange = [255/255, 119/255, 15/255, 0.75]
 green = [0, 150/255, 100/255, 0.75]
 yellow = [253/255, 170/255, 0, 0.75]
 grey = [0.75, 0.75, 0.75]
-names = ['STRIPE82_SPECTROSCOPIC_CHAZ_NOTCLEANED_ms77.fit', 'boss_206+SDSS_213_all_cuts_new_mu_dmu1_new.fits']
+names = ['STRIPE82_SPECTROSCOPIC_CHAZ_NOTCLEANED_ms77.fit', 'boss_206+SDSS_213_all_cuts_new_mu_dmu1_new.fits',
+         'Smithdata.csv']
 
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['font.serif'] = 'Stixgeneral'
 plt.rcParams['mathtext.fontset'] = 'stix'
-
 plt.rcParams['axes.labelsize'] = 20
 plt.rcParams['axes.titlesize'] = 16
 plt.rcParams['xtick.labelsize'] = 16
@@ -44,9 +45,32 @@ def get_data(new_data=False):
      new_data -- boolean that determines whether data is loaded or read from FITS files. Default false.
     """
     if new_data:
+        S_CID = []
+        S_z = []
+        S_ngal = []
+        S_delta = []
+        S_kappa = []
+        S_dkappa = []
+        S_HR = []
+        S_dHR = []
+
+        with open(names[2], 'r') as f:
+            CSV = csv.reader(f, delimiter=',')
+            for line in CSV:
+                S_CID.append(int(float(line[0].strip())))
+                S_z.append(float(line[1].strip()))
+                S_ngal.append(int(float(line[2].strip())))
+                S_delta.append(float(line[3].strip()))
+                S_kappa.append(float(line[4].strip()))
+                S_dkappa.append(float(line[5].strip()))
+                S_HR.append(float(line[6].strip()))
+                S_dHR.append(float(line[7].strip()))
+
+        Smith_data = {'CID': S_CID, 'z': S_z, 'ngal': S_ngal, 'delta': S_delta, 'kappa': S_kappa, 'dkappa': S_dkappa,
+                      'HR': S_HR, 'dHR': S_dHR}
         with fits.open(names[0])as hdul1:
             with fits.open(names[1]) as hdul2:
-                low_z = 0.04
+                low_z = 0.04  # should be 0.05
                 RA1 = [hdul1[1].data['RA'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
                        hdul1[1].data['CLASS'][i] == 'GALAXY' and hdul1[1].data['Z'][i] >= 0.01]
                 DEC1 = [hdul1[1].data['DEC'][i] for i in np.arange(len(hdul1[1].data['DEC'])) if
@@ -55,45 +79,45 @@ def get_data(new_data=False):
                     if ra > 60:
                         RA1[num] -= 360
                 RA2 = [hdul2[1].data['RA'][i] for i in np.arange(len(hdul2[1].data['RA'])) if
-                       hdul2[1].data['Z_BOSS'][i] >= low_z]
+                       hdul2[1].data['CID'][i] in S_CID]
                 DEC2 = [hdul2[1].data['DECL'][i] for i in np.arange(len(hdul2[1].data['DECL'])) if
-                        hdul2[1].data['Z_BOSS'][i] >= low_z]
+                        hdul2[1].data['CID'][i] in S_CID]
 
                 z1 = [hdul1[1].data['Z'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
                       hdul1[1].data['CLASS'][i] == 'GALAXY' and hdul1[1].data['Z'][i] >= 0.01]
                 z2 = [hdul2[1].data['Z_BOSS'][i] for i in np.arange(len(hdul2[1].data['RA'])) if
-                      hdul2[1].data['Z_BOSS'][i] >= low_z]
+                      hdul2[1].data['CID'][i] in S_CID]
                 mu = [hdul2[1].data['MU'][i] for i in np.arange(len(hdul2[1].data['RA'])) if
-                      hdul2[1].data['Z_BOSS'][i] >= low_z]
+                      hdul2[1].data['CID'][i] in S_CID]
                 mu_err = [hdul2[1].data['DMU1'][i] for i in np.arange(len(hdul2[1].data['RA'])) if
-                          hdul2[1].data['Z_BOSS'][i] >= low_z]
+                          hdul2[1].data['CID'][i] in S_CID]
+                CID = [hdul2[1].data['CID'][i] for i in np.arange(len(hdul2[1].data['RA'])) if
+                       hdul2[1].data['CID'][i] in S_CID]
 
-            cut_data = np.array([RA1, DEC1, RA2, DEC2, z1, z2, mu, mu_err])
+            cut_data = {'RA1': RA1, 'DEC1': DEC1, 'RA2': RA2, 'DEC2': DEC2, 'z1': z1, 'z2': z2, 'mu': mu,
+                        'mu_err': mu_err, 'CID': CID}
             pickle_out = open("cut_data.pickle", "wb")
             pickle.dump(cut_data, pickle_out)
+            pickle_out.close()
+            pickle_out = open("Smith_data.pickle", "wb")
+            pickle.dump(Smith_data, pickle_out)
             pickle_out.close()
 
     else:
         pickle_in = open("cut_data.pickle", "rb")
         cut_data = pickle.load(pickle_in)
-        RA1 = cut_data[0]
-        DEC1 = cut_data[1]
-        RA2 = cut_data[2]
-        DEC2 = cut_data[3]
-        z1 = cut_data[4]
-        z2 = cut_data[5]
-        mu = cut_data[6]
-        mu_err = cut_data[7]
+        pickle_in = open("Smith_data.pickle", "rb")
+        Smith_data = pickle.load(pickle_in)
 
     patches = []
-    for x, y in zip(RA2, DEC2):
+    for x, y in zip(cut_data['RA2'], cut_data['DEC2']):
         circle = Circle((x, y), 0.2)
         patches.append(circle)
 
-    return RA1, DEC1, RA2, DEC2, patches, z1, z2, mu, mu_err
+    return cut_data, Smith_data, patches
 
 
-def sort_SN_gals(RA1, DEC1, RA2, DEC2, z1, z2, mu, mu_err, redo=False):
+def sort_SN_gals(cut_data, redo=False):
     """Either sorts galaxies into SN cones or loads sorted data from file.
 
     Inputs:
@@ -107,11 +131,20 @@ def sort_SN_gals(RA1, DEC1, RA2, DEC2, z1, z2, mu, mu_err, redo=False):
      mu_err -- error in distance moduli.
      redo -- boolean that determines whether data is loaded or sorted. Default false.
     """
+    RA1 = cut_data['RA1']
+    DEC1 = cut_data['DEC1']
+    RA2 = cut_data['RA2']
+    DEC2 = cut_data['DEC2']
+    z1 = cut_data['z1']
+    z2 = cut_data['z2']
+    mu = cut_data['mu']
+    mu_err = cut_data['mu_err']
+    CID = cut_data['CID']
     if redo:
         lenses = {}
-        for num, SRA, SDE, SZ, SM, SE in zip(np.linspace(0, len(RA2) - 1, len(RA2)), RA2, DEC2, z2, mu, mu_err):
+        for num, SRA, SDE, SZ, SM, SE, C in zip(np.linspace(0, len(RA2) - 1, len(RA2)), RA2, DEC2, z2, mu, mu_err, CID):
             lenses[f'SN{int(num)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [], 'SNZ': SZ, 'SNMU': SM, 'SNMU_ERR': SE,
-                                         'SNRA': SRA, 'SNDEC': SDE, 'WEIGHT': 1}
+                                         'SNRA': SRA, 'SNDEC': SDE, 'WEIGHT': 1, 'CID': C}
             if SDE > 1.01:
                 h = SDE - 1.01
             elif SDE < -1.01:
@@ -122,7 +155,7 @@ def sort_SN_gals(RA1, DEC1, RA2, DEC2, z1, z2, mu, mu_err, redo=False):
             fraction_outside = 1 / (2 * np.pi) * (theta - np.sin(theta))
             lenses[f'SN{int(num)+1}']['WEIGHT'] = 1 - fraction_outside
             for GRA, GDE, GZ in zip(RA1, DEC1, z1):
-                if (GRA - SRA) ** 2 + (GDE - SDE) ** 2 <= 0.2 ** 2:
+                if (GRA - SRA) ** 2 + (GDE - SDE) ** 2 <= 0.2 ** 2 and GZ <= SZ:
                     lenses[f'SN{int(num)+1}']['RAs'].append(GRA)
                     lenses[f'SN{int(num)+1}']['DECs'].append(GDE)
                     lenses[f'SN{int(num)+1}']['Zs'].append(GZ)
@@ -134,11 +167,16 @@ def sort_SN_gals(RA1, DEC1, RA2, DEC2, z1, z2, mu, mu_err, redo=False):
     else:
         pickle_in = open("lenses.pickle", "rb")
         lenses = pickle.load(pickle_in)
+        # total = 0
+        # for key, val in lenses.items():
+        #     print(f"CID {val['CID']}   {len(val['RAs'])}")
+        #     total += len(val['RAs'])
+        # print("Total:", total)
 
     return lenses
 
 
-def plot_cones(RA1, DEC1, z1, lenses, patches):
+def plot_cones(cut_data, lenses, patches):
     """Plots all galaxies and SNe along with visualisation of cones and galaxies contributing to lensing.
 
     Input:
@@ -148,6 +186,8 @@ def plot_cones(RA1, DEC1, z1, lenses, patches):
      lenses -- dictionary of galaxies into cones.
      patches -- circles that represent the cones in the plot.
     """
+    RA1 = cut_data['RA1']
+    DEC1 = cut_data['DEC1']
     fig, ax = plt.subplots()
     ax.plot(RA1, DEC1, marker='o', linestyle='', markersize=1, color=[0.5, 0.5, 0.5])
     for SN, dict1, in lenses.items():
@@ -162,7 +202,7 @@ def plot_cones(RA1, DEC1, z1, lenses, patches):
         indices1 = dict1['Zs'] <= dict1['SNZ']
         ax.plot(RAs[indices1], DECs[indices1], marker='o', linestyle='', markersize=3, color=colours[0],
                 label="Foreground" if SN == 'SN1' else "")
-    p = PatchCollection(patches, alpha=0.4, color=colours[0])
+        p = PatchCollection(patches, alpha=0.4, color=colours[0])
     ax.add_collection(p)
     SNRA = []
     SNDEC = []
@@ -173,7 +213,7 @@ def plot_cones(RA1, DEC1, z1, lenses, patches):
     ax.plot(SNRA, SNDEC, marker='o', linestyle='', markersize=3, label='Supernova', color=colours[1])
     plt.xlabel('$\\alpha$')
     plt.ylabel('$\delta$')
-    plt.legend(loc='lower right')
+    # plt.legend(loc='lower right')
     plt.axis('equal')
     plt.xlim([24.5, 27.5])
     plt.ylim([-1, 1])
@@ -192,7 +232,7 @@ def plot_cones(RA1, DEC1, z1, lenses, patches):
     # plt.show()
 
 
-def make_test_cones(RA1, DEC1, z1, redo=False):
+def make_test_cones(cut_data, redo=False):
     """Creates an array of 12 arcmin cones all across data or loads test cones from file.
     Also distribution of galaxy count per bin.
 
@@ -202,6 +242,9 @@ def make_test_cones(RA1, DEC1, z1, redo=False):
      z1 -- redshifts of galaxies.
      redo -- boolean that determines whether cones are created or loaded. Default false.
     """
+    RA1 = cut_data['RA1']
+    DEC1 = cut_data['DEC1']
+    z1 = cut_data['z1']
     tests = []
     for a in range(271):
         for b in range(6):
@@ -611,11 +654,11 @@ def find_correlation(conv, mu_diff):
 
 
 if __name__ == "__main__":
-    (RAgal, DECgal, RASN, DECSN, circles, zgal, zSN, muSN,    mu_errSN) = get_data(new_data=True)
-    lensing_gals = sort_SN_gals(RAgal, DECgal, RASN, DECSN, zgal, zSN, muSN, mu_errSN, redo=True)
-    # plot_cones(RAgal, DECgal, zgal, lensing_gals, circles)
-    cone_array = make_test_cones(RAgal, DECgal, zgal, redo=True)
-    bin_limits, exp, chi_widths, chis, zs = find_expected_counts(cone_array, 100, redo=True)
+    data, S_data, circles = get_data(new_data=False)
+    lensing_gals = sort_SN_gals(data, redo=False)
+    # plot_cones(data, lensing_gals, circles)
+    cone_array = make_test_cones(data, redo=False)
+    bin_limits, exp, chi_widths, chis, zs = find_expected_counts(cone_array, 100, redo=False)
     print(max([max(cone_array[f'c{i+1}']['Zs']) for i in range(len(cone_array))]))
     SNzs = np.zeros(len(lensing_gals))
     SNmus = np.zeros(len(lensing_gals))
@@ -642,6 +685,8 @@ if __name__ == "__main__":
              for i in range(len(mu_diff_cut))]  # really broken
 
     convergence_cut = find_convergence(lensing_gals, SNzs, cuts1, cuts2, bin_limits)
+    plt.plot(S_data['kappa'], convergence_cut, color=colours[0], marker='o', markersize=3, linestyle='')
+    plt.show()
 
     # plot_Hubble(SNzs_cut[cuts2], SNmus_cut[cuts2], SNmu_err_cut[cuts2], mu_diff_cut[cuts2])
     # plot_Hubble(SNzs_cut[cuts2], SNmus_cut[cuts2], SNmu_err_cut[cuts2], mu_diff_cut[cuts2], z_array)
