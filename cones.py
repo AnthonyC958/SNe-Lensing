@@ -338,8 +338,8 @@ def find_expected_counts(test_cones, bins, redo=False):
      redo -- boolean that determines whether expected counts are calculated or loaded. Default false.
     """
     max_z = max([max(test_cones[f'c{i+1}']['Zs']) for i in range(len(test_cones))])
-    max_z = 3.0
-    chi_bin_widths, chi_bins, z_bins, z_bin_widths = create_chi_bins(0, max_z, bins)
+    max_z = 0.6
+    chi_bin_widths, chi_bins, z_bins, z_bin_widths = create_chi_bins(0.01, max_z, bins)
     limits = np.cumsum(z_bin_widths)
     if redo:
         expected = np.zeros((len(limits), len(test_cones)))
@@ -365,7 +365,7 @@ def find_expected_counts(test_cones, bins, redo=False):
     plt.plot(limits[1:], expected, marker='o', markersize=2.5, color=colours[0])
     plt.xlabel('$z$')
     plt.ylabel('Expected Count')
-    plt.xlim([0, 3])
+    plt.xlim([0, 0.6])
     plt.show()
 
     return limits, expected, chi_bin_widths, chi_bins, z_bins
@@ -466,7 +466,7 @@ def find_expected_counts(test_cones, bins, redo=False):
 #     plt.show()
 #
 #     return convergence_new
-def find_convergence(lenses, SNz, cut, cut2, limits):
+def find_convergence(lenses, SNz, cut2, limits):
     # ################################# Still references globals; need to fix ##################################### #
     """Finds the convergence along each line of sight to a SN.
     Inputs:
@@ -494,7 +494,6 @@ def find_convergence(lenses, SNz, cut, cut2, limits):
         if num % 50 == 0:
             print(f"Finished {num}/{len(lenses)}")
 
-    SNzs_new = SNz[cut]
     d_arr = {}
     convergence = np.zeros(len(counts))
     conv_err = np.zeros(len(counts))
@@ -507,22 +506,19 @@ def find_convergence(lenses, SNz, cut, cut2, limits):
                                             exp[:len(SN)], chiSNs[num])
         num += 1
 
-    convergence_new = convergence[cut]
-    conv_err_new = conv_err[cut]
-
     bins = np.linspace(0.025, 0.575, 12)
     edges = np.linspace(0, 0.6, 13)
     mean_kappa = []
     standard_error = []
     for bin in bins:
         kappas = []
-        for z, kappa in zip(SNzs_new[cut2], convergence_new[cut2]):
+        for z, kappa in zip(SNzs[cut2], convergence[cut2]):
             if bin - 0.025 < z <= bin + 0.025:
                 kappas.append(kappa)
         mean_kappa.append(np.mean(kappas))
         standard_error.append(np.std(kappas) / np.sqrt(len(kappas)))
-    ax = plt.subplot2grid((1, 2), (0, 0))
-    ax2 = plt.subplot2grid((1, 2), (0, 1))
+    ax = plt.subplot2grid((1, 4), (0, 0), colspan=3)
+    ax2 = plt.subplot2grid((1, 4), (0, 3))
     ax.set_ylabel("$\kappa$")
     ax.set_xlabel("$z$")
     ax2.set_xlabel("Count")
@@ -532,15 +528,15 @@ def find_convergence(lenses, SNz, cut, cut2, limits):
     plt.subplots_adjust(wspace=0, hspace=0)
     ax.plot([0, 0.6], [0, 0], color=grey, linestyle='--')
     ax.axis([0, 0.6, -0.01, 0.01])
-    ax.errorbar(bins, mean_kappa, standard_error, marker='s', color='r', markersize=3, capsize=3)
     ax2.axis([0, 180, -0.01, 0.01])
-    # ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
-    ax.set_xticklabels([0, 0.2, 0.4, 0])
-    ax.plot(SNzs_new[cut2], convergence_new[cut2], linestyle='', marker='o', markersize=2, color=colours[0])
-    ax2.hist(convergence_new[cut2], bins=np.arange(-0.015, 0.02 + 0.001, 0.001), orientation='horizontal',
+    ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
+    # ax.set_xticklabels([0, 0.2, 0.4, 0])
+    ax.plot(SNzs[cut2], convergence[cut2], linestyle='', marker='o', markersize=2, color=colours[0])
+    ax2.hist(convergence[cut2], bins=np.arange(-0.015, 0.02 + 0.001, 0.001), orientation='horizontal',
              fc=green, edgecolor=colours[0])
+    ax.errorbar(bins, mean_kappa, standard_error, marker='s', color='r', markersize=3, capsize=3)
     plt.show()
-    return convergence_new
+    return convergence
 
 
 # def plot_Hubble(z, mu, mu_err, OM=0.27, OL=0.73, max_x=0.6):
@@ -637,15 +633,29 @@ def find_correlation(conv, mu_diff):
     print(f"Spearman Rank: {round(rho, 3)} +/- {round(rho_err, 3)}.")
     grad = curve_fit(f, conv, mu_diff)[0]
     fit = conv * grad
+
+    edges = np.linspace(-0.0065, 0.011, 6)
+    bins = (edges[1:] + edges[:-1]) / 2
+    mean_dmu = []
+    standard_error = []
+    for bin in bins:
+        dmus = []
+        for kappa, dmu in zip(conv, mu_diff):
+            if bin - 0.007/4 < kappa <= bin + 0.0007/4:
+                dmus.append(dmu)
+        mean_dmu.append(np.mean(dmus))
+        standard_error.append(np.std(dmus) / np.sqrt(len(dmus)))
+
     plt.plot([min(conv), max(conv)], [0, 0], color=grey, linestyle='--')
     plt.plot(conv, mu_diff, linestyle='', marker='o', markersize=2, color=colours[0])
     plt.plot(conv, fit, color=colours[1], label=f'$\Delta\mu = {round(float(grad),3)}\kappa$')
+    plt.errorbar(bins, mean_dmu, standard_error, marker='s', color='r', markersize=3, capsize=3, linestyle='')
     plt.xlabel('$\kappa$')
     plt.ylabel('$\Delta\mu$')
     plt.xlim([-0.008, 0.011])
     plt.legend(frameon=0, loc='lower right')
     plt.ylim([-0.3, 0.3])
-    plt.text(0.0038, 0.09, f'$\\rho$ = {round(rho, 3)} $\pm$ {round(rho_err, 3)}', fontsize=16)
+    plt.text(0.0038, -0.19, f'$\\rho$ = {round(rho, 3)} $\pm$ {round(rho_err, 3)}', fontsize=16)
     # print([convergence_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
     # print([mu_diff_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
     # print([SNmu_err_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
@@ -658,8 +668,8 @@ if __name__ == "__main__":
     lensing_gals = sort_SN_gals(data, redo=False)
     # plot_cones(data, lensing_gals, circles)
     cone_array = make_test_cones(data, redo=False)
-    bin_limits, exp, chi_widths, chis, zs = find_expected_counts(cone_array, 100, redo=False)
-    print(max([max(cone_array[f'c{i+1}']['Zs']) for i in range(len(cone_array))]))
+    bin_limits, exp, chi_widths, chis, zs = find_expected_counts(cone_array, 51, redo=False)
+    print(f"Maximum z: {max([lensing_gals[f'SN{i+1}']['SNZ'] for i in range(len(lensing_gals))])}")
     SNzs = np.zeros(len(lensing_gals))
     SNmus = np.zeros(len(lensing_gals))
     SNmu_err = np.zeros(len(lensing_gals))
@@ -670,25 +680,23 @@ if __name__ == "__main__":
         SNmu_err[c] = supernova['SNMU_ERR']
         c += 1
 
-    cuts1 = [SNzs[i] < 0.65 for i in range(len(SNzs))]
-    SNzs_cut = SNzs[cuts1]
-    SNmus_cut = SNmus[cuts1]
-    SNmu_err_cut = SNmu_err[cuts1]
-
     z_array = np.linspace(0.0, 0.61, 1001)
     mu_cosm = 5 * np.log10((1 + z_array) * comoving(z_array) * 1000) + 25
-    mu_cosm_interp = np.interp(SNzs_cut, z_array, mu_cosm)
-    mu_diff_cut = SNmus_cut - mu_cosm_interp
+    mu_cosm_interp = np.interp(SNzs, z_array, mu_cosm)
+    mu_diff_cut = SNmus - mu_cosm_interp
     mu_diff_std = np.std(mu_diff_cut)
     mu_diff_mean = np.mean(mu_diff_cut)
-    cuts2 = [-3.9 * mu_diff_std < mu_diff_cut[i] < 3.9 * mu_diff_std# and SNzs_cut[i] > 0.2
+    cuts2 = [-3.9 * mu_diff_std < mu_diff_cut[i] < 3.9 * mu_diff_std  # and SNzs[i] > 0.2
              for i in range(len(mu_diff_cut))]  # really broken
 
-    convergence_cut = find_convergence(lensing_gals, SNzs, cuts1, cuts2, bin_limits)
+    convergence_cut = find_convergence(lensing_gals, SNzs, cuts2, bin_limits)
+    plt.plot(S_data['kappa'], S_data['kappa'], color=colours[1])
     plt.plot(S_data['kappa'], convergence_cut, color=colours[0], marker='o', markersize=3, linestyle='')
+    plt.xlabel('$\kappa$ Smith')
+    plt.ylabel('My $\kappa$')
     plt.show()
 
-    # plot_Hubble(SNzs_cut[cuts2], SNmus_cut[cuts2], SNmu_err_cut[cuts2], mu_diff_cut[cuts2])
-    # plot_Hubble(SNzs_cut[cuts2], SNmus_cut[cuts2], SNmu_err_cut[cuts2], mu_diff_cut[cuts2], z_array)
+    # plot_Hubble(SNzs[cuts2], SNmus[cuts2], SNmu_err[cuts2], mu_diff_cut[cuts2])
+    plot_Hubble(SNzs[cuts2], SNmus[cuts2], SNmu_err[cuts2], mu_diff_cut[cuts2], z_array)
 
     find_correlation(convergence_cut[cuts2], mu_diff_cut[cuts2])

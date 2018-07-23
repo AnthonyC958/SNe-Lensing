@@ -448,18 +448,18 @@ def distance_ratio(z_source):
     D_A = comoving(zs) / (1 + zs)
     z_peak = np.array(zs)[np.argmin(np.abs(D_ratio - max(D_ratio)))]
     z_peak2 = np.array(zs)[np.argmin(np.abs(chi_ratio - max(chi_ratio)))]
-    plt.plot(zs, np.linspace(D_S, D_S, 1001), color=[0.75, 0.75, 0.75], linestyle='--', label='$D_S$')
-    plt.plot(zs, D_L, color=colours[0], label='$D_L$')
-    plt.plot(zs, D_LS, color=colours[1], label='$D_{LS}$')
-    plt.plot(zs, D_ratio, color=colours[2], label='$D_LD_{LS}/D_S$')
-    plt.plot(zs, chi_ratio, color=colours[4], label='$\chi_L\chi_{LS}/\chi_Sa_L$')
+    plt.plot(zs, np.linspace(chi_S, chi_S, 1001), color=[0.75, 0.75, 0.75], linestyle='--', label='$\chi_S$')
+    plt.plot(zs, chi_L, color=colours[0], label='$\chi_L$')
+    plt.plot(zs, (np.linspace(chi_S, chi_S, 1001) - chi_L), color=colours[1], label='$\chi_{LS}$')
+    # plt.plot(zs, D_ratio, color=colours[2], label='$D_LD_{LS}/D_S$')
+    plt.plot(zs, chi_ratio, color=colours[2], label='$\chi_L\chi_{LS}/\chi_Sa_L$')
     plt.legend(frameon=0)
-    plt.plot(z_peak, max(D_ratio), marker='x', color=colours[2])
-    plt.text(z_peak, D_S / 4, f'$z$ = {round(z_peak, 2)}', fontsize=16, ha='center', color=colours[2])
-    plt.plot(z_peak2, max(chi_ratio), marker='x', color=colours[4])
-    plt.text(z_peak2, chi_S / 2.5, f'$z$ = {round(z_peak2, 2)}', fontsize=16, ha='center', color=colours[4])
+    # plt.plot(z_peak, max(D_ratio), marker='x', color=colours[2])
+    # plt.text(z_peak, D_S / 4, f'$z$ = {round(z_peak, 2)}', fontsize=16, ha='center', color=colours[2])
+    plt.plot(z_peak2, max(chi_ratio), marker='x', color=colours[2])
+    plt.text(z_peak2, chi_S / 3.5, f'$z$ = {round(z_peak2, 2)}', fontsize=16, ha='center', color=colours[2])
     plt.xlabel('$z$')
-    plt.ylabel('$Distance$ (Gpc)')
+    plt.ylabel('$D_A$ (Gpc)')
     plt.show()
 
     chi_peak = np.array(chis)[np.argmin(np.abs(D_ratio - max(D_ratio)))]
@@ -468,19 +468,19 @@ def distance_ratio(z_source):
     plt.plot(chis, D_L, color=colours[0], label='$D_L$')
     plt.plot(chis, D_LS, color=colours[1], label='$D_{LS}$')
     plt.plot(chis, D_ratio, color=colours[2], label='$D_LD_{LS}/D_S$')
-    plt.plot(chis, chi_ratio, color=colours[4], label='$\chi_L\chi_{LS}/\chi_Sa_L$')
+    # plt.plot(chis, chi_ratio, color=colours[4], label='$\chi_L\chi_{LS}/\chi_Sa_L$')
     plt.legend(frameon=0)
     plt.plot(chi_peak, max(D_ratio), marker='x', color=colours[2])
     plt.text(chi_peak, D_S / 5, f'$\chi$ = {round(chi_peak, 2)} Gpc', fontsize=16, ha='center', color=colours[2])
-    plt.plot(chi_peak2, max(chi_ratio), marker='x', color=colours[4])
-    plt.text(chi_peak2, chi_S / 2.5, f'$\chi$ = {round(chi_peak2, 2)} Gpc', fontsize=16, ha='center', color=colours[4])
+    # plt.plot(chi_peak2, max(chi_ratio), marker='x', color=colours[4])
+    # plt.text(chi_peak2, chi_S / 2.5, f'$\chi$ = {round(chi_peak2, 2)} Gpc', fontsize=16, ha='center', color=colours[4])
     plt.xlabel('$\chi$ (Gpc)')
     plt.ylabel('$D_A$ (Gpc)')
     plt.show()
 
 
 if __name__ == "__main__":
-    SN_redshift = 2.0
+    SN_redshift = 1.0
     num_bin = 100
 
     chi_to_SN = b_comoving(0, SN_redshift)
