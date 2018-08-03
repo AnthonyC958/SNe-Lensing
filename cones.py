@@ -145,10 +145,10 @@ def sort_SN_gals(cut_data, redo=False):
         for num, SRA, SDE, SZ, SM, SE, C in zip(np.linspace(0, len(RA2) - 1, len(RA2)), RA2, DEC2, z2, mu, mu_err, CID):
             lenses[f'SN{int(num)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [], 'SNZ': SZ, 'SNMU': SM, 'SNMU_ERR': SE,
                                          'SNRA': SRA, 'SNDEC': SDE, 'WEIGHT': 1, 'CID': C}
-            if SDE > 1.01:
-                h = SDE - 1.01
-            elif SDE < -1.01:
-                h = -1.01 - SDE
+            if SDE > 1.1:
+                h = SDE - 1.1
+            elif SDE < -1.1:
+                h = -1.1 - SDE
             else:
                 h = 0
             theta = 2 * np.arccos(1 - h / 0.2)
@@ -218,7 +218,6 @@ def plot_cones(cut_data, lenses, patches):
     plt.axis('equal')
     plt.xlim([24.5, 27.5])
     plt.ylim([-1, 1])
-    plt.tick_params(axis='both', which='both', top=False, bottom=False, left=False, right=False)
     plt.show()
 
     # labels = ['Galaxies', 'Supernovae']
@@ -507,13 +506,14 @@ def find_convergence(lenses, SNz, cut2, limits, plot=False):
                                             exp[:len(SN)], chiSNs[num])
         num += 1
 
-    SN645 = counts["SN646"]
-    plt.plot(zs[:len(SN645)], SN645, marker='o')
-    plt.plot(zs[:len(SN645)], exp[:len(SN645)], marker='o')
-    plt.plot(zs[:len(SN645)], d_arr["SN646"], marker='o')
-    plt.text(0.0, 6, f'$\kappa$ = {round(convergence[645], 4)}')
-    plt.text(0, 4, f"($\\alpha$, $\delta$), ({round(lenses['SN646']['SNRA'],2)}, {round(lenses['SN646']['SNDEC'],2)})")
-    plt.text(0, 2, f"CID {lenses['SN646']['CID']}")
+    SN = counts["SN669"]
+    plt.plot(zs[:len(SN)], SN, marker='o')
+    plt.plot(zs[:len(SN)], exp[:len(SN)], marker='o')
+    plt.plot(zs[:len(SN)], d_arr["SN669"], marker='o')
+    plt.text(0.0, 6, f'$\kappa$ = {round(convergence[668], 4)}')
+    plt.text(0, 4, f"($\\alpha$, $\delta$), ({round(lenses['SN669']['SNRA'],2)}, {round(lenses['SN669']['SNDEC'],2)})")
+    plt.text(0, 2, f"CID {lenses['SN669']['CID']}")
+    # plt.ylim([-2, 8])
 
     plt.plot([0, 0.3], [0, 0], linestyle='--', color=[0.5, 0.5, 0.5])
     plt.show()
@@ -678,7 +678,7 @@ def find_correlation(conv, mu_diff):
 
 if __name__ == "__main__":
     data, S_data, circles = get_data(new_data=False)
-    lensing_gals = sort_SN_gals(data, redo=True)
+    lensing_gals = sort_SN_gals(data, redo=False)
     # plot_cones(data, lensing_gals, circles)
     cone_array = make_test_cones(data, redo=False)
     bin_limits, exp, chi_widths, chis, zs = find_expected_counts(cone_array, 51, redo=False)
@@ -705,9 +705,9 @@ if __name__ == "__main__":
     convergence_cut = find_convergence(lensing_gals, SNzs, cuts2, bin_limits, plot=True)
     plt.plot(S_data['kappa'], S_data['kappa'], color=colours[1])
     plt.plot(S_data['kappa'], convergence_cut, color=colours[0], marker='o', markersize=3, linestyle='')
-    # for i in range(len(convergence_cut)):
-    #     if convergence_cut[i] > 0.02:
-    #         print(f"Outlier is SN {i}/{len(convergence_cut)}")
+    for i in range(len(convergence_cut)):
+        if convergence_cut[i] < 0.0031 and S_data['kappa'][i] > 0.0057:
+            print(f"Outlier is SN {i}/{len(convergence_cut)}")
     plt.xlabel('$\kappa$ Smith')
     plt.ylabel('My $\kappa$')
     plt.show()
