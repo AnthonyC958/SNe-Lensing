@@ -459,7 +459,7 @@ def distance_ratio(z_source):
     plt.plot(z_peak2, max(chi_ratio), marker='x', color=colours[2])
     plt.text(z_peak2, chi_S / 3.5, f'$z$ = {round(z_peak2, 2)}', fontsize=16, ha='center', color=colours[2])
     plt.xlabel('$z$')
-    plt.ylabel('$D_A$ (Gpc)')
+    plt.ylabel('$\chi$ (Gpc)')
     plt.show()
 
     chi_peak = np.array(chis)[np.argmin(np.abs(D_ratio - max(D_ratio)))]
@@ -474,14 +474,14 @@ def distance_ratio(z_source):
     plt.text(chi_peak, D_S / 5, f'$\chi$ = {round(chi_peak, 2)} Gpc', fontsize=16, ha='center', color=colours[2])
     # plt.plot(chi_peak2, max(chi_ratio), marker='x', color=colours[4])
     # plt.text(chi_peak2, chi_S / 2.5, f'$\chi$ = {round(chi_peak2, 2)} Gpc', fontsize=16, ha='center', color=colours[4])
-    plt.xlabel('$\chi$ (Gpc)')
+    plt.xlabel('$z$')
     plt.ylabel('$D_A$ (Gpc)')
     plt.show()
 
 
 if __name__ == "__main__":
     SN_redshift = 1.0
-    num_bin = 100
+    num_bin = 50
 
     chi_to_SN = b_comoving(0, SN_redshift)
     # chi_to_SN = b_comoving(0, SN_redshift)
@@ -492,10 +492,19 @@ if __name__ == "__main__":
 
     single_conv_c = calc_single_d(comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc, SN_redshift)
     single_conv_z = calc_single_d(comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz, SN_redshift, use_chi=False)
-    # plot_smoothed_d(comoving_binwidthsc, comoving_binsc, z_binsc, SN_redshift)
+    plot_smoothed_d(comoving_binwidthsz, comoving_binsz, z_binsz, SN_redshift)
 
     compare_z_chi(single_conv_c, single_conv_z, comoving_binsc, comoving_binsz, z_binsz, z_binsc, SN_chi, SN_redshift)
 
     num_test = 800
-    smoothed_m_convergence(num_test, SN_chi, SN_redshift, plot=False)
-    distance_ratio(SN_redshift)
+    # smoothed_m_convergence(num_test, SN_chi, SN_redshift, plot=False)
+    # distance_ratio(SN_redshift)
+
+    scalefactor = np.linspace(1, 0.5, 101)
+    rho_crit = scalefactor ** (-3)
+    plt.plot(scalefactor, rho_crit, color=colours[0])
+    plt.plot(scalefactor, (1 - rho_crit) / rho_crit, color=colours[1])
+    plt.plot(scalefactor, 2 * rho_crit, color=colours[2])
+    plt.ylim([-2, 20])
+    plt.gca().invert_xaxis()
+    plt.show()
