@@ -109,15 +109,10 @@ def get_data(new_data=False):
         pickle_in = open("Smith_data.pickle", "rb")
         Smith_data = pickle.load(pickle_in)
 
-    patches = []
-    for x, y in zip(cut_data['RA2'], cut_data['DEC2']):
-        circle = Circle((x, y), 0.2)
-        patches.append(circle)
-
-    return cut_data, Smith_data, patches
+    return cut_data, Smith_data
 
 
-def sort_SN_gals(cut_data, redo=False):
+def sort_SN_gals(cut_data, redo=False, cone_radius=12):
     """Either sorts galaxies into SN cones or loads sorted data from file.
 
     Inputs:
@@ -145,18 +140,17 @@ def sort_SN_gals(cut_data, redo=False):
         for num, SRA, SDE, SZ, SM, SE, C in zip(np.linspace(0, len(RA2) - 1, len(RA2)), RA2, DEC2, z2, mu, mu_err, CID):
             lenses[f'SN{int(num)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [], 'SNZ': SZ, 'SNMU': SM, 'SNMU_ERR': SE,
                                          'SNRA': SRA, 'SNDEC': SDE, 'WEIGHT': 1, 'CID': C}
-            if SDE > 1.1:
-                h = SDE - 1.1
-            elif SDE < -1.1:
-                h = -1.1 - SDE
+            if SDE > 1.28 - cone_radius/60.0:
+                h = SDE - (1.28 - cone_radius/60.0)
+            elif SDE < -(1.28 - cone_radius/60.0):
+                h = -(1.28 - cone_radius/60.0) - SDE
             else:
                 h = 0
-            theta = 2 * np.arccos(1 - h / 0.2)
+            theta = 2 * np.arccos(1 - h / (cone_radius/60.0))
             fraction_outside = 1 / (2 * np.pi) * (theta - np.sin(theta))
             lenses[f'SN{int(num)+1}']['WEIGHT'] = 1 - fraction_outside
-            print(1 - fraction_outside)
             for GRA, GDE, GZ in zip(RA1, DEC1, z1):
-                if (GRA - SRA) ** 2 + (GDE - SDE) ** 2 <= 0.2 ** 2 and GZ <= SZ:
+                if (GRA - SRA) ** 2 + (GDE - SDE) ** 2 <= (cone_radius/60.0) ** 2 and GZ <= SZ:
                     lenses[f'SN{int(num)+1}']['RAs'].append(GRA)
                     lenses[f'SN{int(num)+1}']['DECs'].append(GDE)
                     lenses[f'SN{int(num)+1}']['Zs'].append(GZ)
@@ -177,7 +171,7 @@ def sort_SN_gals(cut_data, redo=False):
     return lenses
 
 
-def plot_cones(cut_data, lenses, patches):
+def plot_cones(cut_data, lenses, plot_hist=False, cone_radius=12):
     """Plots all galaxies and SNe along with visualisation of cones and galaxies contributing to lensing.
 
     Input:
@@ -187,6 +181,11 @@ def plot_cones(cut_data, lenses, patches):
      lenses -- dictionary of galaxies into cones.
      patches -- circles that represent the cones in the plot.
     """
+    patches = []
+    for x, y in zip(cut_data['RA2'], cut_data['DEC2']):
+        circle = Circle((x, y), cone_radius/60.0)
+        patches.append(circle)
+
     RA1 = cut_data['RA1']
     DEC1 = cut_data['DEC1']
     fig, ax = plt.subplots()
@@ -220,19 +219,20 @@ def plot_cones(cut_data, lenses, patches):
     plt.ylim([-1, 1])
     plt.show()
 
-    # labels = ['Galaxies', 'Supernovae']
-    # cols = [green, yellow]
-    # for num, z in enumerate([z1, z2]):
-    #     plt.hist([i for i in z if i <= 0.6], bins=np.arange(0, 0.6 + 0.025, 0.025), normed='max', linewidth=1,
-    #              fc=cols[num], label=f'{labels[num]}', edgecolor=colours[num])
-    # plt.xlabel('$z$')
-    # plt.ylabel('Normalised Count')
-    # plt.legend(frameon=0)
-    #
-    # plt.show()
+    if plot_hist:
+        labels = ['Galaxies', 'Supernovae']
+        cols = [green, yellow]
+        for num, z in enumerate([cut_data['z1'], cut_data['z2']]):
+            plt.hist([i for i in z if i <= 0.6], bins=np.arange(0, 0.6 + 0.025, 0.025), normed='max', linewidth=1,
+                     fc=cols[num], label=f'{labels[num]}', edgecolor=colours[num])
+        plt.xlabel('$z$')
+        plt.ylabel('Normalised Count')
+        plt.legend(frameon=0)
+
+        plt.show()
 
 
-def make_test_cones(cut_data, redo=False):
+def make_test_cones(cut_data, redo=False, cone_radius=12):
     """Creates an array of 12 arcmin cones all across data or loads test cones from file.
     Also distribution of galaxy count per bin.
 
@@ -259,7 +259,7 @@ def make_test_cones(cut_data, redo=False):
         for num, loc, in enumerate(tests):
             test_cones[f'c{int(num)+1}'] = {'Total': 0, 'Zs': []}
             for GRA, GDE, GZ in zip(RA1, DEC1, z1):
-                if (GRA - loc[0]) ** 2 + (GDE - loc[1]) ** 2 <= 0.2 ** 2:
+                if (GRA - loc[0]) ** 2 + (GDE - loc[1]) ** 2 <= (cone_radius/60.0) ** 2:
                     test_cones[f'c{int(num)+1}']['Zs'].append(GZ)
                 test_cones[f'c{int(num)+1}']['Total'] = len(test_cones[f'c{int(num)+1}']['Zs'])
             print(f'Finished {int(num)+1}/{len(tests)}')
@@ -280,56 +280,6 @@ def make_test_cones(cut_data, redo=False):
     return test_cones
 
 
-# def find_expected_counts(test_cones, bins, redo=False):
-#     """Uses the test cones to find the expected number of galaxies per bin, for bins of even comoving distance.
-#
-#     Inputs:
-#      test_cones -- data to obtain expected counts from.
-#      bins -- number of bins along the line of sight to maximum SN comoving distance.
-#      redo -- boolean that determines whether expected counts are calculated or loaded. Default false.
-#     """
-#     max_z = max([max(test_cones[f'c{i+1}']['Zs']) for i in range(len(test_cones))])
-#     chi_bin_widths, chi_bins, z_bins, z_bin_widths = create_z_bins(0.01, max_z, bins)
-#     limits = np.cumsum(np.insert(z_bin_widths, 0, 0.01))
-#     if redo:
-#         expected = np.zeros((len(limits), len(test_cones)))
-#         num = 0
-#         for num1, lim in enumerate(limits):
-#             for num2, _ in enumerate(test_cones.items()):
-#                 expected[num1][num2] = sum([test_cones[f'c{num2+1}']['Zs'][i] < lim
-#                                             for i in range(len(test_cones[f'c{num2+1}']['Zs']))])
-#                 num += 1
-#                 if num % 1000 == 0:
-#                     print(f"Finished {num}/{len(limits)*len(test_cones)}")
-#         print("Finished")
-#
-#         pickle_out = open("expected.pickle", "wb")
-#         pickle.dump(expected, pickle_out)
-#         pickle_out.close()
-#     else:
-#         pickle_in = open("expected.pickle", "rb")
-#         expected = pickle.load(pickle_in)
-#
-#     expected = np.array([np.mean(expected[i][:]) for i in range(len(limits))])
-#     plt.plot([0, 5], [0, 0], color=grey, linestyle='--')
-#     plt.plot(limits, expected, marker='o', markersize=2.5, color=colours[0])
-#     plt.xlabel('$z$')
-#     plt.ylabel('Cumulative Count')
-#     plt.xlim([0, 3])
-#     plt.show()
-#
-#     chi_widths, _, _, _ = create_z_bins(0, 0.354, int(100 * 0.354))
-#     interp_cumul = np.interp(np.cumsum(np.insert(chi_widths, 0, 0)), limits, expected)
-#     plt.plot([0, 5], [0, 0], color=grey, linestyle='--')
-#     plt.plot(np.cumsum(np.insert(_, 0, 0))[:-1], np.diff(interp_cumul), marker='o', markersize=2.5, color=colours[0])
-#     plt.xlabel('$z$')
-#     plt.ylabel('Expected Count')
-#     plt.xlim([0, 3])
-#     plt.show()
-#
-#     return limits, expected, chi_bin_widths, chi_bins, z_bins
-
-
 def find_expected_counts(test_cones, bins, redo=False):
     """Uses the test cones to find the expected number of galaxies per bin, for bins of even comoving distance.
     Inputs:
@@ -337,7 +287,6 @@ def find_expected_counts(test_cones, bins, redo=False):
      bins -- number of bins along the line of sight to maximum SN comoving distance.
      redo -- boolean that determines whether expected counts are calculated or loaded. Default false.
     """
-    max_z = max([max(test_cones[f'c{i+1}']['Zs']) for i in range(len(test_cones))])
     max_z = 0.6
     chi_bin_widths, chi_bins, z_bins, z_bin_widths = create_z_bins(0.01, max_z, bins)
     limits = np.cumsum(z_bin_widths)
@@ -368,106 +317,10 @@ def find_expected_counts(test_cones, bins, redo=False):
     plt.xlim([0, 0.6])
     plt.show()
 
-    return limits, expected, chi_bin_widths, chi_bins, z_bins
+    return [limits, expected, chi_bin_widths, chi_bins, z_bins]
 
 
-# def find_convergence(lenses, limits, exp_cumul, SNz, cut, cut2):
-#     """Finds the convergence along each line of sight to a SN.
-#
-#     Inputs:
-#      lenses -- dictionary containing all galaxies that contribute to lensing.
-#      SNz -- redshifts of each SN.
-#      cut -- logical array that select SNe that have z<0.65.
-#      cut2 -- logical array that select SNe that are <5sigma from mean.
-#      limits -- bin edges.
-#     """
-#     chiSNs = []
-#     for SN in SNz:
-#         chi = comoving(np.linspace(0, SN, 1001))
-#         chiSNs.append(chi[-1])
-#
-#     expected = {}
-#     for num, z in enumerate(SNz):
-#         expected[f'SN{int(num)+1}'] = {'chi_widths': [], 'chis': [], 'zs': [], 'SNZ': z, 'exp': []}
-#         chi_widths, chis, zs, z_widths = create_z_bins(0, z, int(500*z))
-#         expected[f'SN{int(num)+1}']['chi_widths'] = chi_widths
-#         expected[f'SN{int(num)+1}']['chis'] = chis
-#         expected[f'SN{int(num)+1}']['zs'] = zs
-#         _, _, _, _ = create_z_bins(0.01, 6.88, 1000)
-#         xp = np.cumsum(np.insert(_, 0, 0.01))
-#         interp_cumul = np.interp(np.cumsum(np.insert(z_widths, 0, 0)), xp, exp_cumul)
-#         expected[f'SN{int(num)+1}']['exp'] = np.diff(interp_cumul)
-#         # print(np.diff(interp_cumul))
-#
-#     counts = {}
-#     for num1 in range(len(lenses)):
-#         counts[f"SN{num1+1}"] = np.zeros(len(expected[f'SN{int(num1)+1}']['exp']))
-#         for num2 in range(len(counts[f"SN{num1+1}"]) - 1):
-#             counts[f"SN{num1+1}"][num2] = sum([expected[f'SN{int(num1)+1}']['exp'][num2] < lenses[f'SN{num1+1}']['Zs'][i]
-#                                                <= expected[f'SN{int(num1)+1}']['exp'][num2 + 1]
-#                                                for i in range(len(lenses[f'SN{num1+1}']['Zs']))])
-#         # print(counts[f"SN{num1+1}"])
-#         if num1 % 50 == 0:
-#             print(f"Finished {num1}/{len(lenses)}")
-#
-#     SNzs_new = SNz[cut]
-#     d_arr = {}
-#     convergence = np.zeros(len(counts))
-#     conv_err = np.zeros(len(counts))
-#     num = 0
-#     for key, SN in counts.items():
-#         print(SN)
-#         print(expected[f'SN{int(num)+1}']['exp'])
-#         d_arr[f"{key}"] = (SN - expected[f'SN{int(num)+1}']['exp']) / expected[f'SN{int(num)+1}']['exp']
-#         # print(expected[f'SN{int(num)+1}']['exp'])
-#         convergence[num] = general_convergence(expected[f'SN{int(num)+1}']['chi_widths'],
-#                                                expected[f'SN{int(num)+1}']['chis'], expected[f'SN{int(num)+1}']['zs'],
-#                                                d_arr[f"{key}"], chiSNs[num])
-#         # conv_err[num] = convergence_error(expected[f'SN{int(num)+1}']['chi_widths'],
-#         #                                   expected[f'SN{int(num)+1}']['chis'],
-#         #                                   expected[f'SN{int(num)+1}']['zs'], expected[f'SN{int(num)+1}']['exp'],
-#         #                                   chiSNs[num])
-#         num += 1
-#
-#     convergence_new = convergence[cut]
-#     # conv_err_new = conv_err[cut]
-#
-#     bins = np.linspace(0.025, 0.575, 12)
-#     edges = np.linspace(0, 0.6, 13)
-#
-#     mean_kappa = []
-#     standard_error = []
-#     for bin in bins:
-#         kappas = []
-#         for z, kappa in zip(SNzs_new[cut2], convergence_new[cut2]):
-#             if bin - 0.025 < z <= bin + 0.025:
-#                 kappas.append(kappa)
-#
-#         mean_kappa.append(np.mean(kappas))
-#         standard_error.append(np.std(kappas) / np.sqrt(len(kappas)))
-#     ax = plt.subplot2grid((1, 2), (0, 0))
-#     ax2 = plt.subplot2grid((1, 2), (0, 1))
-#     ax.set_ylabel("$\kappa$")
-#     ax.set_xlabel("$z$")
-#     ax2.set_xlabel("Count")
-#     ax.tick_params(labelsize=12)
-#     ax2.tick_params(labelsize=12)
-#     ax2.set_yticklabels([])
-#     plt.subplots_adjust(wspace=0, hspace=0)
-#     ax.plot([0, 0.6], [0, 0], color=grey, linestyle='--')
-#     ax.axis([0, 0.6, -0.01, 0.01])
-#     ax.errorbar(bins, mean_kappa, standard_error, marker='s', color='r', markersize=3, capsize=3)
-#     ax2.axis([0, 180, -0.01, 0.01])
-#     # ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
-#     ax.set_xticklabels([0, 0.2, 0.4, 0])
-#     ax.plot(SNzs_new[cut2], convergence_new[cut2], linestyle='', marker='o', markersize=2, color=colours[0])
-#     # ax2.hist(convergence_new[cut2], bins=np.arange(-0.015, 0.02 + 0.001, 0.001), orientation='horizontal',
-#     #          fc=green, edgecolor=colours[0])
-#     plt.show()
-#
-#     return convergence_new
-def find_convergence(lenses, SNz, cut2, limits, plot=False):
-    # ################################# Still references globals; need to fix ##################################### #
+def find_convergence(lenses, exp_data, SNz, cut2, plot=False):
     """Finds the convergence along each line of sight to a SN.
     Inputs:
      lenses -- dictionary containing all galaxies that contribute to lensing.
@@ -476,6 +329,12 @@ def find_convergence(lenses, SNz, cut2, limits, plot=False):
      cut2 -- logical array that select SNe that are <5sigma from mean.
      limits -- bin edges.
     """
+    limits = exp_data[0]
+    expected_counts = exp_data[1]
+    chi_widths = exp_data[2]
+    chis = exp_data[3]
+    zs = exp_data[4]
+
     chiSNs = []
     for SN in SNz:
         chi = comoving(np.linspace(0, SN, 1001))
@@ -495,24 +354,28 @@ def find_convergence(lenses, SNz, cut2, limits, plot=False):
             print(f"Finished {num}/{len(lenses)}")
 
     d_arr = {}
-    convergence = np.zeros(len(counts))
+    conv_total = np.zeros(len(counts))
+    conv = {}
     conv_err = np.zeros(len(counts))
     num = 0
     for key, SN in counts.items():
-        d_arr[f"{key}"] = (SN - exp[:len(SN)]) / exp[:(len(SN))]
-        convergence[num] = general_convergence(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
+        d_arr[f"{key}"] = (SN - expected_counts[:len(SN)]) / expected_counts[:(len(SN))]
+        conv_total[num], conv[f"{key}"] = general_convergence(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
                                                d_arr[f"{key}"], chiSNs[num])
         conv_err[num] = convergence_error(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
-                                            exp[:len(SN)], chiSNs[num])
+                                            expected_counts[:len(SN)], chiSNs[num])
         num += 1
 
-    SN = counts["SN669"]
-    plt.plot(zs[:len(SN)], SN, marker='o')
-    plt.plot(zs[:len(SN)], exp[:len(SN)], marker='o')
-    plt.plot(zs[:len(SN)], d_arr["SN669"], marker='o')
-    plt.text(0.0, 6, f'$\kappa$ = {round(convergence[668], 4)}')
-    plt.text(0, 4, f"($\\alpha$, $\delta$), ({round(lenses['SN669']['SNRA'],2)}, {round(lenses['SN669']['SNDEC'],2)})")
-    plt.text(0, 2, f"CID {lenses['SN669']['CID']}")
+    SN_num = 669
+    SN_key = f"SN{str(SN_num)}"
+    SN = counts[SN_key]
+    plt.plot(zs[:len(SN)], SN, label='Counts')
+    plt.plot(zs[:len(SN)], 10000*conv[SN_key], label='10000$\kappa$')
+    plt.plot(zs[:len(SN)], d_arr[SN_key], label='Overdensity')
+    plt.text(0.0, 6, f'$\kappa$ = {round(conv_total[SN_num-1], 4)}')
+    plt.text(0, 4, f"($\\alpha$, $\delta$), ({round(lenses[SN_key]['SNRA'],2)}, {round(lenses[SN_key]['SNDEC'],2)})")
+    plt.text(0, 2, f"CID {lenses[SN_key]['CID']}")
+    plt.legend(frameon=0)
     # plt.ylim([-2, 8])
 
     plt.plot([0, 0.3], [0, 0], linestyle='--', color=[0.5, 0.5, 0.5])
@@ -524,7 +387,7 @@ def find_convergence(lenses, SNz, cut2, limits, plot=False):
     standard_error = []
     for bin in bins:
         kappas = []
-        for z, kappa in zip(SNzs[cut2], convergence[cut2]):
+        for z, kappa in zip(SNzs[cut2], conv_total[cut2]):
             if bin - 0.025 < z <= bin + 0.025:
                 kappas.append(kappa)
         mean_kappa.append(np.mean(kappas))
@@ -544,49 +407,12 @@ def find_convergence(lenses, SNz, cut2, limits, plot=False):
         ax2.axis([0, 180, -0.01, 0.01])
         ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
         # ax.set_xticklabels([0, 0.2, 0.4, 0])
-        ax.plot(SNzs[cut2], convergence[cut2], linestyle='', marker='o', markersize=2, color=colours[0])
-        ax2.hist(convergence[cut2], bins=np.arange(-0.015, 0.02 + 0.001, 0.001), orientation='horizontal',
+        ax.plot(SNzs[cut2], conv_total[cut2], linestyle='', marker='o', markersize=2, color=colours[0])
+        ax2.hist(conv_total[cut2], bins=np.arange(-0.015, 0.02 + 0.001, 0.001), orientation='horizontal',
                  fc=green, edgecolor=colours[0])
         ax.errorbar(bins, mean_kappa, standard_error, marker='s', color='r', markersize=3, capsize=3)
         plt.show()
-    return convergence
-
-
-# def plot_Hubble(z, mu, mu_err, OM=0.27, OL=0.73, max_x=0.6):
-#     """Plots the Hubble diagram (distance modulus against redshift), including the best fitting cosmology, and
-#     residuals from best cosmology.
-#     """
-#     z_arr = np.linspace(0.0, max(z) + 0.2, 1001)
-#     cosm = 5 * np.log10((1 + z_arr) * b_comoving(0, max(z), OM, OL) * 1000) + 25
-#     cosm_interp = np.interp(z, z_arr, cosm)
-#     mu_diff = mu - cosm_interp
-#     ax = plt.subplot2grid((2, 1), (0, 0))
-#     ax2 = plt.subplot2grid((2, 1), (1, 0))
-#     ax.set_ylabel("$\mu$")
-#     ax2.set_xlabel("$z$")
-#     ax2.set_ylabel("$\Delta\mu$")
-#     plt.subplots_adjust(wspace=0, hspace=0)
-#     ax.set_xticklabels([])
-#     ax.tick_params(labelsize=12)
-#     ax.errorbar(z, mu, mu_err, linestyle='', linewidth=0.8, marker='o',
-#                 markersize=2, capsize=2, color='C3', zorder=0)
-#     ax.set_ylim([35, 45])
-#     ax.set_xlim([0, max_x])
-#     ax.plot(z_arr, cosm, linestyle='--', linewidth=0.8, color='C0', zorder=10)
-#     ax2.errorbar(z, mu_diff, mu_err, linestyle='', linewidth=1, marker='o',
-#                  markersize=2, capsize=2, color='C3', zorder=0)
-#     ax2.plot(z_arr, np.zeros(len(z_arr)), zorder=10, color='C0', linewidth=0.8, linestyle='--')
-#     ax2.set_ylim(-1.4, 1.4)
-#     ax2.set_xlim([0, max_x])
-#     ax2.tick_params(labelsize=12)
-#     ax.axvspan(0, 0.2, alpha=0.1, color=colours[1])
-#     ax.axvspan(0.2, 0.6, alpha=0.1, color=colours[0])
-#     ax2.axvspan(0, 0.2, alpha=0.1, color=colours[1])
-#     ax2.axvspan(0.2, 0.6, alpha=0.1, color=colours[0])
-#     ax.text(0.05, 41, 'Peculiar\nVelocities', color=colours[1], fontsize=16)
-#     ax.text(0.35, 38, 'Lensing', color=colours[0], fontsize=16)
-#
-#     plt.show()
+    return conv_total
 
 
 def plot_Hubble(z, mu, mu_err, mu_diff, z_arr):
@@ -677,12 +503,12 @@ def find_correlation(conv, mu_diff):
 
 
 if __name__ == "__main__":
-    data, S_data, circles = get_data(new_data=False)
-    lensing_gals = sort_SN_gals(data, redo=False)
-    # plot_cones(data, lensing_gals, circles)
-    cone_array = make_test_cones(data, redo=False)
-    bin_limits, exp, chi_widths, chis, zs = find_expected_counts(cone_array, 51, redo=False)
-    print(f"Maximum z: {max([lensing_gals[f'SN{i+1}']['SNZ'] for i in range(len(lensing_gals))])}")
+    radius = 6
+    data, S_data = get_data(new_data=False)
+    lensing_gals = sort_SN_gals(data, redo=True, cone_radius=radius)
+    # plot_cones(data, lensing_gals, plot_hist=False, cone_radius=radius)
+    cone_array = make_test_cones(data, redo=True, cone_radius=radius)
+    exp_data = find_expected_counts(cone_array, 51, redo=True)
     SNzs = np.zeros(len(lensing_gals))
     SNmus = np.zeros(len(lensing_gals))
     SNmu_err = np.zeros(len(lensing_gals))
@@ -699,20 +525,20 @@ if __name__ == "__main__":
     mu_diff_cut = SNmus - mu_cosm_interp
     mu_diff_std = np.std(mu_diff_cut)
     mu_diff_mean = np.mean(mu_diff_cut)
-    cuts2 = [-3.9 * mu_diff_std < mu_diff_cut[i] < 3.9 * mu_diff_std  # and SNzs[i] > 0.2
+    cuts2 = [-3.9 * mu_diff_std < mu_diff_cut[i] < 3.9 * mu_diff_std and SNzs[i] > 0.2
              for i in range(len(mu_diff_cut))]  # really broken
 
-    convergence_cut = find_convergence(lensing_gals, SNzs, cuts2, bin_limits, plot=True)
+    convergence_cut = find_convergence(lensing_gals, exp_data, SNzs, cuts2, plot=True)
     plt.plot(S_data['kappa'], S_data['kappa'], color=colours[1])
     plt.plot(S_data['kappa'], convergence_cut, color=colours[0], marker='o', markersize=3, linestyle='')
     for i in range(len(convergence_cut)):
         if convergence_cut[i] < 0.0031 and S_data['kappa'][i] > 0.0057:
-            print(f"Outlier is SN {i}/{len(convergence_cut)}")
+        # if convergence_cut[i] > 0.016:
+            print(f"Outlier is SN {i+1}/{len(convergence_cut)}")
     plt.xlabel('$\kappa$ Smith')
     plt.ylabel('My $\kappa$')
     plt.show()
 
-    # plot_Hubble(SNzs[cuts2], SNmus[cuts2], SNmu_err[cuts2], mu_diff_cut[cuts2])
     # plot_Hubble(SNzs[cuts2], SNmus[cuts2], SNmu_err[cuts2], mu_diff_cut[cuts2], z_array)
 
     find_correlation(convergence_cut[cuts2], mu_diff_cut[cuts2])

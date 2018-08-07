@@ -258,7 +258,7 @@ def general_convergence(chi_widths, chis, zs, d_arr, SN_dist, OM=0.27):
     coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
     sf_arr = 1.0 / (1.0 + zs)
     k_i = coeff * chis * chi_widths * (SN_dist - chis) / SN_dist * d_arr / sf_arr
-    return np.sum(k_i)
+    return np.sum(k_i), k_i
 
 
 def calc_single_d(chi_widths, chis, zs, z_widths, z_SN, use_chi=True):
@@ -316,8 +316,8 @@ def plot_smoothed_d(chi_widths, chis, zs, z_SN):
     delta_cor[size//2:] = delta[size//2:]+correction
 
     for j in range(size):
-        convergence[j] = (general_convergence(chi_widths, chis, zs, delta[j], chi_SN))
-        convergence_cor[j] = (general_convergence(chi_widths, chis, zs, delta_cor[j], chi_SN))
+        convergence[j], _ = general_convergence(chi_widths, chis, zs, delta[j], chi_SN)
+        convergence_cor[j], _ = general_convergence(chi_widths, chis, zs, delta_cor[j], chi_SN)
 
     # convergence = np.delete(convergence, size // 2, 0)
     convergence_cor = np.delete(convergence_cor, size // 2, 0)
