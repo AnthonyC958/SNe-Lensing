@@ -533,7 +533,7 @@ if __name__ == "__main__":
     data, S_data = get_data(new_data=False)
     lensing_gals = sort_SN_gals(data, redo=False)
     # plot_cones(data, lensing_gals, plot_hist=False, cone_radius=radius)
-    cone_array = make_test_cones(data, redo=True)
+    cone_array = make_test_cones(data, redo=False)
     exp_data = find_expected_counts(cone_array, 51, redo=False)
     SNzs = np.zeros(len(lensing_gals))
     SNmus = np.zeros(len(lensing_gals))
