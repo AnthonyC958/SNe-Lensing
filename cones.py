@@ -213,6 +213,7 @@ def plot_cones(cut_data, sorted_data, plot_hist=False, cone_radius=12.0):
     ax.plot(SNRA, SNDEC, marker='o', linestyle='', markersize=3, label='Supernova', color=colours[1])
     plt.xlabel('$\\alpha$')
     plt.ylabel('$\delta$')
+    plt.text(27, -0.8, f"{cone_radius}' radius")
     # plt.legend(loc='lower right')
     plt.axis('equal')
     plt.xlim([24.5, 27.5])
@@ -250,35 +251,32 @@ def make_test_cones(cut_data, redo=False):
         for cone_radius in radii:
             tests = []
             if cone_radius > 12.0:
-                print(f"Finished radius {str(cone_radius)}'")
                 for a in range(int((60.0 * (50.6 + 58.1)) / (2 * cone_radius))):  # Bounds [-50.6, -1.2, 58.1, 1.2]
                     for b in range(int((60.0 * 2.4) / (2 * cone_radius))):        # degrees (convert to arcmin)
                         test = [-50.6 * 60.0 + cone_radius, 1.2 * 60.0 - cone_radius]
                         test[0] += a * 2 * cone_radius
                         test[1] -= b * 2 * cone_radius
-                        test[0] = round(test[0], 1)
-                        test[1] = round(test[1], 1)
+                        test[0] = round(test[0] / 60.0, 1)
+                        test[1] = round(test[1] / 60.0, 1)
                         tests.append(test)
-            elif 6.0 < cone_radius <= 12.0:
-                print(f"Finished radius {str(cone_radius)}'")
-                for a in range(int((60.0 * (50.6 + 58.1)) / (2 * 12.0))):
-                    for b in range(int((60.0 * 2.4) / (2 * 12.0))):
-                        test = [60.0 * (-50.6 + 0.1), 60.0 * (1.2 - 0.1)]
-                        test[0] += a * 2 * 0.1 * 60.0
-                        test[1] -= b * 2 * 0.1 * 60.0
-                        test[0] = round(test[0], 1)
-                        test[1] = round(test[1], 1)
-                        tests.append(test)
-            elif cone_radius <= 6.0:
-                print(f"Finished radius {str(cone_radius)}'")
-                for a in range(int((60.0 * (50.6 + 58.1)) / (2 * 6.0))):
-                    for b in range(int((60.0 * 2.4) / (2 * 6.0))):
-                        test = [60.0 * (-50.6 + 0.05), 60.0 * (1.2 - 0.05)]
-                        test[0] += a * 2 * 0.05 * 60.0
-                        test[1] -= b * 2 * 0.05 * 60.0
-                        test[0] = round(test[0], 1)
-                        test[1] = round(test[1], 1)
-                        tests.append(test)
+            # elif 6.0 < cone_radius <= 12.0:
+            #     for a in range(int((60.0 * (50.6 + 58.1)) / (2 * 12.0))):
+            #         for b in range(int((60.0 * 2.4) / (2 * 12.0))):
+            #             test = [60.0 * (-50.6 + 0.1), 60.0 * (1.2 - 0.1)]
+            #             test[0] += a * 2 * 0.1 * 60.0
+            #             test[1] -= b * 2 * 0.1 * 60.0
+            #             test[0] = round(test[0] / 60.0, 1)
+            #             test[1] = round(test[1] / 60.0, 1)
+            #             tests.append(test)
+            # elif cone_radius <= 6.0:
+            #     for a in range(int((60.0 * (50.6 + 58.1)) / (2 * 6.0))):
+            #         for b in range(int((60.0 * 2.4) / (2 * 6.0))):
+            #             test = [60.0 * (-50.6 + 0.05), 60.0 * (1.2 - 0.05)]
+            #             test[0] += a * 2 * 0.05 * 60.0
+            #             test[1] -= b * 2 * 0.05 * 60.0
+            #             test[0] = round(test[0] / 60.0, 1)
+            #             test[1] = round(test[1] / 60.0, 1)
+            #             tests.append(test)
             test_cones[f"Radius{str(cone_radius)}"] = {}
             for num, loc, in enumerate(tests):
                 test_cones[f"Radius{str(cone_radius)}"][f'c{int(num)+1}'] = {'Total': 0, 'Zs': []}
@@ -288,7 +286,7 @@ def make_test_cones(cut_data, redo=False):
                     test_cones[f"Radius{str(cone_radius)}"][f'c{int(num)+1}']['Total'] = \
                         len(test_cones[f"Radius{str(cone_radius)}"][f'c{int(num)+1}']['Zs'])
                 print(f'Finished {int(num)+1}/{len(tests)}')
-
+            print(f"Finished radius {str(cone_radius)}'")
 
         pickle_out = open("test_cones.pickle", "wb")
         pickle.dump(test_cones, pickle_out)
@@ -306,7 +304,7 @@ def make_test_cones(cut_data, redo=False):
     return test_cones
 
 
-def find_expected_counts(test_cones, bins, redo=False):
+def find_expected_counts(test_cones, bins, redo=False, plot=False):
     """Uses the test cones to find the expected number of galaxies per bin, for bins of even comoving distance.
     Inputs:
      test_cones -- data to obtain expected counts from.
@@ -317,16 +315,20 @@ def find_expected_counts(test_cones, bins, redo=False):
     chi_bin_widths, chi_bins, z_bins, z_bin_widths = create_z_bins(0.01, max_z, bins)
     limits = np.cumsum(z_bin_widths)
     if redo:
-        expected = np.zeros((len(limits), len(test_cones)))
-        num = 0
-        for num1, lim in enumerate(limits):
-            for num2, _ in enumerate(test_cones.items()):
-                expected[num1][num2] = sum([test_cones[f'c{num2+1}']['Zs'][i] < lim
-                                            for i in range(len(test_cones[f'c{num2+1}']['Zs']))])
-                num += 1
-                if num % 1000 == 0:
-                    print(f"Finished {num}/{len(limits)*len(test_cones)}")
-        print("Finished")
+        expected = {}
+        for cone_radius in radii:
+            test_cone = test_cones[f"Radius{str(cone_radius)}"]
+            cumul_tot = np.zeros((len(limits), len(test_cone)))
+            # num = 0
+            for num1, lim in enumerate(limits):
+                for num2, _ in enumerate(test_cone.items()):
+                    cumul_tot[num1][num2] = sum([test_cone[f'c{num2+1}']['Zs'][i] < lim
+                                                for i in range(len(test_cone[f'c{num2+1}']['Zs']))])
+                    # num += 1
+                    # if num % 1000 == 0:
+                    #     print(f"Finished {num}/{len(limits)*len(test_cones)}")
+            expected[f"Radius{str(cone_radius)}"] = np.diff([np.mean(cumul_tot[i][:]) for i in range(len(limits))])
+            print(f"Finished radius {str(cone_radius)}'")
 
         pickle_out = open("expected.pickle", "wb")
         pickle.dump(expected, pickle_out)
@@ -335,13 +337,15 @@ def find_expected_counts(test_cones, bins, redo=False):
         pickle_in = open("expected.pickle", "rb")
         expected = pickle.load(pickle_in)
 
-    expected = np.diff([np.mean(expected[i][:]) for i in range(len(limits))])
-    plt.plot([0, 5], [0, 0], color=grey, linestyle='--')
-    plt.plot(limits[1:], expected, marker='o', markersize=2.5, color=colours[0])
-    plt.xlabel('$z$')
-    plt.ylabel('Expected Count')
-    plt.xlim([0, 0.6])
-    plt.show()
+    if plot:
+        for cone_radius in radii:
+            plt.plot([0, 0.6], [0, 0], color=grey, linestyle='--')
+            plt.plot((limits[1:]+limits[:-1])/2.0, expected[f"Radius{str(cone_radius)}"], marker='o',
+                     markersize=2.5, color=colours[0])
+            plt.xlabel('$z$')
+            plt.ylabel('Expected Count')
+            plt.xlim([0, 0.6])
+            plt.show()
 
     return [limits, expected, chi_bin_widths, chi_bins, z_bins]
 
@@ -529,12 +533,13 @@ def find_correlation(conv, mu_diff):
 
 
 if __name__ == "__main__":
-    radius = 15.0
+    radius = 6.0
     data, S_data = get_data(new_data=False)
     lensing_gals = sort_SN_gals(data, redo=False)
-    # plot_cones(data, lensing_gals, plot_hist=False, cone_radius=radius)
-    cone_array = make_test_cones(data, redo=False)
-    exp_data = find_expected_counts(cone_array, 51, redo=False)
+    # for rad in radii[5::5]:
+    #     plot_cones(data, lensing_gals, plot_hist=False, cone_radius=rad)
+    cone_array = make_test_cones(data, redo=True)
+    exp_data = find_expected_counts(cone_array, 51, redo=True, plot=True)
     SNzs = np.zeros(len(lensing_gals))
     SNmus = np.zeros(len(lensing_gals))
     SNmu_err = np.zeros(len(lensing_gals))
