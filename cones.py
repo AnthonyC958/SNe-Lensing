@@ -15,6 +15,9 @@ yellow = [253/255, 170/255, 0, 0.75]
 grey = [0.75, 0.75, 0.75]
 names = ['STRIPE82_SPECTROSCOPIC_CHAZ_NOTCLEANED_ms77.fit', 'boss_206+SDSS_213_all_cuts_new_mu_dmu1_new.fits',
          'Smithdata.csv']
+radii = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0,
+         7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0,
+         24.0, 25.0]
 
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['font.serif'] = 'Stixgeneral'
@@ -112,18 +115,11 @@ def get_data(new_data=False):
     return cut_data, Smith_data
 
 
-def sort_SN_gals(cut_data, redo=False, cone_radius=12):
+def sort_SN_gals(cut_data, redo=False):
     """Either sorts galaxies into SN cones or loads sorted data from file.
 
     Inputs:
-     RA1 -- right ascensions of galaxies.
-     RA2 -- right ascensions of SNe.
-     DEC1 -- declinations of galaxies.
-     DEC2 -- declinations of SNe.
-     z1 -- redshifts of galaxies.
-     z2 -- redshifts of SNe
-     mu -- distance moduli of SNe
-     mu_err -- error in distance moduli.
+     cut_data -- contains all RA, DEC and z for all SNe and galaxies as well as distance moduli and CIDs.
      redo -- boolean that determines whether data is loaded or sorted. Default false.
     """
     RA1 = cut_data['RA1']
@@ -137,25 +133,28 @@ def sort_SN_gals(cut_data, redo=False, cone_radius=12):
     CID = cut_data['CID']
     if redo:
         lenses = {}
-        for num, SRA, SDE, SZ, SM, SE, C in zip(np.linspace(0, len(RA2) - 1, len(RA2)), RA2, DEC2, z2, mu, mu_err, CID):
-            lenses[f'SN{int(num)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [], 'SNZ': SZ, 'SNMU': SM, 'SNMU_ERR': SE,
-                                         'SNRA': SRA, 'SNDEC': SDE, 'WEIGHT': 1, 'CID': C}
-            if SDE > 1.28 - cone_radius/60.0:
-                h = SDE - (1.28 - cone_radius/60.0)
-            elif SDE < -(1.28 - cone_radius/60.0):
-                h = -(1.28 - cone_radius/60.0) - SDE
-            else:
-                h = 0
-            theta = 2 * np.arccos(1 - h / (cone_radius/60.0))
-            fraction_outside = 1 / (2 * np.pi) * (theta - np.sin(theta))
-            lenses[f'SN{int(num)+1}']['WEIGHT'] = 1 - fraction_outside
-            for GRA, GDE, GZ in zip(RA1, DEC1, z1):
-                if (GRA - SRA) ** 2 + (GDE - SDE) ** 2 <= (cone_radius/60.0) ** 2 and GZ <= SZ:
-                    lenses[f'SN{int(num)+1}']['RAs'].append(GRA)
-                    lenses[f'SN{int(num)+1}']['DECs'].append(GDE)
-                    lenses[f'SN{int(num)+1}']['Zs'].append(GZ)
-            print(f'Finished {int(num)+1}/{len(RA2)}')
-
+        for cone_radius in radii:
+            lenses[f"Radius{str(cone_radius)}"] = {}
+            for num, SRA, SDE, SZ, SM, SE, C in zip(np.linspace(0, len(RA2) - 1, len(RA2)), RA2, DEC2, z2, mu, mu_err, CID):
+                lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [], 'SNZ': SZ,
+                                                                          'SNMU': SM, 'SNMU_ERR': SE,  'SNRA': SRA,
+                                                                          'SNDEC': SDE, 'WEIGHT': 1, 'CID': C}
+                if SDE > 1.28 - cone_radius/60.0:
+                    h = SDE - (1.28 - cone_radius/60.0)
+                elif SDE < -(1.28 - cone_radius/60.0):
+                    h = -(1.28 - cone_radius/60.0) - SDE
+                else:
+                    h = 0
+                theta = 2 * np.arccos(1 - h / (cone_radius/60.0))
+                fraction_outside = 1 / (2 * np.pi) * (theta - np.sin(theta))
+                lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['WEIGHT'] = 1 - fraction_outside
+                for GRA, GDE, GZ in zip(RA1, DEC1, z1):
+                    if (GRA - SRA) ** 2 + (GDE - SDE) ** 2 <= (cone_radius/60.0) ** 2 and GZ <= SZ:
+                        lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['RAs'].append(GRA)
+                        lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['DECs'].append(GDE)
+                        lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['Zs'].append(GZ)
+                # print(f'Finished {int(num)+1}/{len(RA2)}')
+            print(f"Finished radius {str(cone_radius)}'")
         pickle_out = open("lenses.pickle", "wb")
         pickle.dump(lenses, pickle_out)
         pickle_out.close()
@@ -171,7 +170,7 @@ def sort_SN_gals(cut_data, redo=False, cone_radius=12):
     return lenses
 
 
-def plot_cones(cut_data, lenses, plot_hist=False, cone_radius=12):
+def plot_cones(cut_data, sorted_data, plot_hist=False, cone_radius=12.0):
     """Plots all galaxies and SNe along with visualisation of cones and galaxies contributing to lensing.
 
     Input:
@@ -186,6 +185,7 @@ def plot_cones(cut_data, lenses, plot_hist=False, cone_radius=12):
         circle = Circle((x, y), cone_radius/60.0)
         patches.append(circle)
 
+    lenses = sorted_data[f"Radius{str(cone_radius)}"]
     RA1 = cut_data['RA1']
     DEC1 = cut_data['DEC1']
     fig, ax = plt.subplots()
@@ -232,7 +232,7 @@ def plot_cones(cut_data, lenses, plot_hist=False, cone_radius=12):
         plt.show()
 
 
-def make_test_cones(cut_data, redo=False, cone_radius=12):
+def make_test_cones(cut_data, redo=False):
     """Creates an array of 12 arcmin cones all across data or loads test cones from file.
     Also distribution of galaxy count per bin.
 
@@ -245,24 +245,50 @@ def make_test_cones(cut_data, redo=False, cone_radius=12):
     RA1 = cut_data['RA1']
     DEC1 = cut_data['DEC1']
     z1 = cut_data['z1']
-    tests = []
-    for a in range(271):
-        for b in range(6):
-            test = [-50.5, 1.0]  # Upper left corner of STRIPE82
-            test[0] += a * 0.4
-            test[1] -= b * 0.4
-            test[0] = round(test[0], 1)
-            test[1] = round(test[1], 1)
-            tests.append(test)
     if redo:
         test_cones = {}
-        for num, loc, in enumerate(tests):
-            test_cones[f'c{int(num)+1}'] = {'Total': 0, 'Zs': []}
-            for GRA, GDE, GZ in zip(RA1, DEC1, z1):
-                if (GRA - loc[0]) ** 2 + (GDE - loc[1]) ** 2 <= (cone_radius/60.0) ** 2:
-                    test_cones[f'c{int(num)+1}']['Zs'].append(GZ)
-                test_cones[f'c{int(num)+1}']['Total'] = len(test_cones[f'c{int(num)+1}']['Zs'])
-            print(f'Finished {int(num)+1}/{len(tests)}')
+        for cone_radius in radii:
+            tests = []
+            if cone_radius > 12.0:
+                print(f"Finished radius {str(cone_radius)}'")
+                for a in range(int((60.0 * (50.6 + 58.1)) / (2 * cone_radius))):  # Bounds [-50.6, -1.2, 58.1, 1.2]
+                    for b in range(int((60.0 * 2.4) / (2 * cone_radius))):        # degrees (convert to arcmin)
+                        test = [-50.6 * 60.0 + cone_radius, 1.2 * 60.0 - cone_radius]
+                        test[0] += a * 2 * cone_radius
+                        test[1] -= b * 2 * cone_radius
+                        test[0] = round(test[0], 1)
+                        test[1] = round(test[1], 1)
+                        tests.append(test)
+            elif 6.0 < cone_radius <= 12.0:
+                print(f"Finished radius {str(cone_radius)}'")
+                for a in range(int((60.0 * (50.6 + 58.1)) / (2 * 12.0))):
+                    for b in range(int((60.0 * 2.4) / (2 * 12.0))):
+                        test = [60.0 * (-50.6 + 0.1), 60.0 * (1.2 - 0.1)]
+                        test[0] += a * 2 * 0.1 * 60.0
+                        test[1] -= b * 2 * 0.1 * 60.0
+                        test[0] = round(test[0], 1)
+                        test[1] = round(test[1], 1)
+                        tests.append(test)
+            elif cone_radius <= 6.0:
+                print(f"Finished radius {str(cone_radius)}'")
+                for a in range(int((60.0 * (50.6 + 58.1)) / (2 * 6.0))):
+                    for b in range(int((60.0 * 2.4) / (2 * 6.0))):
+                        test = [60.0 * (-50.6 + 0.05), 60.0 * (1.2 - 0.05)]
+                        test[0] += a * 2 * 0.05 * 60.0
+                        test[1] -= b * 2 * 0.05 * 60.0
+                        test[0] = round(test[0], 1)
+                        test[1] = round(test[1], 1)
+                        tests.append(test)
+            test_cones[f"Radius{str(cone_radius)}"] = {}
+            for num, loc, in enumerate(tests):
+                test_cones[f"Radius{str(cone_radius)}"][f'c{int(num)+1}'] = {'Total': 0, 'Zs': []}
+                for GRA, GDE, GZ in zip(RA1, DEC1, z1):
+                    if (GRA - loc[0]) ** 2 + (GDE - loc[1]) ** 2 <= (cone_radius/60.0) ** 2:
+                        test_cones[f"Radius{str(cone_radius)}"][f'c{int(num)+1}']['Zs'].append(GZ)
+                    test_cones[f"Radius{str(cone_radius)}"][f'c{int(num)+1}']['Total'] = \
+                        len(test_cones[f"Radius{str(cone_radius)}"][f'c{int(num)+1}']['Zs'])
+                print(f'Finished {int(num)+1}/{len(tests)}')
+
 
         pickle_out = open("test_cones.pickle", "wb")
         pickle.dump(test_cones, pickle_out)
@@ -503,20 +529,20 @@ def find_correlation(conv, mu_diff):
 
 
 if __name__ == "__main__":
-    radius = 12.0
+    radius = 15.0
     data, S_data = get_data(new_data=False)
-    lensing_gals = sort_SN_gals(data, redo=True, cone_radius=radius)
+    lensing_gals = sort_SN_gals(data, redo=False)
     # plot_cones(data, lensing_gals, plot_hist=False, cone_radius=radius)
-    cone_array = make_test_cones(data, redo=True, cone_radius=radius)
-    exp_data = find_expected_counts(cone_array, 51, redo=True)
+    cone_array = make_test_cones(data, redo=False)
+    exp_data = find_expected_counts(cone_array, 51, redo=False)
     SNzs = np.zeros(len(lensing_gals))
     SNmus = np.zeros(len(lensing_gals))
     SNmu_err = np.zeros(len(lensing_gals))
     c = 0
     for _, supernova in lensing_gals.items():
-        SNzs[c] = supernova['Radius12.0']['SNZ']
-        SNmus[c] = supernova['Radius12.0']['SNMU']
-        SNmu_err[c] = supernova['Radius12.0']['SNMU_ERR']
+        SNzs[c] = supernova['SNZ']
+        SNmus[c] = supernova['SNMU']
+        SNmu_err[c] = supernova['SNMU_ERR']
         c += 1
 
     z_array = np.linspace(0.0, 0.61, 1001)
