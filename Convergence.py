@@ -1,9 +1,6 @@
 import numpy as np
-import matplotlib
 import matplotlib.pyplot as plt
 import scipy.integrate as sp
-from matplotlib import rc
-from matplotlib.backends.backend_pdf import PdfPages
 
 colours = [[0, 150/255, 100/255], [225/255, 149/255, 0], [207/255, 0, 48/255], 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
 blue = [23/255, 114/255, 183/255, 0.75]
@@ -40,21 +37,12 @@ def get_h_inv(z_val, OM=0.27, OL=0.73):
 
     Inputs:
      z_val -- redshift value integrand is evaluated at.
+     OM -- matter density parameter. Defaults to 0.27.
+     OL -- dark energy density parameter. Defaults to 0.73.
     """
     OK = 1.0 - OM - OL
     H = np.sqrt(OK * (1.0 + z_val) ** 2 + OM * (1.0 + z_val) ** 3 + OL)
     return 1.0 / H
-
-
-def get_adot_inv(a_val, OM=0.27, OL=0.73):
-    """Integrand for calculating comoving distance.
-
-    Inputs:
-     a_val -- scalefactor value integrand is evaluated at.
-    """
-    OK = 1.0 - OM - OL
-    adot = np.sqrt(OK + OM / a_val + OL * a_val ** 2)
-    return 1.0 / adot
 
 
 def comoving(zs_array, OM=0.27, OL=0.73):
@@ -62,7 +50,9 @@ def comoving(zs_array, OM=0.27, OL=0.73):
 
     Inputs:
      zs_array -- array of redshifts to evaluate cumulative comoving distance to.
-     """
+     OM -- matter density parameter. Defaults to 0.27.
+     OL -- dark energy density parameter. Defaults to 0.73.
+    """
     vecGet_h_inv = np.vectorize(get_h_inv)
     h_invs = vecGet_h_inv(zs_array, OM, OL)
     comoving_coord = sp.cumtrapz(h_invs, x=zs_array, initial=0)
@@ -72,30 +62,31 @@ def comoving(zs_array, OM=0.27, OL=0.73):
 
 
 def b_comoving_integrand(a_val, OM=0.27, OL=0.73):
+    """Numerical integration of get_h_inv to create an array of comoving values.
+
+    Inputs:
+     a_val -- scalefactor value.
+     OM -- matter density parameter. Defaults to 0.27.
+     OL -- dark energy density parameter. Defaults to 0.73.
+    """
     OK = 1 - OM - OL
     return 1 / np.sqrt(a_val * OM + a_val ** 2 * OK + a_val ** 4 * OL)
 
 
-def b_propdist_integrand(a_val, OM=0.27, OL=0.73):
-    OK = 1 - OM - OL
-    return 1 / np.sqrt(OM / a_val + OK + a_val ** 2 * OL)
+def b_comoving(z_lo, z_hi, OM=0.27, OL=0.73, n=1001):
+    """Numerical integration of b_comoving_integrand to create an array of comoving values. Uses start and end redshift
+    as opposed to an array of z values.
 
-
-def b_comoving(z1, z2, OM=0.27, OL=0.73, n=1001):
+    Inputs:
+     z_lo -- start redshift.
+     z_hi -- end redshift.
+     OM -- matter density parameter. Defaults to 0.27.
+     OL -- dark energy density parameter. Defaults to 0.73.
+     n -- number of integration steps. Defaults to 1001.
+    """
     vecIntegrand = np.vectorize(b_comoving_integrand)
-    a1 = 1 / (1 + z2)  # backwards in a
-    a2 = 1 / (1 + z1)
-    a_arr = np.linspace(a1, a2, n)
-    integrands = vecIntegrand(a_arr, OM, OL)
-    comoving_coord = sp.cumtrapz(integrands, x=a_arr, initial=0)
-
-    return comoving_coord * c / H0
-
-
-def b_propdist(z1, z2, OM=0.27, OL=0.73, n=1001):
-    vecIntegrand = np.vectorize(b_propdist_integrand)
-    a1 = 1 / (1 + z2)  # backwards in a
-    a2 = 1 / (1 + z1)
+    a1 = 1 / (1 + z_hi)  # backwards in a
+    a2 = 1 / (1 + z_lo)
     a_arr = np.linspace(a1, a2, n)
     integrands = vecIntegrand(a_arr, OM, OL)
     comoving_coord = sp.cumtrapz(integrands, x=a_arr, initial=0)
@@ -111,7 +102,7 @@ def create_chi_bins(z_lo, z_hi, num_bins, plot=False):
      z_hi -- end redshift.
      num_bins -- number of bins to create.
      plot -- boolean to create plot of chi versus z with bins. Defaults to False.
-     """
+    """
     z_to_end = np.linspace(z_lo, z_hi, 1001)
     chi_to_end = b_comoving(z_lo, z_hi)
     chi_start = chi_to_end[0]
@@ -189,9 +180,9 @@ def single_d_convergence(chi_widths, chis, zs, index, mass, SN_dist, OM=0.27):
      chis -- the mean comoving distance of each bin.
      zs -- the mean redshift of each bin, for the scale factor.
      index -- which redshift bin will contain the over density.
-     density -- the value of the overdensity. Corresponds to
-                (observed-expected)/expected when galaxy counting (>= -1).
+     density -- the value of the overdensity. Corresponds to (observed-expected)/expected when galaxy counting (>= -1).
      SN_dist -- comoving distance to SN along line of sight.
+     OM -- matter density parameter. Defaults to 0.27.
     """
     coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
     # print(chi_widths)
@@ -212,8 +203,17 @@ def single_d_convergence(chi_widths, chis, zs, index, mass, SN_dist, OM=0.27):
     return np.sum(k_i)
 
 
-def single_d_convergence_z(z_widths, chi_widths, chis, zs, index, mass, SN_dist, OM=0.27):
+def single_d_convergence_z(z_widths, chis, zs, index, mass, SN_dist, OM=0.27):
     """Same as single_d_convergence but for making dealing with bins equal in z.
+
+    Inputs:
+     z_widths -- the width of the redshift bins.
+     chis -- the mean comoving distance of each bin.
+     zs -- the mean redshift of each bin, for the scale factor.
+     index -- which redshift bin will contain the over density.
+     density -- the value of the overdensity. Corresponds to (observed-expected)/expected when galaxy counting (>= -1).
+     SN_dist -- comoving distance to SN along line of sight.
+     OM -- matter density parameter. Defaults to 0.27.
     """
     coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
     d_arr = np.linspace(0, 0, len(zs))
@@ -238,6 +238,7 @@ def convergence_error(chi_widths, chis, zs, expected_arr, SN_dist, OM=0.27):
      zs -- the mean redshift of each bin, for the scale factor.
      expected_arr -- the array of expected galaxy counts per bin.
      SN_dist -- comoving distance to SN along line of sight.
+     OM -- matter density parameter. Defaults to 0.27.
     """
     coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
     sf_arr = 1.0 / (1.0 + zs)
@@ -254,6 +255,7 @@ def general_convergence(chi_widths, chis, zs, d_arr, SN_dist, OM=0.27):
      zs -- the mean redshift of each bin, for the scale factor.
      d_arr -- overdensity array.
      SN_dist -- comoving distance to SN along line of sight.
+     OM -- matter density parameter. Defaults to 0.27.
     """
     coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
     sf_arr = 1.0 / (1.0 + zs)
@@ -269,7 +271,8 @@ def calc_single_d(chi_widths, chis, zs, z_widths, z_SN, use_chi=True):
      chis -- the mean comoving distances of each bin.
      zs -- the mean redshift of each bin, for the scale factor.
      z_SN -- the reshift of the SN.
-     """
+     use_chi -- boolean that determined whether equal comoving distance or redshift bins are used.
+    """
     comoving_to_SN = b_comoving(0, z_SN)
     chi_SN = comoving_to_SN[-1]
 
@@ -279,7 +282,7 @@ def calc_single_d(chi_widths, chis, zs, z_widths, z_SN, use_chi=True):
         if use_chi:
             convergence[i] = single_d_convergence(chi_widths, chis, zs, i, mass, chi_SN)
         else:
-            convergence[i] = single_d_convergence_z(z_widths, chi_widths, chis, zs, i, mass, chi_SN)
+            convergence[i] = single_d_convergence_z(z_widths, chis, zs, i, mass, chi_SN)
 
     return convergence
 
@@ -357,9 +360,10 @@ def compare_z_chi(conv_c_arr, conv_z_arr, chi_bins_c, chi_bins_z, z_bins_z, z_bi
     Inputs:
      conv_c_arr -- array of convergence for even comoving bins.
      conv_z_arr -- array of convergence for even redshift bins.
-     chi_bins_c -- mean comoving distance values of the even comoving bins.
-     chi_bins_z -- mean comoving distance values of the even redshift bins.
-     z_bins_z --
+     chi_bins_c -- mean comoving distance values of the equal comoving bins.
+     chi_bins_z -- mean comoving distance values of the equal redshift bins.
+     z_bins_c -- mean redshift values of the equal comoving bins.
+     z_bins_z -- mean redshift values of the equal redshift bins.
      SN_dist -- comoving distance to SN along line of sight.
      z_SN -- the reshift of the SN.
     """
@@ -407,7 +411,15 @@ def compare_z_chi(conv_c_arr, conv_z_arr, chi_bins_c, chi_bins_z, z_bins_z, z_bi
     plt.show()
 
 
-def smoothed_m_convergence(tests, SN_dist, z_SN, OM=0.27, plot=False):
+def smoothed_m_convergence(tests, SN_dist, z_SN, OM=0.27):
+    """Plots the convergence of a single mass confined to the centre of the LOS with decreasing bin width.
+
+    Inputs:
+     tests -- number of bin widths.
+     SN_dist -- comoving distance to supernova.
+     z_SN -- redshift of supernova.
+     OM -- matter density parameter. Defaults to 0.27.
+    """
     test_range = np.arange(3, tests, 2)
     conv = np.zeros(len(test_range))
     mass_mag = 15
@@ -422,19 +434,24 @@ def smoothed_m_convergence(tests, SN_dist, z_SN, OM=0.27, plot=False):
         d_m = 8 * np.pi * G * mass / (3 * OM * vol_bin * Hz ** 2 * 3.086E31) - 1
         conv[num] = single_d_convergence(comoving_binwidths, comoving_bins, z_bins, len(z_bins) // 2, mass, SN_dist)
         bin_lengths[num] = round(1000 * comoving_binwidths[0], 1)
-    if plot:
-        plt.plot(test_range[10::], conv[10::], label='$M_{{cluster}} = 10^{0} M_\odot$'.format({mass_mag}),
-                 color=colours[0])
-        plt.plot(test_range[10::], np.zeros(len(test_range[10::])), color=[0.75, 0.75, 0.75], linestyle='--')
-        plt.xticks(test_range[10::tests // 20], bin_lengths[10::tests // 20], rotation=45)
-        plt.xlabel("Bin length (Mpc)")
-        plt.ylabel("$\kappa$")
-        plt.legend(frameon=0)
-        plt.axis([15, 799, -0.002325, 0.0017])
-        plt.show()
+
+    plt.plot(test_range[10::], conv[10::], label='$M_{{cluster}} = 10^{0} M_\odot$'.format({mass_mag}),
+             color=colours[0])
+    plt.plot(test_range[10::], np.zeros(len(test_range[10::])), color=[0.75, 0.75, 0.75], linestyle='--')
+    plt.xticks(test_range[10::tests // 20], bin_lengths[10::tests // 20], rotation=45)
+    plt.xlabel("Bin length (Mpc)")
+    plt.ylabel("$\kappa$")
+    plt.legend(frameon=0)
+    plt.axis([15, 799, -0.002325, 0.0017])
+    plt.show()
 
 
 def distance_ratio(z_source):
+    """Compares the `convergence' obtained from two equivalent forms of the equation.
+
+    Inputs:
+     z_source -- redshift of supernova.
+    """
     _, chis, zs, _ = create_chi_bins(0, z_source, 1002)
     z_source = zs[-1]
     # z_arr = np.linspace(0, z_source, 1001)
@@ -497,7 +514,7 @@ if __name__ == "__main__":
     compare_z_chi(single_conv_c, single_conv_z, comoving_binsc, comoving_binsz, z_binsz, z_binsc, SN_chi, SN_redshift)
 
     num_test = 800
-    # smoothed_m_convergence(num_test, SN_chi, SN_redshift, plot=False)
+    # smoothed_m_convergence(num_test, SN_chi, SN_redshift)
     # distance_ratio(SN_redshift)
 
     scalefactor = np.linspace(1, 0.5, 101)

@@ -13,9 +13,9 @@ orange = [255/255, 119/255, 15/255, 0.75]
 green = [0, 150/255, 100/255, 0.75]
 yellow = [253/255, 170/255, 0, 0.75]
 grey = [0.75, 0.75, 0.75]
-names = ['STRIPE82_SPECTROSCOPIC_CHAZ_NOTCLEANED_ms77.fit', 'boss_206+SDSS_213_all_cuts_new_mu_dmu1_new.fits',
+NAMES = ['STRIPE82_SPECTROSCOPIC_CHAZ_NOTCLEANED_ms77.fit', 'boss_206+SDSS_213_all_cuts_new_mu_dmu1_new.fits',
          'Smithdata.csv']
-radii = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0,
+RADII = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0,
          7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0,
          24.0, 25.0]
 
@@ -57,7 +57,7 @@ def get_data(new_data=False):
         S_HR = []
         S_dHR = []
 
-        with open(names[2], 'r') as f:
+        with open(NAMES[2], 'r') as f:
             CSV = csv.reader(f, delimiter=',')
             for line in CSV:
                 S_CID.append(int(float(line[0].strip())))
@@ -71,8 +71,8 @@ def get_data(new_data=False):
 
         Smith_data = {'CID': S_CID, 'z': S_z, 'ngal': S_ngal, 'delta': S_delta, 'kappa': S_kappa, 'dkappa': S_dkappa,
                       'HR': S_HR, 'dHR': S_dHR}
-        with fits.open(names[0])as hdul1:
-            with fits.open(names[1]) as hdul2:
+        with fits.open(NAMES[0])as hdul1:
+            with fits.open(NAMES[1]) as hdul2:
                 low_z = 0.04  # should be 0.05
                 RA1 = [hdul1[1].data['RA'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
                        hdul1[1].data['CLASS'][i] == 'GALAXY' and hdul1[1].data['Z'][i] >= 0.01]
@@ -133,9 +133,10 @@ def sort_SN_gals(cut_data, redo=False):
     CID = cut_data['CID']
     if redo:
         lenses = {}
-        for cone_radius in radii:
+        for cone_radius in RADII:
             lenses[f"Radius{str(cone_radius)}"] = {}
-            for num, SRA, SDE, SZ, SM, SE, C in zip(np.linspace(0, len(RA2) - 1, len(RA2)), RA2, DEC2, z2, mu, mu_err, CID):
+            for num, SRA, SDE, SZ, SM, SE, C in zip(np.linspace(0, len(RA2) - 1, len(RA2)), RA2, DEC2, z2, mu, mu_err,
+                                                    CID):
                 lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [], 'SNZ': SZ,
                                                                           'SNMU': SM, 'SNMU_ERR': SE,  'SNRA': SRA,
                                                                           'SNDEC': SDE, 'WEIGHT': 1, 'CID': C}
@@ -147,7 +148,7 @@ def sort_SN_gals(cut_data, redo=False):
                     h = 0
                 theta = 2 * np.arccos(1 - h / (cone_radius/60.0))
                 fraction_outside = 1 / (2 * np.pi) * (theta - np.sin(theta))
-                lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['WEIGHT'] = 1 - fraction_outside
+                lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['WEIGHT'] = 1 #- fraction_outside
                 for GRA, GDE, GZ in zip(RA1, DEC1, z1):
                     if (GRA - SRA) ** 2 + (GDE - SDE) ** 2 <= (cone_radius/60.0) ** 2 and GZ <= SZ:
                         lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['RAs'].append(GRA)
@@ -174,11 +175,11 @@ def plot_cones(cut_data, sorted_data, plot_hist=False, cone_radius=12.0):
     """Plots all galaxies and SNe along with visualisation of cones and galaxies contributing to lensing.
 
     Input:
-     RA1 -- right ascensions of all galaxies.
-     DEC1 -- declinations of all galaxies.
-     z1 -- redshifts of all galaxies.
-     lenses -- dictionary of galaxies into cones.
-     patches -- circles that represent the cones in the plot.
+     cut_data -- dictionary that contains all data (RA, DEC, z, etc.) of galaxies.
+     sorted_data -- dictionary that contains all information for every SN sorted into cones.
+     plot_hist -- boolean that determines if a histogram of the galaxy and SNe distribution is plotted. Defaults to
+                  False.
+     cone_radius -- the radius of the cones. Defaults to 12'.
     """
     patches = []
     for x, y in zip(cut_data['RA2'], cut_data['DEC2']):
@@ -233,50 +234,65 @@ def plot_cones(cut_data, sorted_data, plot_hist=False, cone_radius=12.0):
         plt.show()
 
 
-def make_test_cones(cut_data, redo=False):
-    """Creates an array of 12 arcmin cones all across data or loads test cones from file.
-    Also distribution of galaxy count per bin.
+def make_test_cones(cut_data, redo=False, plot=False):
+    """Creates an array of cones all across data or loads test cones from file for a variety of cone widths.
 
     Inputs:
-     RA1 -- right ascensions of galaxies.
-     DEC1 -- declinations of galaxies.
-     z1 -- redshifts of galaxies.
+     cut_data -- dictionary that contains all data (RA, DEC, z, etc.) of galaxies.
      redo -- boolean that determines whether cones are created or loaded. Default false.
+     plot -- boolean that determines whether a plot of the data field with test_cones overplotted. Default false.
     """
     RA1 = cut_data['RA1']
     DEC1 = cut_data['DEC1']
     z1 = cut_data['z1']
     if redo:
-        test_cones = {}
-        for cone_radius in radii:
+        pickle_in = open("test_cones.pickle", "rb")
+        test_cones = pickle.load(pickle_in)
+        x0 = -50.6 * 60.0  # Convert ounds in degrees to radians
+        x1 = 58.1 * 60.0
+        y0 = 1.25 * 60.0
+        y1 = -1.25 * 60.0
+        for cone_radius in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0,
+                            5.5, 6.0]:
             tests = []
             if cone_radius > 12.0:
-                for a in range(int((60.0 * (50.6 + 58.1)) / (2 * cone_radius))):  # Bounds [-50.6, -1.2, 58.1, 1.2]
-                    for b in range(int((60.0 * 2.4) / (2 * cone_radius))):        # degrees (convert to arcmin)
-                        test = [-50.6 * 60.0 + cone_radius, 1.2 * 60.0 - cone_radius]
+                for a in range(int((x1 - x0) / (2 * cone_radius))):
+                    for b in range(int((y0 - y1) / (2 * cone_radius))):
+                        test = [x0 + cone_radius, y0 - cone_radius]
                         test[0] += a * 2 * cone_radius
                         test[1] -= b * 2 * cone_radius
-                        test[0] = round(test[0] / 60.0, 1)
-                        test[1] = round(test[1] / 60.0, 1)
+                        test[0] /= 60.0  # Back to degrees
+                        test[1] /= 60.0
                         tests.append(test)
-            # elif 6.0 < cone_radius <= 12.0:
-            #     for a in range(int((60.0 * (50.6 + 58.1)) / (2 * 12.0))):
-            #         for b in range(int((60.0 * 2.4) / (2 * 12.0))):
-            #             test = [60.0 * (-50.6 + 0.1), 60.0 * (1.2 - 0.1)]
-            #             test[0] += a * 2 * 0.1 * 60.0
-            #             test[1] -= b * 2 * 0.1 * 60.0
-            #             test[0] = round(test[0] / 60.0, 1)
-            #             test[1] = round(test[1] / 60.0, 1)
-            #             tests.append(test)
-            # elif cone_radius <= 6.0:
-            #     for a in range(int((60.0 * (50.6 + 58.1)) / (2 * 6.0))):
-            #         for b in range(int((60.0 * 2.4) / (2 * 6.0))):
-            #             test = [60.0 * (-50.6 + 0.05), 60.0 * (1.2 - 0.05)]
-            #             test[0] += a * 2 * 0.05 * 60.0
-            #             test[1] -= b * 2 * 0.05 * 60.0
-            #             test[0] = round(test[0] / 60.0, 1)
-            #             test[1] = round(test[1] / 60.0, 1)
-            #             tests.append(test)
+            if 6.0 < cone_radius <= 12.0:
+                for a in range(int((x1 - x0) / 24.0)):
+                    for b in range(int((y0 - y1) / 24.0)):
+                        test = [x0 + 12.0, y0 - 12.0]
+                        test[0] += a * 2 * 12.0
+                        test[1] -= b * 2 * 12.0
+                        test[0] /= 60.0
+                        test[1] /= 60.0
+                        tests.append(test)
+            elif cone_radius <= 6.0:
+                for a in range(int((x1 - x0) / 12.0)):
+                    for b in range(int((y0 - y1) / 12.0)):
+                        test = [x0 + 6.0, y0 - 6.0]
+                        test[0] += a * 2 * 6.0
+                        test[1] -= b * 2 * 6.0
+                        test[0] /= 60.0
+                        test[1] /= 60.0
+                        tests.append(test)
+            if plot:
+                fig, ax = plt.subplots()
+                patches = []
+                for r in tests:
+                    circle = Circle((r[0], r[1]), cone_radius / 60.0)
+                    patches.append(circle)
+                p = PatchCollection(patches, alpha=0.4, color=colours[0])
+                ax.plot(RA1, DEC1, linestyle='', marker='o', markersize=1)
+                ax.add_collection(p)
+                plt.show()
+
             test_cones[f"Radius{str(cone_radius)}"] = {}
             for num, loc, in enumerate(tests):
                 test_cones[f"Radius{str(cone_radius)}"][f'c{int(num)+1}'] = {'Total': 0, 'Zs': []}
@@ -305,18 +321,21 @@ def make_test_cones(cut_data, redo=False):
 
 
 def find_expected_counts(test_cones, bins, redo=False, plot=False):
-    """Uses the test cones to find the expected number of galaxies per bin, for bins of even comoving distance.
+    """Uses the test cones to find the expected number of galaxies per bin, for bins of even redshift.
+
     Inputs:
-     test_cones -- data to obtain expected counts from.
+     test_cones -- dictionary of data to obtain expected counts from for a variety of cone widths.
      bins -- number of bins along the line of sight to maximum SN comoving distance.
      redo -- boolean that determines whether expected counts are calculated or loaded. Default false.
+     plot -- boolean that determines whether expected counts are plotted. Default false.
     """
     max_z = 0.6
     chi_bin_widths, chi_bins, z_bins, z_bin_widths = create_z_bins(0.01, max_z, bins)
     limits = np.cumsum(z_bin_widths)
     if redo:
-        expected = {}
-        for cone_radius in radii:
+        pickle_in = open("expected.pickle", "rb")
+        expected = pickle.load(pickle_in)
+        for cone_radius in RADII[:15]:
             test_cone = test_cones[f"Radius{str(cone_radius)}"]
             cumul_tot = np.zeros((len(limits), len(test_cone)))
             # num = 0
@@ -328,6 +347,17 @@ def find_expected_counts(test_cones, bins, redo=False, plot=False):
                     # if num % 1000 == 0:
                     #     print(f"Finished {num}/{len(limits)*len(test_cones)}")
             expected[f"Radius{str(cone_radius)}"] = np.diff([np.mean(cumul_tot[i][:]) for i in range(len(limits))])
+            for index, count in enumerate(expected[f"Radius{str(cone_radius)}"]):
+                if count == 0:
+                    try:
+                        expected[f"Radius{str(cone_radius)}"][index] = 0.5 * (expected[f"Radius{str(cone_radius)}"]
+                                                                              [index+1] + expected[
+                                                                               f"Radius{str(cone_radius)}"][index-1])
+                    except IndexError:
+                        expected[f"Radius{str(cone_radius)}"][index] = 0.5 * (expected[f"Radius{str(cone_radius)}"]
+                                                                              [index] + expected[
+                                                                               f"Radius{str(cone_radius)}"][index - 1])
+
             print(f"Finished radius {str(cone_radius)}'")
 
         pickle_out = open("expected.pickle", "wb")
@@ -338,7 +368,7 @@ def find_expected_counts(test_cones, bins, redo=False, plot=False):
         expected = pickle.load(pickle_in)
 
     if plot:
-        for cone_radius in radii:
+        for cone_radius in RADII:
             plt.plot([0, 0.6], [0, 0], color=grey, linestyle='--')
             plt.plot((limits[1:]+limits[:-1])/2.0, expected[f"Radius{str(cone_radius)}"], marker='o',
                      markersize=2.5, color=colours[0])
@@ -350,104 +380,155 @@ def find_expected_counts(test_cones, bins, redo=False, plot=False):
     return [limits, expected, chi_bin_widths, chi_bins, z_bins]
 
 
-def find_convergence(lenses, exp_data, SNz, cut2, plot=False):
-    """Finds the convergence along each line of sight to a SN.
+def find_convergence(lens_data, exp_data, SNz, redo=False, plot_scatter=True, plot_total=False):
+    """Finds the convergence along each line of sight to a SN for a variety of cone_widths.
+
     Inputs:
-     lenses -- dictionary containing all galaxies that contribute to lensing.
+     lens_data -- dictionary containing all galaxies that contribute to lensing.
+     exp_data -- dictionary containing all expected counts per bin per cone width.
      SNz -- redshifts of each SN.
-     cut -- logical array that select SNe that have z<0.65.
-     cut2 -- logical array that select SNe that are <5sigma from mean.
-     limits -- bin edges.
+     redo -- boolean that determines whether convergence is calculated or loaded. Dafault false.
+     plot_scatter -- boolean that determined whether scatter plot of convergence per SN redshift is plotted.
+                     Default false.
+     plot_total -- boolean that determines whether total convergence per cone radius is plotted. Default false.
     """
     limits = exp_data[0]
-    expected_counts = exp_data[1]
     chi_widths = exp_data[2]
     chis = exp_data[3]
     zs = exp_data[4]
+    if redo:
+        kappa = {}
 
-    chiSNs = []
-    for SN in SNz:
-        chi = comoving(np.linspace(0, SN, 1001))
-        chiSNs.append(chi[-1])
+        chiSNs = []
+        for SN in SNz:
+            chi = comoving(np.linspace(0, SN, 1001))
+            chiSNs.append(chi[-1])
 
-    counts = {}
-    num = 0
-    for num1 in range(len(lenses)):
-        bin_c = range(int(np.argmin(np.abs(limits - lenses[f"SN{num1+1}"]['SNZ']))))
-        counts[f"SN{num1+1}"] = np.zeros(len(bin_c))
-        for num2 in bin_c:
-            counts[f"SN{num1+1}"][num2] = sum([limits[num2] < lenses[f'SN{num1+1}']['Zs'][i] <= limits[num2 + 1]
-                                               for i in range(len(lenses[f'SN{num1+1}']['Zs']))]) / lenses[
-                f'SN{num1+1}']['WEIGHT']
-        num += 1
-        if num % 50 == 0:
-            print(f"Finished {num}/{len(lenses)}")
+        for cone_radius in RADII:
+            expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]
+            lenses = lens_data[f"Radius{str(cone_radius)}"]
 
-    d_arr = {}
-    conv_total = np.zeros(len(counts))
-    conv = {}
-    conv_err = np.zeros(len(counts))
-    num = 0
-    for key, SN in counts.items():
-        d_arr[f"{key}"] = (SN - expected_counts[:len(SN)]) / expected_counts[:(len(SN))]
-        conv_total[num], conv[f"{key}"] = general_convergence(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
-                                               d_arr[f"{key}"], chiSNs[num])
-        conv_err[num] = convergence_error(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
-                                            expected_counts[:len(SN)], chiSNs[num])
-        num += 1
+            kappa[f"Radius{str(cone_radius)}"] = {"Counts": {}, "delta": {}, "SNkappa": [], "SNallkappas": {},
+                                                  "SNerr": [], "Total": 0}
+            d_arr = {}
+            counts = {}
+            num = 0
+            for num1 in range(len(lenses)):
+                bin_c = range(int(np.argmin(np.abs(limits - lenses[f"SN{num1+1}"]['SNZ']))))
+                counts[f"SN{num1+1}"] = np.zeros(len(bin_c))
+                for num2 in bin_c:
+                    counts[f"SN{num1+1}"][num2] = sum([limits[num2] < lenses[f'SN{num1+1}']['Zs'][i] <= limits[num2 + 1]
+                                                       for i in range(len(lenses[f'SN{num1+1}']['Zs']))]) / lenses[
+                        f'SN{num1+1}']['WEIGHT']
+                num += 1
 
-    SN_num = 669
-    SN_key = f"SN{str(SN_num)}"
-    SN = counts[SN_key]
-    plt.plot(zs[:len(SN)], SN, label='Counts')
-    plt.plot(zs[:len(SN)], 10000*conv[SN_key], label='10000$\kappa$')
-    plt.plot(zs[:len(SN)], d_arr[SN_key], label='Overdensity')
-    plt.text(0.0, 6, f'$\kappa$ = {round(conv_total[SN_num-1], 4)}')
-    plt.text(0, 4, f"($\\alpha$, $\delta$), ({round(lenses[SN_key]['SNRA'],2)}, {round(lenses[SN_key]['SNDEC'],2)})")
-    plt.text(0, 2, f"CID {lenses[SN_key]['CID']}")
-    plt.legend(frameon=0)
-    # plt.ylim([-2, 8])
+            num = 0
+            for key, SN in counts.items():
+                d_arr[key] = (SN - expected_counts[:len(SN)]) / expected_counts[:(len(SN))]
+                # kappa[f"Radius{str(cone_radius)}"]["SNkappa"][num], kappa[f"Radius{str(cone_radius)}"][key] =
+                SNkappa, allkappas = general_convergence(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)], d_arr[key],
+                                                 chiSNs[num])
+                kappa[f"Radius{str(cone_radius)}"]["SNkappa"].append(SNkappa)
+                kappa[f"Radius{str(cone_radius)}"]["SNallkappas"][key] = allkappas
 
-    plt.plot([0, 0.3], [0, 0], linestyle='--', color=[0.5, 0.5, 0.5])
-    plt.show()
+                SNkappa_err = convergence_error(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
+                                                expected_counts[:len(SN)], chiSNs[num])
+                kappa[f"Radius{str(cone_radius)}"]["SNerr"].append(SNkappa_err)
+                num += 1
+            kappa[f"Radius{str(cone_radius)}"]["Total"] = np.sum(kappa[f"Radius{str(cone_radius)}"]["SNkappa"])
+            kappa[f"Radius{str(cone_radius)}"]["Counts"] = counts
+            kappa[f"Radius{str(cone_radius)}"]["delta"] = d_arr
+            print(f"Finished radius {str(cone_radius)}'")
 
-    bins = np.linspace(0.025, 0.575, 12)
-    edges = np.linspace(0, 0.6, 13)
-    mean_kappa = []
-    standard_error = []
-    for bin in bins:
-        kappas = []
-        for z, kappa in zip(SNzs[cut2], conv_total[cut2]):
-            if bin - 0.025 < z <= bin + 0.025:
-                kappas.append(kappa)
-        mean_kappa.append(np.mean(kappas))
-        standard_error.append(np.std(kappas) / np.sqrt(len(kappas)))
-    if plot:
-        ax = plt.subplot2grid((1, 4), (0, 0), colspan=3)
-        ax2 = plt.subplot2grid((1, 4), (0, 3))
-        ax.set_ylabel("$\kappa$")
-        ax.set_xlabel("$z$")
-        ax2.set_xlabel("Count")
-        ax.tick_params(labelsize=12)
-        ax2.tick_params(labelsize=12)
-        ax2.set_yticklabels([])
-        plt.subplots_adjust(wspace=0, hspace=0)
-        ax.plot([0, 0.6], [0, 0], color=grey, linestyle='--')
-        ax.axis([0, 0.6, -0.01, 0.01])
-        ax2.axis([0, 180, -0.01, 0.01])
-        ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
-        # ax.set_xticklabels([0, 0.2, 0.4, 0])
-        ax.plot(SNzs[cut2], conv_total[cut2], linestyle='', marker='o', markersize=2, color=colours[0])
-        ax2.hist(conv_total[cut2], bins=np.arange(-0.015, 0.02 + 0.001, 0.001), orientation='horizontal',
-                 fc=green, edgecolor=colours[0])
-        ax.errorbar(bins, mean_kappa, standard_error, marker='s', color='r', markersize=3, capsize=3)
+        pickle_out = open("kappa.pickle", "wb")
+        pickle.dump(kappa, pickle_out)
+        pickle_out.close()
+    else:
+        pickle_in = open("kappa.pickle", "rb")
+        kappa = pickle.load(pickle_in)
+
+    for cone_radius in RADII:
+        lenses = lens_data[f"Radius{str(cone_radius)}"]
+        bins = np.linspace(0.025, 0.575, 12)
+        edges = np.linspace(0, 0.6, 13)
+        mean_kappa = []
+        standard_error = []
+        conv = kappa[f"Radius{str(cone_radius)}"]["SNkappa"]
+        counts = kappa[f"Radius{str(cone_radius)}"]["Counts"]
+        d_arr = kappa[f"Radius{str(cone_radius)}"]["delta"]
+
+        # SN_num = 669
+        # SN_key = f"SN{str(SN_num)}"
+        # SN = counts[SN_key]
+        # allkappas = kappa[f"Radius{str(cone_radius)}"]["SNallkappas"][SN_key]
+        # plt.plot(zs[:len(SN)], SN, label='Counts')
+        # plt.plot(zs[:len(SN)], 10000 * allkappas, label='10000$\kappa$')
+        # plt.plot(zs[:len(SN)], d_arr[SN_key], label='Overdensity')
+        # plt.text(0.0, 6, f'$\kappa$ = {round(conv_total[SN_num-1], 4)}')
+        # plt.text(0, 4, f"($\\alpha$, $\delta$), ({round(lenses[SN_key]['SNRA'], 2)}, "
+        #                f"{round(lenses[SN_key]['SNDEC'], 2)})")
+        # plt.text(0, 2, f"CID {lenses[SN_key]['CID']}")
+        # plt.legend(frameon=0)
+        # plt.plot([0, 0.3], [0, 0], linestyle='--', color=[0.5, 0.5, 0.5])
+        # plt.show()
+
+        for b in bins:
+            ks = []
+            for z, k in zip(SNz, conv):
+                if b - 0.025 < z <= b + 0.025:
+                    ks.append(k)
+            mean_kappa.append(np.mean(ks))
+            standard_error.append(np.std(ks) / np.sqrt(len(ks)))
+
+        if plot_scatter:
+            conv = kappa[f"Radius{str(cone_radius)}"]["SNkappa"]
+            # ax = plt.subplot2grid((1, 4), (0, 0), colspan=3)
+            ax = plt.subplot2grid((1, 1), (0, 0))
+            # ax2 = plt.subplot2grid((1, 4), (0, 3))
+            ax.set_ylabel("$\kappa$")
+            ax.set_xlabel("$z$")
+            # ax2.set_xlabel("Count")
+            ax.tick_params(labelsize=12)
+            # ax2.tick_params(labelsize=12)
+            # ax2.set_yticklabels([])
+            plt.subplots_adjust(wspace=0, hspace=0)
+            ax.plot([0, 0.6], [0, 0], color=grey, linestyle='--')
+            ax.axis([0, 0.6, -0.01, 0.01])
+            # ax2.axis([0, 180, -0.01, 0.01])
+            # ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
+            # ax.set_xticklabels([0, 0.2, 0.4, 0])
+            ax.plot(SNz, conv, linestyle='', marker='o', markersize=2, color=colours[0])
+            # ax2.hist(conv_total, bins=np.arange(-0.015, 0.02 + 0.001, 0.001), orientation='horizontal',
+            #          fc=green, edgecolor=colours[0])
+            ax.errorbar(bins, mean_kappa, standard_error, marker='s', color='r', markersize=3, capsize=3)
+            plt.show()
+
+    if plot_total:
+        conv_total = []
+        for cone_radius in RADII:
+            conv_total.append(kappa[f"Radius{str(cone_radius)}"]["Total"])
+        plt.ylabel("$\kappa$")
+        plt.xlabel("Cone Radius (arcmin)")
+        plt.tick_params(labelsize=12)
+        plt.plot([0, 26], [0, 0], color=grey, linestyle='--')
+        # plt.axis([0, 0.6, -0.01, 0.01])
+        plt.plot(RADII, conv_total, marker='o', markersize=2, color=colours[0])
         plt.show()
-    return conv_total
+
+    return kappa
 
 
-def plot_Hubble(z, mu, mu_err, mu_diff, z_arr):
-    """Plots the Hubble diagram (distance modulus agaionst redshift), including the best fitting cosmology, and
+def plot_Hubble(z, mu, mu_err, mu_cosm, mu_diff, z_arr):
+    """Plots the Hubble diagram (distance modulus against redshift), including the best fitting cosmology, and
     residuals from best cosmology.
+
+    Inputs:
+     z -- redshift of SNe.
+     mu -- distance modulus of SNe.
+     mu_err -- error in distance modulus of SNe.
+     mu_cosm -- distance modulus of best fitting cosmology.
+     mu_diff -- residuals from best fitting cosmology.
+     z_arr -- array of redshifts used for best fitting cosmology.
     """
     ax = plt.subplot2grid((2, 1), (0, 0))
     ax2 = plt.subplot2grid((2, 1), (1, 0))
@@ -478,7 +559,7 @@ def plot_Hubble(z, mu, mu_err, mu_diff, z_arr):
     plt.show()
 
 
-def find_correlation(conv, mu_diff):
+def find_correlation(convergence_data, mu_diff, plot_correlation=False, plot_radii=False):
     """Finds the value of the slope for plotting residuals against convergence. Magnitude of slope and error
     quantify correlation between the two.
 
@@ -486,90 +567,118 @@ def find_correlation(conv, mu_diff):
      conv -- convergence.
      mu_diff -- residuals.
     """
-    conv_mean = np.mean(conv)
-    mu_mean = np.mean(mu_diff)
-    conv_std = np.std(conv)
-    mu_std = np.std(mu_diff)
-    r = 1 / (len(conv) - 1) * np.sum(((mu_diff - mu_mean) / mu_std) * ((conv - conv_mean) / conv_std))
-    r_err = np.sqrt((1 - r ** 2) / (len(conv) - 1))
+    correlations = []
+    correlation_errs = []
+    for cone_radius in RADII:
+        conv = convergence_data[f"Radius{str(cone_radius)}"]["SNkappa"]
+        conv_mean = np.mean(conv)
+        mu_mean = np.mean(mu_diff)
+        conv_std = np.std(conv)
+        mu_std = np.std(mu_diff)
+        r = 1 / (len(conv) - 1) * np.sum(((mu_diff - mu_mean) / mu_std) * ((conv - conv_mean) / conv_std))
+        r_err = np.sqrt((1 - r ** 2) / (len(conv) - 1))
 
-    conv_rank = rankdata(conv)
-    mu_rank = rankdata(mu_diff)
-    diff = np.abs(conv_rank - mu_rank)
-    rho = 1 - 6 / (len(conv) * (len(conv) ** 2 - 1)) * np.sum(diff ** 2)
-    rho_err = np.sqrt((1 - rho ** 2) / (len(conv) - 1))
-    print(f"Pearson Correlation: {round(r, 3)} +/- {round(r_err, 3)}.")
-    print(f"Spearman Rank: {round(rho, 3)} +/- {round(rho_err, 3)}.")
-    grad = curve_fit(f, conv, mu_diff)[0]
-    fit = conv * grad
+        conv_rank = rankdata(conv)
+        mu_rank = rankdata(mu_diff)
+        diff = np.abs(conv_rank - mu_rank)
+        rho = 1 - 6 / (len(conv) * (len(conv) ** 2 - 1)) * np.sum(diff ** 2)
+        rho_err = np.sqrt((1 - rho ** 2) / (len(conv) - 1))
+        # print(f"Pearson Correlation: {round(r, 3)} +/- {round(r_err, 3)}.")
+        # print(f"Spearman Rank: {round(rho, 3)} +/- {round(rho_err, 3)}.")
+        correlations.append(rho)
+        correlation_errs.append(rho_err)
+        grad = curve_fit(f, conv, mu_diff)[0]
+        fit = conv * grad
 
-    edges = np.linspace(-0.0065, 0.011, 6)
-    bins = (edges[1:] + edges[:-1]) / 2
-    mean_dmu = []
-    standard_error = []
-    for bin in bins:
-        dmus = []
-        for kappa, dmu in zip(conv, mu_diff):
-            if bin - 0.007/4 < kappa <= bin + 0.0007/4:
-                dmus.append(dmu)
-        mean_dmu.append(np.mean(dmus))
-        standard_error.append(np.std(dmus) / np.sqrt(len(dmus)))
+        edges = np.linspace(-0.0065, 0.011, 6)
+        bins = (edges[1:] + edges[:-1]) / 2
+        mean_dmu = []
+        standard_error = []
+        for bin in bins:
+            dmus = []
+            for kappa, dmu in zip(conv, mu_diff):
+                if bin - 0.007/4 < kappa <= bin + 0.0007/4:
+                    dmus.append(dmu)
+            mean_dmu.append(np.mean(dmus))
+            standard_error.append(np.std(dmus) / np.sqrt(len(dmus)))
 
-    plt.plot([min(conv), max(conv)], [0, 0], color=grey, linestyle='--')
-    plt.plot(conv, mu_diff, linestyle='', marker='o', markersize=2, color=colours[0])
-    plt.plot(conv, fit, color=colours[1], label=f'$\Delta\mu = {round(float(grad),3)}\kappa$')
-    plt.errorbar(bins, mean_dmu, standard_error, marker='s', color='r', markersize=3, capsize=3, linestyle='')
-    plt.xlabel('$\kappa$')
-    plt.ylabel('$\Delta\mu$')
-    plt.xlim([-0.008, 0.011])
-    plt.legend(frameon=0, loc='lower right')
-    plt.ylim([-0.3, 0.3])
-    plt.text(0.0038, -0.19, f'$\\rho$ = {round(rho, 3)} $\pm$ {round(rho_err, 3)}', fontsize=16)
-    # print([convergence_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
-    # print([mu_diff_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
-    # print([SNmu_err_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
-    print("Gradient:", grad)
-    plt.show()
+        if plot_correlation:
+            plt.plot([min(conv), max(conv)], [0, 0], color=grey, linestyle='--')
+            plt.plot(conv, mu_diff, linestyle='', marker='o', markersize=2, color=colours[0])
+            plt.plot(conv, fit, color=colours[1], label=f'$\Delta\mu = {round(float(grad),3)}\kappa$')
+            plt.errorbar(bins, mean_dmu, standard_error, marker='s', color='r', markersize=3, capsize=3, linestyle='')
+            plt.xlabel('$\kappa$')
+            plt.ylabel('$\Delta\mu$')
+            plt.xlim([-0.008, 0.011])
+            plt.legend(frameon=0, loc='lower right')
+            plt.ylim([-0.3, 0.3])
+            plt.text(0.0038, -0.19, f'$\\rho$ = {round(rho, 3)} $\pm$ {round(rho_err, 3)}', fontsize=16)
+            # print([convergence_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
+            # print([mu_diff_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
+            # print([SNmu_err_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
+            print("Gradient:", grad)
+            plt.show()
+
+    if plot_radii:
+        # for r, c, e in zip(RADII, correlations, correlation_errs):
+        #     print(r, c, e)
+        plt.plot([0, 25], [0, 0], color=grey, linestyle='--')
+        plt.errorbar(RADII, correlations, correlation_errs, marker='o', markersize=3, capsize=3, color=colours[0])
+        plt.xlabel('Cone Radius (arcmin)')
+        plt.ylabel('$\\rho$')
+        plt.show()
 
 
-if __name__ == "__main__":
-    radius = 6.0
-    data, S_data = get_data(new_data=False)
-    lensing_gals = sort_SN_gals(data, redo=False)
-    # for rad in radii[5::5]:
-    #     plot_cones(data, lensing_gals, plot_hist=False, cone_radius=rad)
-    cone_array = make_test_cones(data, redo=True)
-    exp_data = find_expected_counts(cone_array, 51, redo=True, plot=True)
-    SNzs = np.zeros(len(lensing_gals))
-    SNmus = np.zeros(len(lensing_gals))
-    SNmu_err = np.zeros(len(lensing_gals))
+def find_mu_diff(lenses):
+    """Finds the distance modulus of best fitting cosmology and hence residuals.
+
+    Inputs:
+     lenses -- data that contains distance modulus and redshift of each SN.
+    """
+    # Arbitrarily pick 12'
+    lens_gal_single_rad = lenses["Radius12.0"]
+    SNzs = np.zeros(len(lens_gal_single_rad))
+    SNmus = np.zeros(len(lens_gal_single_rad))
+    SNmu_err = np.zeros(len(lens_gal_single_rad))
     c = 0
-    for _, supernova in lensing_gals.items():
-        SNzs[c] = supernova['SNZ']
-        SNmus[c] = supernova['SNMU']
-        SNmu_err[c] = supernova['SNMU_ERR']
+    for SN_key, SN in lens_gal_single_rad.items():
+        SNzs[c] = SN['SNZ']
+        SNmus[c] = SN['SNMU']
+        SNmu_err[c] = SN['SNMU_ERR']
         c += 1
-
     z_array = np.linspace(0.0, 0.61, 1001)
     mu_cosm = 5 * np.log10((1 + z_array) * comoving(z_array) * 1000) + 25
     mu_cosm_interp = np.interp(SNzs, z_array, mu_cosm)
-    mu_diff_cut = SNmus - mu_cosm_interp
-    mu_diff_std = np.std(mu_diff_cut)
-    mu_diff_mean = np.mean(mu_diff_cut)
-    cuts2 = [-3.9 * mu_diff_std < mu_diff_cut[i] < 3.9 * mu_diff_std and SNzs[i] > 0.2
-             for i in range(len(mu_diff_cut))]  # really broken
+    mu_diff = SNmus - mu_cosm_interp
+    mu_diff_std = np.std(mu_diff)
 
-    convergence_cut = find_convergence(lensing_gals, exp_data, SNzs, cuts2, plot=True)
-    plt.plot(S_data['kappa'], S_data['kappa'], color=colours[1])
-    plt.plot(S_data['kappa'], convergence_cut, color=colours[0], marker='o', markersize=3, linestyle='')
-    for i in range(len(convergence_cut)):
-        if convergence_cut[i] < 0.0031 and S_data['kappa'][i] > 0.0057:
-        # if convergence_cut[i] > 0.016:
-            print(f"Outlier is SN {i+1}/{len(convergence_cut)}")
-    plt.xlabel('$\kappa$ Smith')
-    plt.ylabel('My $\kappa$')
-    plt.show()
+    data = {"z": SNzs, "mu": SNmus, "mu_err": SNmu_err, "mu_diff": mu_diff, "mu_cosm": mu_cosm}
+    return data
 
-    # plot_Hubble(SNzs[cuts2], SNmus[cuts2], SNmu_err[cuts2], mu_diff_cut[cuts2], z_array)
 
-    find_correlation(convergence_cut[cuts2], mu_diff_cut[cuts2])
+if __name__ == "__main__":
+    radius = 12.0
+    data, S_data = get_data(new_data=False)
+    lensing_gals = sort_SN_gals(data, redo=False)
+    SNe_data = find_mu_diff(lensing_gals)
+    # for rad in radii[5::5]:
+    #     plot_cones(data, lensing_gals, plot_hist=False, cone_radius=rad)
+    cone_array = make_test_cones(data, redo=False, plot=False)
+    exp_data = find_expected_counts(cone_array, 51, redo=False, plot=False)
+
+    convergence = find_convergence(lensing_gals, exp_data, SNe_data['z'], redo=False, plot_scatter=False,
+                                   plot_total=False)
+    # plt.plot(S_data['kappa'], S_data['kappa'], color=colours[1])
+    # plt.plot(S_data['kappa'], convergence, color=colours[0], marker='o', markersize=3, linestyle='')
+    # for SN in range(len(convergence)):
+    #     if convergence[SN] < 0.0031 and S_data['kappa'][SN] > 0.0057:
+    #     # if convergence_cut[SN] > 0.016:
+    #         print(f"Outlier is SN {SN+1}/{len(convergence)}")
+    # plt.xlabel('$\kappa$ Smith')
+    # plt.ylabel('My $\kappa$')
+    # plt.show()
+
+    # plot_Hubble(SNe_data['z'], SNe_data['mu'], SNe_data['mu_err'], SNe_data['mu_diff'], SNe_data['mu_cosm'],
+    #             np.linspace(0.0, 0.61, 1001))
+
+    find_correlation(convergence, SNe_data['mu_diff'], plot_correlation=False, plot_radii=True)
