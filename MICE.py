@@ -25,7 +25,7 @@ plt.rcParams['xtick.minor.visible'] = True
 plt.rcParams['ytick.minor.visible'] = True
 
 
-def find_convergence(gal_chi, gal_z, limits, exp, chi_widths, chi_bins, z_bins, gal_kappa, data, redo=False):
+def find_convergence_MICE(gal_chi, gal_z, limits, exp, chi_widths, chi_bins, z_bins, gal_kappa, data, redo=False):
     if redo:
         counts = {}
         num = 0
@@ -94,7 +94,7 @@ def find_convergence(gal_chi, gal_z, limits, exp, chi_widths, chi_bins, z_bins, 
 
 
 if __name__ == "__main__":
-    with fits.open('MICEsim2.fits')as hdul1:
+    with fits.open('MICEsim2quarter.fits')as hdul1:
         # print(repr(hdul1[1].header))
         # print(repr(hdul1[1].data['dec']))
 
@@ -102,8 +102,8 @@ if __name__ == "__main__":
         print(len(hdul1[1].data['z']))
         redo_random = False
         redo_expected = False
-        bins = 100
-        chi_bin_widths, chi_bins, z_bins, z_bin_widths = create_chi_bins(0, max_z, bins)
+        bins = 51
+        chi_bin_widths, chi_bins, z_bins, z_bin_widths = create_z_bins(0, max_z, bins)
         lims = np.cumsum(z_bin_widths)
         RAs = hdul1[1].data['ra']
         DECs = hdul1[1].data['dec']
@@ -141,19 +141,31 @@ if __name__ == "__main__":
         rand_gal_DEC = DECs[indices]
         rand_gal_kap = kappas[indices]
         counter = 0
+        ds = []
+        chis = []
+        for z in rand_gal_z:
+            chi_to_z = comoving(np.linspace(0, z, 1001), OM=0.25, OL=0.75)
+            ds.append(chi_to_z[-1] * (1 + z))
+            chis.append(chi_to_z[-1])
+        mu = 5 * np.log10(np.array(ds) / 10 * 1E9)
+
+        plt.plot()
+
+        rand_cones = {}
         for q_num, q in enumerate([[0, q1], [q1, q2], [q2, q3], [q3, rand_samp_size]]):
             s = int(q[0])
             e = int(q[1])
-            rand_cones = {}
             for randRA, randDEC, randZ, randKap in zip(rand_gal_RA[s:e], rand_gal_DEC[s:e],
                                                        rand_gal_z[s:e], rand_gal_kap[s:e]):
-                rand_cones[f'SN{int(counter)+1}'] = {'ras': [], 'decs': [], 'zs': [], 'zSN': randZ, 'kapSN': randKap,
-                                                     'raSN': randRA, 'decSN': randDEC}
+                rand_cones[f'SN{int(counter)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [], 'SNZ': randZ, 'SNkappa': randKap,
+                                                     'SNRA': randRA, 'SNDEC': randDEC}
+                rand_cones[f'SN{int(counter)+1}']['SNMU'] = mu[counter] * (1 + 2 * randKap)
+                rand_cones[f'SN{int(counter)+1}']['SNMU_ERR'] = abs(random.gauss(0.0, 0.2))
                 for RA, DEC, z in zip(RAs, DECs, zs):
                     if (randRA - RA) ** 2 + (randDEC - DEC) ** 2 <= r_small ** 2 and z >= 0.01:
-                        rand_cones[f'SN{int(counter)+1}']['zs'].append(z)
-                        rand_cones[f'SN{int(counter)+1}']['ras'].append(RA)
-                        rand_cones[f'SN{int(counter)+1}']['decs'].append(DEC)
+                        rand_cones[f'SN{int(counter)+1}']['Zs'].append(z)
+                        rand_cones[f'SN{int(counter)+1}']['RAs'].append(RA)
+                        rand_cones[f'SN{int(counter)+1}']['DECs'].append(DEC)
                 counter += 1
                 print(f"Sorted {counter}/{rand_samp_size}")
 
@@ -207,17 +219,24 @@ if __name__ == "__main__":
     rand_gal_kap = np.zeros(len(rand_cones))
     c = 0
     for _, supernova in rand_cones.items():
-        rand_gal_z[c] = supernova['zSN']
-        rand_gal_kap[c] = supernova['kapSN']
+        rand_gal_z[c] = supernova['SNZ']
+        rand_gal_kap[c] = supernova['SNkappa']
         c += 1
 
     ds = []
     chis = []
     for z in rand_gal_z:
-        chi_to_z = comoving(np.linspace(0, z, 1000), 0.25, 0.75)
+        chi_to_z = comoving(np.linspace(0, z, 1000), OM=0.25, OL=0.75)
         ds.append(chi_to_z[-1] * (1 + z))
         chis.append(chi_to_z[-1])
     mu = 5 * np.log10(np.array(ds) / 10 * 1E9)
-    # plot_Hubble(sample, mu, np.zeros(len(sample)), OM=0.25, OL=0.75, max_x=1.5)
-    conv = find_convergence(chis, rand_gal_z, lims, expected, chi_bin_widths, chi_bins, z_bins, rand_gal_kap, rand_cones,
-                                redo=False)
+    data = {"Radius12.0": rand_cones}
+    exp_radii = {"Radius12.0": expected}
+    exp_data = [lims, exp_radii, chi_bin_widths, chi_bins, z_bins]
+    # plot_Hubble(data, OM=0.25, OL=0.75, max_z=1.5)
+    # conv = find_convergence(data, exp_data, redo=False, plot_scatter=True, weighted=False, max_z=1.5)
+    pickle_in = open("kappaMICE.pickle", "rb")
+    conv = pickle.load(pickle_in)
+    convergence_data = {"Radius12.0": conv}
+    MICEconv = {"Radius12.0": {"SNkappa": rand_gal_kap}}
+    find_correlation(MICEconv, data, plot_correlation=True)
