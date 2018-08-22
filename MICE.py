@@ -3,6 +3,8 @@ import Convergence
 from astropy.io import fits
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
+from matplotlib.collections import PatchCollection
 import random
 from scipy.stats import rankdata
 import csv
@@ -117,32 +119,33 @@ def get_data():
     DEC = np.array(DEC)[[z >= 0.01]]
     z = np.array(z)[[z >= 0.01]]
     kap = np.array(kap)[[z >= 0.01]]
-    cut_data = {'RA': RA, 'DEC': DEC, 'z': z, 'kappa':kap}
+    cut_data = {'RA': RA, 'DEC': DEC, 'z': z, 'kappa': kap}
 
     return cut_data
 
 
 def make_big_cone(data, redo=False):
     if redo:
-        RAs = data['RA']
-        DECs = data['DEC']
-        zs = data['z']
-        kappas = data['kappa']
-        centre = [(min(RAs) + max(RAs)) / 2, (min(DECs) + max(DECs)) / 2]
-        radius = round(min(max(RAs) - centre[0], centre[0] - min(RAs), max(DECs) - centre[1], centre[1] - min(DECs)), 2)
-        big_cone = {'Zs': zs[(RAs - centre[0]) ** 2 + (DECs - centre[1]) ** 2 <= radius ** 2],
-                    'kappa': kappas[(RAs - centre[0]) ** 2 + (DECs - centre[1]) ** 2 <= radius ** 2]}
+        pass
 
-    return big_cone
-
-
-def get_random(data, redo=False, weighted=True):
-    r_small = 0.2  # degrees
     RAs = data['RA']
     DECs = data['DEC']
     zs = data['z']
     kappas = data['kappa']
-    # Don't want to deal with even 30' (0.5 degrees) cones that have any portion outside left and right bounds.
+    centre = [(min(RAs) + max(RAs)) / 2, (min(DECs) + max(DECs)) / 2]
+    radius = round(min(max(RAs) - centre[0], centre[0] - min(RAs), max(DECs) - centre[1], centre[1] - min(DECs)), 2)
+    big_cone = {'Zs': zs[(RAs - centre[0]) ** 2 + (DECs - centre[1]) ** 2 <= radius ** 2],
+                'kappa': kappas[(RAs - centre[0]) ** 2 + (DECs - centre[1]) ** 2 <= radius ** 2]}
+
+    return big_cone, radius
+
+
+def get_random(data, redo=False, weighted=True):
+    RAs = data['RA']
+    DECs = data['DEC']
+    zs = data['z']
+    kappas = data['kappa']
+    # Don't want to deal with up to 30' (0.5 degrees) cones that have any portion outside left and right bounds.
     DECs = DECs[RAs < max(RAs) - 0.5]
     zs = zs[RAs < max(RAs) - 0.5]
     kappas = kappas[RAs < max(RAs) - 0.5]
@@ -151,13 +154,9 @@ def get_random(data, redo=False, weighted=True):
     zs = zs[RAs > min(RAs) + 0.5]
     kappas = kappas[RAs > min(RAs) + 0.5]
     RAs = RAs[RAs > min(RAs) + 0.5]
+    cone_radius = 12.0
 
     if redo:
-        # if weighted:
-        #     pickle_in = open("MICElenses_weighted.pickle", "rb")
-        # else:
-        #     pickle_in = open("MICElenses.pickle", "rb")
-        # lenses = pickle.load(pickle_in)
         random.seed(1337)
         rand_samp_size = 1600
         q1 = rand_samp_size / 4
@@ -174,9 +173,20 @@ def get_random(data, redo=False, weighted=True):
             chi_to_z = Convergence.comoving(np.linspace(0, z, 1001), OM=0.25, OL=0.75)
             dists.append(chi_to_z[-1] * (1 + z))
             rand_chis.append(chi_to_z[-1])
-        rand_mus = 5 * np.log10(np.array(dists) / 10 * 1E9)
+        mus = 5 * np.log10(np.array(dists) / 10 * 1E9)
+        rand_mus = mus * (1 + 2 * rand_kappas)
+        rand_errs = np.array([abs(random.gauss(0.0, 0.2)) for i in range(rand_samp_size)])
+        weights = np.ones(rand_samp_size)
+        if weighted:
+            heights = np.zeros(rand_samp_size)
+            outsides_u = [rand_DECs > 10.1 - cone_radius / 60.0]
+            heights[outsides_u] = rand_DECs[outsides_u] - (10.1 - cone_radius / 60.0)
+            outsides_d = [rand_DECs < cone_radius / 60.0]
+            heights[outsides_d] = cone_radius / 60.0 - rand_DECs[outsides_d]
+            thetas = 2 * np.arccos(1 - heights / (cone_radius / 60.0))
+            fraction_outside = 1 / (2 * np.pi) * (thetas - np.sin(thetas))
+            weights = 1.0 - fraction_outside
 
-        cone_radius = 12.0
         for q_num, q in enumerate([[0, q1], [q1, q2], [q2, q3], [q3, rand_samp_size]]):
             lenses = {'Radius12.0': {}}
             s = int(q[0])
@@ -193,29 +203,14 @@ def get_random(data, redo=False, weighted=True):
                     num += 1200
 
                 lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [], 'SNZ': Randz,
-                                                                          'SNkappa': Randkappa,'SNRA': RandRA,
-                                                                          'SNDEC': RandDEC, 'WEIGHT': 1.0}
-                lenses[f"Radius{str(cone_radius)}"]['SNMU'] = rand_mus[num] * (1 + 2 * Randkappa)
-                lenses[f"Radius{str(cone_radius)}"]['SNMU_ERR'] = abs(random.gauss(0.0, 0.2))
-
-                if RandDEC > 10.0 - cone_radius/60.0:
-                    h = RandDEC - (10.0 - cone_radius/60.0)
-                elif RandDEC < cone_radius/60.0:
-                    h = cone_radius/60.0 - RandDEC
-                else:
-                    h = 0
-                theta = 2 * np.arccos(1 - h / (cone_radius/60.0))
-                fraction_outside = 1 / (2 * np.pi) * (theta - np.sin(theta))
-                if weighted:
-                    lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['WEIGHT'] = 1.0 - fraction_outside
-                else:
-                    lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['WEIGHT'] = 1.0
-
-                for RA, DEC, z in zip(RAs, DECs, zs):
-                    if (RandRA - RA) ** 2 + (RandDEC - DEC) ** 2 <= (cone_radius/60.0) ** 2:
-                        lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['Zs'].append(z)
-                        lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['RAs'].append(RA)
-                        lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['DECs'].append(DEC)
+                                                                          'SNkappa': Randkappa, 'SNRA': RandRA,
+                                                                          'SNDEC': RandDEC, 'SNMU': rand_mus[num],
+                                                                          'SNMU_ERR': rand_errs[num],
+                                                                          'WEIGHT': weights[num]}
+                indices = [(RAs - RandRA) ** 2 + (DECs - RandDEC) ** 2 <= (cone_radius/60.0) ** 2]
+                lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['Zs'] = zs[indices]
+                lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['RAs'] = RAs[indices]
+                lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['DECs'] = DECs[indices]
 
                 print(f"Sorted {num+1}/{rand_samp_size}")
 
@@ -223,36 +218,123 @@ def get_random(data, redo=False, weighted=True):
             pickle.dump(lenses, pickle_out)
             pickle_out.close()
             print(f"Finished quarter {q_num+1}")
-    else:
-        pickle_in = open("big_cone.pickle", "rb")
-        big_cone = pickle.load(pickle_in)
+
         lenses = {}
         for x in [1, 2, 3, 4]:
             pickle_in = open(f"random_cones_q{x}.pickle", "rb")
             rand_cones_quarter = pickle.load(pickle_in)
             lenses.update(rand_cones_quarter)
+    else:
+        lenses = {}
+        lense12 = {}
+        for x in [1, 2, 3, 4]:
+            pickle_in = open(f"random_cones_q{x}.pickle", "rb")
+            rand_cones_quarter = pickle.load(pickle_in)
+            r12 = rand_cones_quarter["Radius12.0"]
+            lense12.update(r12)
+        lenses[f"Radius12.0"] = lense12
+
+    return lenses
+
+
+def plot_cones(data, sorted_data, plot_hist=False, cone_radius=12.0):
+    """Plots all galaxies and SNe along with visualisation of cones and galaxies contributing to lensing.
+
+    Input:
+     cut_data -- dictionary that contains all data (RA, DEC, z, etc.) of galaxies.
+     sorted_data -- dictionary that contains all information for every SN sorted into cones.
+     plot_hist -- boolean that determines if a histogram of the galaxy and SNe distribution is plotted. Defaults to
+                  False.
+     cone_radius -- the radius of the cones. Defaults to 12'.
+    """
+    lenses = sorted_data[f"Radius{str(cone_radius)}"]
+    patches = []
+    SNRA = []
+    SNDEC = []
+    SNz = []
+    for SN, dict1, in lenses.items():
+        SNRA.append(dict1['SNRA'])
+        SNDEC.append(dict1['SNDEC'])
+        SNz.append(dict1['SNZ'])
+    for x, y in zip(SNRA, SNDEC):
+        circle = Circle((x, y), cone_radius/60.0)
+        patches.append(circle)
+
+    RA_gal = data['RA']
+    DEC_gal = data['DEC']
+    z_gal = data['z']
+    fig, ax = plt.subplots()
+    ax.plot(RA_gal, DEC_gal, marker='o', linestyle='', markersize=1, color=[0.5, 0.5, 0.5])
+    for SN, dict1, in lenses.items():
+        RAs = np.array(dict1['RAs'])
+        DECs = np.array(dict1['DECs'])
+        indices2 = dict1['Zs'] > dict1['SNZ']
+    ax.plot(RAs[indices2], DECs[indices2], marker='o', linestyle='', markersize=1, color='k')
+    for SN, dict1, in lenses.items():
+        RAs = np.array(dict1['RAs'])
+        DECs = np.array(dict1['DECs'])
+        indices1 = dict1['Zs'] <= dict1['SNZ']
+    ax.plot(RAs[indices1], DECs[indices1], marker='o', linestyle='', markersize=3, color=colours[3])
+    p = PatchCollection(patches, alpha=0.4, color=colours[3])
+    ax.add_collection(p)
+
+    ax.plot(SNRA, SNDEC, marker='o', linestyle='', markersize=3, label='Supernova', color=colours[0])
+    plt.xlabel('$\\alpha$')
+    plt.ylabel('$\delta$')
+    plt.text(27, -0.8, f"{cone_radius}' radius")
+    # plt.legend(loc='lower right')
+    plt.axis('equal')
+    plt.xlim([24.5, 27.5])
+    plt.ylim([-1, 1])
+    plt.show()
+
+    if plot_hist:
+        labels = ['Galaxies', 'Supernovae']
+        cols = [green, yellow]
+        for num, z in enumerate([z_gal, SNz]):
+            plt.hist([i for i in z if i <= 1.5], bins=np.arange(0, 1.5 + 0.025, 0.025), normed='max', linewidth=1,
+                     fc=cols[num], label=f'{labels[num]}', edgecolor=colours[num])
+        plt.xlabel('$z$')
+        plt.ylabel('Normalised Count')
+        plt.legend(frameon=0)
+
+        plt.show()
+
+
+def find_expected(big_cone, r_big, bins, redo=False, plot=False):
+    max_z = 1.5
+    cone_radius = 12.0
+    chi_bin_widths, chi_bins, z_bins, z_bin_widths = Convergence.create_z_bins(0.01, max_z, bins)
+    limits = np.cumsum(z_bin_widths)
+    if redo:
+        cumul_counts = []
+        num = 0
+        for num1, lim in enumerate(limits):
+            cumul_counts.append(sum([big_cone['Zs'][i] < lim for i in range(len(big_cone['Zs']))]))
+            num += 1
+            print(f"Sorted {num}/{len(limits)}")
+
+        pickle_out = open("MICEexpected.pickle", "wb")
+        pickle.dump(cumul_counts, pickle_out)
+        pickle_out.close()
+    else:
+        pickle_in = open("MICEexpected.pickle", "rb")
+        cumul_counts = pickle.load(pickle_in)
+    expected_big = np.diff([cumul_counts[i] for i in range(len(limits))])
+    expected = [expected_big[i] * (cone_radius / r_big / 60.0) ** 2 for i in range(len(expected_big))]
+    plt.plot([0, 5], [0, 0], color=grey, linestyle='--')
+    plt.plot(limits[1:], expected, marker='o', markersize=2.5, color=colours[0])
+    plt.xlabel('$z$')
+    plt.ylabel('Expected Count')
+    plt.xlim([0, 1.5])
+    plt.show()
 
 
 if __name__ == "__main__":
-    # with fits.open('MICEsim2quarter.fits')as hdul1:
-    #     # print(repr(hdul1[1].header))
-    #     # print(repr(hdul1[1].data['dec']))
-    #
-    #     max_z = max(hdul1[1].data['z'])
-    #     print(len(hdul1[1].data['z']))
-    #     redo_random = False
-    #     redo_expected = False
-    #     bins = 51
-    #     chi_bin_widths, chi_bins, z_bins, z_bin_widths = Convergence.create_z_bins(0, max_z, bins)
-    #     lims = np.cumsum(z_bin_widths)
-    #     RAs = hdul1[1].data['ra']
-    #     DECs = hdul1[1].data['dec']
-    #     zs = hdul1[1].data['z']
-    #     kappas = hdul1[1].data['kappa']
-    #     MICEdata = [RAs, DECs, zs, kappas]
     alldata = get_data()
-    make_big_cone(alldata, redo=True)
-    get_random(alldata, redo=True)
+    big_cone, big_cone_radius = make_big_cone(alldata, redo=True)
+    sorted_data = get_random(alldata, redo=False, weighted=True)
+    # plot_cones(alldata, sorted_data, plot_hist=True)
 
     # with open('random_sample.csv', 'w', newline='') as csvfile:
     #     random_sample = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
@@ -263,29 +345,7 @@ if __name__ == "__main__":
     #                 random_sample.writerow([rand_cones[key]['ras'][num], rand_cones[key]['decs'][num],
     #                                        rand_cones[key]['zs'][num]])
 
-    if redo_expected:
-        MICEexpected = []
-        num = 0
-        for num1, lim in enumerate(lims):
-            MICEexpected.append(sum([big_cone['zs'][i] < lim for i in range(len(big_cone['zs']))]))
-            num += 1
-            print(f"Sorted {num}/{len(lims)}")
-
-        pickle_out = open("MICEexpected.pickle", "wb")
-        pickle.dump(MICEexpected, pickle_out)
-        pickle_out.close()
-    else:
-        pickle_in = open("MICEexpected.pickle", "rb")
-        MICEexpected = pickle.load(pickle_in)
-
-    expected_big = np.diff([MICEexpected[i] for i in range(len(lims))])
-    expected = [expected_big[i] * (r_small/r_big) ** 2 for i in range(len(expected_big))]
-    plt.plot([0, 5], [0, 0], color=grey, linestyle='--')
-    plt.plot(lims[1:], expected, marker='o', markersize=2.5, color=colours[0])
-    plt.xlabel('$z$')
-    plt.ylabel('Expected Count')
-    plt.xlim([0, 1.5])
-    plt.show()
+    find_expected(big_cone, big_cone_radius, 111, redo=True, plot=True)
 
     rand_gal_z = np.zeros(len(rand_cones))
     rand_gal_kap = np.zeros(len(rand_cones))
