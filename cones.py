@@ -76,7 +76,6 @@ def get_data(new_data=False):
                       'HR': S_HR, 'dHR': S_dHR}
         with fits.open(NAMES[0])as hdul1:
             with fits.open(NAMES[1]) as hdul2:
-                low_z = 0.04  # should be 0.05
                 RA1 = [hdul1[1].data['RA'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
                        hdul1[1].data['CLASS'][i] == 'GALAXY' and hdul1[1].data['Z'][i] >= 0.01]
                 DEC1 = [hdul1[1].data['DEC'][i] for i in np.arange(len(hdul1[1].data['DEC'])) if
@@ -146,7 +145,7 @@ def sort_SN_gals(cut_data, redo=False, weighted=False):
                                                     CID):
                 lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [], 'SNZ': SZ,
                                                                           'SNMU': SM, 'SNMU_ERR': SE,  'SNRA': SRA,
-                                                                          'SNDEC': SDE, 'WEIGHT': 1, 'CID': C}
+                                                                          'SNDEC': SDE, 'WEIGHT': 1.0, 'CID': C}
                 if SDE > 1.28 - cone_radius/60.0:
                     h = SDE - (1.28 - cone_radius/60.0)
                 elif SDE < -(1.28 - cone_radius/60.0):
@@ -156,9 +155,9 @@ def sort_SN_gals(cut_data, redo=False, weighted=False):
                 theta = 2 * np.arccos(1 - h / (cone_radius/60.0))
                 fraction_outside = 1 / (2 * np.pi) * (theta - np.sin(theta))
                 if weighted:
-                    lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['WEIGHT'] = 1 - fraction_outside
+                    lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['WEIGHT'] = 1.0 - fraction_outside
                 else:
-                    lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['WEIGHT'] = 1
+                    lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['WEIGHT'] = 1.0
                 for GRA, GDE, GZ in zip(RA1, DEC1, z1):
                     if (GRA - SRA) ** 2 + (GDE - SDE) ** 2 <= (cone_radius/60.0) ** 2 and GZ <= SZ:
                         lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['RAs'].append(GRA)
@@ -708,8 +707,7 @@ if __name__ == "__main__":
     data, S_data = get_data(new_data=False)
     lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
     SNe_data = find_mu_diff(lensing_gals)
-    # for rad in radii[5::5]:
-    #     plot_cones(data, lensing_gals, plot_hist=False, cone_radius=rad)
+    plot_cones(data, lensing_gals, plot_hist=False, cone_radius=30.0)
     cone_array = make_test_cones(data, redo=False, plot=False)
     exp_data = find_expected_counts(cone_array, 51, redo=False, plot=False)
 
