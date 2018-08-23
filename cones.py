@@ -394,7 +394,8 @@ def find_expected_counts(test_cones, bins, redo=False, plot=False):
     return [limits, expected, chi_bin_widths, chi_bins, z_bins]
 
 
-def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_total=False, weighted=False, max_z=0.6):
+def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_total=False, weighted=False, max_z=0.6,
+                     MICE=False):
     """Finds the convergence along each line of sight to a SN for a variety of cone_widths.
 
     Inputs:
@@ -411,12 +412,18 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
     chis = exp_data[3]
     zs = exp_data[4]
     if redo:
-        if weighted:
-            pickle_in = open("kappa_weighted.pickle", "rb")
+        if not MICE:
+            if weighted:
+                pickle_in = open("kappa_weighted.pickle", "rb")
+            else:
+                pickle_in = open("kappa.pickle", "rb")
         else:
-            pickle_in = open("kappa.pickle", "rb")
+            if weighted:
+                pickle_in = open("MICEkappa_weighted.pickle", "rb")
+            else:
+                pickle_in = open("MICEkappa.pickle", "rb")
         kappa = pickle.load(pickle_in)
-        for cone_radius in RADII:
+        for cone_radius in [12.0]:
             expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]
             lenses = lens_data[f"Radius{str(cone_radius)}"]
 
@@ -430,12 +437,19 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
                 counts[key] = np.zeros(len(bin_c))
                 for num2 in bin_c:
                     if weighted:
-                        counts[key][num2] = sum([limits[num2] < lenses[key]['Zs'][i] <= limits[num2 + 1]
-                                            for i in range(len(lenses[key]['Zs']))]) / lenses[key]['WEIGHT']
+                        # counts[key][num2] = sum([limits[num2] < lenses[key]['Zs'][i] <= limits[num2 + 1]
+                        #                          for i in range(len(lenses[key]['Zs']))]) / lenses[key]['WEIGHT']
+                        # print(np.array([limits[num2] < lenses[key]['Zs'] <= limits[num2 + 1]]))
+                        print(np.array([limits[num2] < lenses[key]['Zs']]) + np.array([lenses[key]['Zs'] <= limits[num2+1]]))
+                        counts[key][num2] = sum(lenses[key]['Zs'][limits[num2] < lenses[key]['Zs']
+                                                                  <= limits[num2 + 1]]) / lenses[key]['WEIGHT']
                     else:
-                        counts[key][num2] = sum([limits[num2] < lenses[key]['Zs'][i] <= limits[num2 + 1]
-                                                 for i in range(len(lenses[key]['Zs']))])
+                        # counts[key][num2] = sum([limits[num2] < lenses[key]['Zs'][i] <= limits[num2 + 1]
+                        #                          for i in range(len(lenses[key]['Zs']))])
+                        counts[key][num2] = sum(lenses[key]['Zs'][limits[num2] < lenses[key]['Zs']
+                                                                  <= limits[num2 + 1]]) / lenses[key]['WEIGHT']
                 num += 1
+                print(f"Counted SN {num}/1600")
 
             SNe_data_radius = find_mu_diff(lens_data, cone_radius=cone_radius)
             chiSNs = []
@@ -460,21 +474,32 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
             kappa[f"Radius{str(cone_radius)}"]["Counts"] = counts
             kappa[f"Radius{str(cone_radius)}"]["delta"] = d_arr
             print(f"Finished radius {str(cone_radius)}'")
-
-        if weighted:
-            pickle_out = open("kappa_weighted.pickle", "wb")
+        if not MICE:
+            if weighted:
+                pickle_out = open("kappa_weighted.pickle", "wb")
+            else:
+                pickle_out = open("kappaMICE.pickle", "wb")
         else:
-            pickle_out = open("kappaMICE.pickle", "wb")
+            if weighted:
+                pickle_out = open("MICEkappa_weighted.pickle", "wb")
+            else:
+                pickle_out = open("MICEkappa.pickle", "wb")
         pickle.dump(kappa, pickle_out)
         pickle_out.close()
     else:
-        if weighted:
-            pickle_in = open("kappa_weighted.pickle", "rb")
+        if not MICE:
+            if weighted:
+                pickle_in = open("kappa_weighted.pickle", "rb")
+            else:
+                pickle_in = open("kappa.pickle", "rb")
         else:
-            pickle_in = open("kappa.pickle", "rb")
+            if weighted:
+                pickle_in = open("MICEkappa_weighted.pickle", "rb")
+            else:
+                pickle_in = open("MICEkappa.pickle", "rb")
         kappa = pickle.load(pickle_in)
 
-    for cone_radius in RADII:
+    for cone_radius in [12.0]:
         SNe_data_radius = find_mu_diff(lens_data, cone_radius=cone_radius)
         lenses = lens_data[f"Radius{str(cone_radius)}"]
         bins = np.linspace(0.025, max_z - 0.025, 12)
@@ -533,7 +558,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
 
     if plot_total:
         conv_total = []
-        for cone_radius in RADII:
+        for cone_radius in [12.0]:
             conv_total.append(kappa[f"Radius{str(cone_radius)}"]["Total"])
         plt.ylabel("$\kappa$")
         plt.xlabel("Cone Radius (arcmin)")
@@ -604,7 +629,7 @@ def find_correlation(convergence_data, lens_data, plot_correlation=False, plot_r
     """
     correlations = []
     correlation_errs = []
-    for cone_radius in RADII:
+    for cone_radius in [12.0]:
         SNe_data = find_mu_diff(lens_data, cone_radius)
         redshift_cut = [SNe_data['z'][i] > 0.2 for i in range(len(SNe_data['z']))]
         mu_diff = SNe_data["mu_diff"][redshift_cut]
@@ -707,7 +732,7 @@ if __name__ == "__main__":
     data, S_data = get_data(new_data=False)
     lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
     SNe_data = find_mu_diff(lensing_gals)
-    plot_cones(data, lensing_gals, plot_hist=False, cone_radius=30.0)
+    # plot_cones(data, lensing_gals, plot_hist=False, cone_radius=30.0)
     cone_array = make_test_cones(data, redo=False, plot=False)
     exp_data = find_expected_counts(cone_array, 51, redo=False, plot=False)
 
