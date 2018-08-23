@@ -439,15 +439,15 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
                     if weighted:
                         # counts[key][num2] = sum([limits[num2] < lenses[key]['Zs'][i] <= limits[num2 + 1]
                         #                          for i in range(len(lenses[key]['Zs']))]) / lenses[key]['WEIGHT']
-                        # print(np.array([limits[num2] < lenses[key]['Zs'] <= limits[num2 + 1]]))
-                        print(np.array([limits[num2] < lenses[key]['Zs']]) + np.array([lenses[key]['Zs'] <= limits[num2+1]]))
-                        counts[key][num2] = sum(lenses[key]['Zs'][limits[num2] < lenses[key]['Zs']
-                                                                  <= limits[num2 + 1]]) / lenses[key]['WEIGHT']
+                        tmp = lenses[key]['Zs'][limits[num2] < lenses[key]['Zs']]
+                        tmp = tmp[tmp <= limits[num2 + 1]]
+                        counts[key][num2] = sum(tmp) / lenses[key]['WEIGHT']
                     else:
                         # counts[key][num2] = sum([limits[num2] < lenses[key]['Zs'][i] <= limits[num2 + 1]
                         #                          for i in range(len(lenses[key]['Zs']))])
-                        counts[key][num2] = sum(lenses[key]['Zs'][limits[num2] < lenses[key]['Zs']
-                                                                  <= limits[num2 + 1]]) / lenses[key]['WEIGHT']
+                        tmp = lenses[key]['Zs'][limits[num2] < lenses[key]['Zs']]
+                        tmp = tmp[tmp <= limits[num2 + 1]]
+                        counts[key][num2] = sum(tmp)
                 num += 1
                 print(f"Counted SN {num}/1600")
 
@@ -736,7 +736,7 @@ if __name__ == "__main__":
     cone_array = make_test_cones(data, redo=False, plot=False)
     exp_data = find_expected_counts(cone_array, 51, redo=False, plot=False)
 
-    convergence = find_convergence(lensing_gals, exp_data, redo=False, plot_scatter=False,
+    convergence = find_convergence(lensing_gals, exp_data, redo=False, plot_scatter=True,
                                    plot_total=False, weighted=use_weighted)
 
     # plt.plot(S_data['kappa'], S_data['kappa'], color=colours[1])
@@ -751,7 +751,7 @@ if __name__ == "__main__":
 
     # plot_Hubble(lensing_gals)
 
-    unweighted = find_correlation(convergence, lensing_gals, plot_correlation=False, plot_radii=False)
+    unweighted = find_correlation(convergence, lensing_gals, plot_correlation=True, plot_radii=False)
     # use_weighted = True
     # lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
     # convergence = find_convergence_MICE(lensing_gals, exp_data, redo=False, plot_scatter=False,
