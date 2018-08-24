@@ -87,7 +87,7 @@ def make_big_cone(data, redo=False):
     return big_cone
 
 
-def get_random(data, redo=False, weighted=True):
+def get_random(data, redo=False):
     RAs = data['RA']
     DECs = data['DEC']
     zs = data['z']
@@ -104,16 +104,16 @@ def get_random(data, redo=False, weighted=True):
     cone_radius = 12.0
 
     if redo:
+        # Pick random sample
         random.seed(1337)
-        rand_samp_size = 1600
-        q1 = rand_samp_size / 4
-        q2 = rand_samp_size / 2
-        q3 = 3 * rand_samp_size / 4
+        rand_samp_size = 1500
         indices = random.sample(range(len(SN_zs)), rand_samp_size)
         rand_zs = SN_zs[indices]
         rand_RAs = SN_RAs[indices]
         rand_DECs = SN_DECs[indices]
         rand_kappas = SN_kappas[indices]
+
+        # Add scatter to distance moduli
         dists = []
         rand_chis = []
         for z in rand_zs:
@@ -122,44 +122,29 @@ def get_random(data, redo=False, weighted=True):
             rand_chis.append(chi_to_z[-1])
         mus = 5 * np.log10(np.array(dists) / 10 * 1E9)
         rand_mus = mus * (1 - 2 * rand_kappas)
-        rand_errs = np.array([abs(random.gauss(0.0, 0.2)) for i in range(rand_samp_size)])
-        weights = np.ones(rand_samp_size)
-        if weighted:
-            heights = np.zeros(rand_samp_size)
-            outsides_u = [rand_DECs > 10.1 - cone_radius / 60.0]
-            heights[outsides_u] = rand_DECs[outsides_u] - (10.1 - cone_radius / 60.0)
-            outsides_d = [rand_DECs < cone_radius / 60.0]
-            heights[outsides_d] = cone_radius / 60.0 - rand_DECs[outsides_d]
-            thetas = 2 * np.arccos(1 - heights / (cone_radius / 60.0))
-            fraction_outside = 1 / (2 * np.pi) * (thetas - np.sin(thetas))
-            weights = 1.0 - fraction_outside
+        rand_errs = np.array([abs(random.uniform(0.14+0.43*rand_zs[i], 0.14+0.76*rand_zs[i]))
+                              for i in range(rand_samp_size)])
 
-        lenses = {}
-        for x in [1, 2, 3, 4]:
-            if weighted:
-                pickle_in = open(f"random_cones_q{x}_w.pickle", "rb")
-            else:
-                pickle_in = open(f"random_cones_q{x}.pickle", "rb")
-            rand_cones_quarter = pickle.load(pickle_in)
-            lenses = deep_update(lenses, rand_cones_quarter)
+        # Weight cones based off fraction outside sample
+        heights = np.zeros(rand_samp_size)
+        outsides_u = [rand_DECs > 10.1 - cone_radius / 60.0]
+        heights[outsides_u] = rand_DECs[outsides_u] - (10.1 - cone_radius / 60.0)
+        outsides_d = [rand_DECs < cone_radius / 60.0]
+        heights[outsides_d] = cone_radius / 60.0 - rand_DECs[outsides_d]
+        thetas = 2 * np.arccos(1 - heights / (cone_radius / 60.0))
+        fraction_outside = 1 / (2 * np.pi) * (thetas - np.sin(thetas))
+        weights = 1.0 - fraction_outside
 
-        for q_num, q in enumerate([[0, q1], [q1, q2], [q2, q3], [q3, rand_samp_size]]):
-            for cone_radius in RADII:
+        r_cuts = [0, 7, 14, 21, 28, 35, 42, 49, 56, 63, 70, 77, 84]
+        file = 1
+        for i in range(11):
+            lenses = {}
+            for cone_radius in RADII[r_cuts[i]:r_cuts[i+1]]:
                 lenses[f"Radius{str(cone_radius)}"] = {}
-                s = int(q[0])
-                e = int(q[1])
-                for num, (RandRA, RandDEC, Randz, Randkappa) in enumerate(zip(rand_RAs[s:e], rand_DECs[s:e],
-                                                                              rand_zs[s:e], rand_kappas[s:e])):
-                    if q_num == 0:
-                        num += 0
-                    elif q_num == 1:
-                        num += 400
-                    elif q_num == 2:
-                        num += 800
-                    elif q_num == 3:
-                        num += 1200
+                for num, (RandRA, RandDEC, Randz, Randkappa) in enumerate(zip(rand_RAs, rand_DECs, rand_zs,
+                                                                              rand_kappas)):
 
-                    lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [],
+                    lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}'] = {'IPs': [], 'Zs': [],
                                                                               'SNZ': Randz, 'SNkappa': Randkappa,
                                                                               'SNRA': RandRA, 'SNDEC': RandDEC,
                                                                               'SNMU': rand_mus[num],
@@ -167,34 +152,25 @@ def get_random(data, redo=False, weighted=True):
                                                                               'WEIGHT': weights[num]}
                     cone_indices = [(RAs - RandRA) ** 2 + (DECs - RandDEC) ** 2 <= (cone_radius/60.0) ** 2]
                     lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['Zs'] = zs[cone_indices]
-                    lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['RAs'] = RAs[cone_indices]
-                    lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['DECs'] = DECs[cone_indices]
+                    lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['IPs'] = (RAs[cone_indices] - RandRA) ** 2 +\
+                                                                                    (DECs[cone_indices] - RandDEC) ** 2
 
-                    print(f"Sorted {num+1}/{rand_samp_size}")
-                print(f"Finished quarter {q_num+1} of radius {cone_radius}'")
-            if weighted:
-                pickle_out = open(f"random_cones_q{q_num+1}_w.pickle", "wb")
-            else:
-                pickle_out = open(f"random_cones_q{q_num+1}.pickle", "wb")
+                    print(f"Sorted {num+1}/{rand_samp_size} for radius {cone_radius}'")
+            pickle_out = open(f"random_cones{file}.pickle", "wb")
             pickle.dump(lenses, pickle_out)
             pickle_out.close()
-            print(f"Finished quarter {q_num+1}")
+            print(f"Finished file {file}")
+            file += 1
 
         lenses = {}
         for x in [1, 2, 3, 4]:
-            if weighted:
-                pickle_in = open(f"random_cones_q{x}_w.pickle", "rb")
-            else:
-                pickle_in = open(f"random_cones_q{x}.pickle", "rb")
+            pickle_in = open(f"random_cones_q{x}.pickle", "rb")
             rand_cones_quarter = pickle.load(pickle_in)
             lenses = deep_update(lenses, rand_cones_quarter)
     else:
         lenses = {"Radius12.0": {}}
         for x in [1, 2, 3, 4]:
-            if weighted:
-                pickle_in = open(f"random_cones_q{x}_w.pickle", "rb")
-            else:
-                pickle_in = open(f"random_cones_q{x}.pickle", "rb")
+            pickle_in = open(f"random_cones_q{x}.pickle", "rb")
             rand_cones_quarter = pickle.load(pickle_in)
             lenses = deep_update(lenses, rand_cones_quarter)
 
@@ -299,21 +275,21 @@ def find_expected(big_cone, r_big, bins, redo=False, plot=False):
 
 
 if __name__ == "__main__":
-    use_weighted = False
+    use_weighted = True
     alldata = get_data()
     big_cone_centre = [(min(alldata['RA']) + max(alldata['RA'])) / 2, (min(alldata['DEC']) + max(alldata['DEC'])) / 2]
     big_cone_radius = round(min(max(alldata['RA']) - big_cone_centre[0], big_cone_centre[0] - min(alldata['RA']),
                                 max(alldata['DEC']) - big_cone_centre[1], big_cone_centre[1] - min(alldata['DEC'])), 2)
     big_cone = make_big_cone(alldata, redo=False)
-    sorted_data = get_random(alldata, redo=True, weighted=use_weighted)
+    sorted_data = get_random(alldata, redo=True)
     # plot_cones(alldata, sorted_data, plot_hist=True)
     exp_data = find_expected(big_cone, big_cone_radius, 111, redo=False, plot=True)
-    cones.plot_Hubble(sorted_data, OM=0.25, OL=0.75, max_z=1.5)
+    # cones.plot_Hubble(sorted_data, OM=0.25, OL=0.75, max_z=1.5)
     conv = cones.find_convergence(sorted_data, exp_data, redo=False, plot_scatter=True, weighted=use_weighted,
                                   max_z=1.5, MICE=True)
     MICEconv = {"Radius12.0": {"SNkappa": []}}
     for key, val in sorted_data["Radius12.0"].items():
         MICEconv["Radius12.0"]["SNkappa"].append(val["SNkappa"])
 
-    cones.find_correlation(MICEconv, sorted_data, plot_correlation=True)
+    # cones.find_correlation(MICEconv, sorted_data, plot_correlation=True)
     cones.find_correlation(conv, sorted_data, plot_correlation=True)

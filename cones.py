@@ -418,10 +418,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
             else:
                 pickle_in = open("kappa.pickle", "rb")
         else:
-            if weighted:
-                pickle_in = open("MICEkappa_weighted.pickle", "rb")
-            else:
-                pickle_in = open("MICEkappa.pickle", "rb")
+            pickle_in = open("MICEkappa.pickle", "rb")
         kappa = pickle.load(pickle_in)
         for cone_radius in [12.0]:
             expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]
@@ -480,10 +477,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
             else:
                 pickle_out = open("kappaMICE.pickle", "wb")
         else:
-            if weighted:
-                pickle_out = open("MICEkappa_weighted.pickle", "wb")
-            else:
-                pickle_out = open("MICEkappa.pickle", "wb")
+            pickle_out = open("MICEkappa.pickle", "wb")
         pickle.dump(kappa, pickle_out)
         pickle_out.close()
     else:
@@ -493,10 +487,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
             else:
                 pickle_in = open("kappa.pickle", "rb")
         else:
-            if weighted:
-                pickle_in = open("MICEkappa_weighted.pickle", "rb")
-            else:
-                pickle_in = open("MICEkappa.pickle", "rb")
+            pickle_in = open("MICEkappa.pickle", "rb")
         kappa = pickle.load(pickle_in)
 
     for cone_radius in [12.0]:
