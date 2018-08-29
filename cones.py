@@ -433,20 +433,13 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
                 bin_c = range(int(np.argmin(np.abs(limits - lenses[key]['SNZ']))))
                 counts[key] = np.zeros(len(bin_c))
                 for num2 in bin_c:
+                    tmp = [np.logical_and(limits[num2] < lenses[key]['Zs'], (lenses[key]['Zs'] <= limits[num2 + 1]))]
                     if weighted:
-                        # counts[key][num2] = sum([limits[num2] < lenses[key]['Zs'][i] <= limits[num2 + 1]
-                        #                          for i in range(len(lenses[key]['Zs']))]) / lenses[key]['WEIGHT']
-                        tmp = lenses[key]['Zs'][limits[num2] < lenses[key]['Zs']]
-                        tmp = tmp[tmp <= limits[num2 + 1]]
-                        counts[key][num2] = sum(tmp) / lenses[key]['WEIGHT']
+                        counts[key][num2] = np.count_nonzero(tmp) / lenses[key]['WEIGHT']
                     else:
-                        # counts[key][num2] = sum([limits[num2] < lenses[key]['Zs'][i] <= limits[num2 + 1]
-                        #                          for i in range(len(lenses[key]['Zs']))])
-                        tmp = lenses[key]['Zs'][limits[num2] < lenses[key]['Zs']]
-                        tmp = tmp[tmp <= limits[num2 + 1]]
-                        counts[key][num2] = sum(tmp)
+                        counts[key][num2] = np.count_nonzero(tmp)
                 num += 1
-                print(f"Counted SN {num}/1600")
+                print(f"Counted SN {num}/749")
 
             SNe_data_radius = find_mu_diff(lens_data, cone_radius=cone_radius)
             chiSNs = []
@@ -490,7 +483,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
             pickle_in = open("MICEkappa.pickle", "rb")
         kappa = pickle.load(pickle_in)
 
-    for cone_radius in [12.0]:
+    for cone_radius in RADII:
         SNe_data_radius = find_mu_diff(lens_data, cone_radius=cone_radius)
         lenses = lens_data[f"Radius{str(cone_radius)}"]
         bins = np.linspace(0.025, max_z - 0.025, 12)
@@ -583,12 +576,6 @@ def plot_Hubble(lenses, OM=0.27, OL=0.73, max_z=0.6):
     z_arr = data['z_arr']
     ax = plt.subplot2grid((2, 1), (0, 0))
     ax2 = plt.subplot2grid((2, 1), (1, 0))
-    # ax.axvspan(0, 0.2, alpha=0.1, color=colours[1])
-    # ax.axvspan(0.2, 0.6, alpha=0.1, color=colours[0])
-    # ax2.axvspan(0, 0.2, alpha=0.1, color=colours[1])
-    # ax2.axvspan(0.2, 0.6, alpha=0.1, color=colours[0])
-    # ax.text(0.05, 41, 'Peculiar\nVelocities', color=colours[1], fontsize=16)
-    # ax.text(0.35, 38, 'Lensing', color=colours[0], fontsize=16)
     ax.set_ylabel("$\mu$")
     ax2.set_xlabel("$z$")
     ax2.set_ylabel("$\Delta\mu$")
@@ -663,9 +650,9 @@ def find_correlation(convergence_data, lens_data, plot_correlation=False, plot_r
             plt.errorbar(bins, mean_dmu, standard_error, marker='s', color='r', markersize=3, capsize=3, linestyle='')
             plt.xlabel('$\kappa$')
             plt.ylabel('$\Delta\mu$')
-            plt.xlim([-0.008, 0.011])
+            # plt.xlim([-0.008, 0.011])
             plt.legend(frameon=0, loc='lower right')
-            plt.ylim([-0.3, 0.3])
+            # plt.ylim([-0.3, 0.3])
             plt.text(0.0038, -0.19, f'$\\rho$ = {round(rho, 3)} $\pm$ {round(rho_err, 3)}', fontsize=16)
             # print([convergence_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
             # print([mu_diff_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
@@ -712,7 +699,6 @@ def find_mu_diff(lenses, OM=0.27, OL=0.73, max_z=0.6, cone_radius=12.0):
     mu_cosm = 5 * np.log10((1 + z_array) * comoving(z_array, OM=OM, OL=OL) * 1000) + 25
     mu_cosm_interp = np.interp(SNzs, z_array, mu_cosm)
     mu_diff = SNmus - mu_cosm_interp
-    mu_diff_std = np.std(mu_diff)
 
     data = {"z": SNzs, "mu": SNmus, "mu_err": SNmu_err, "mu_diff": mu_diff, "mu_cosm": mu_cosm, "z_arr": z_array}
     return data
@@ -727,7 +713,7 @@ if __name__ == "__main__":
     cone_array = make_test_cones(data, redo=False, plot=False)
     exp_data = find_expected_counts(cone_array, 51, redo=False, plot=False)
 
-    convergence = find_convergence(lensing_gals, exp_data, redo=False, plot_scatter=True,
+    convergence = find_convergence(lensing_gals, exp_data, redo=True, plot_scatter=True,
                                    plot_total=False, weighted=use_weighted)
 
     # plt.plot(S_data['kappa'], S_data['kappa'], color=colours[1])
