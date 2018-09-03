@@ -68,10 +68,10 @@ def find_convergence_MICE(gal_chi, gal_z, limits, exp, chi_widths, chi_bins, z_b
         d_arr = {}
         for key, SN in counts.items():
             d_arr[key] = (SN - exp[:len(SN)]) / exp[:(len(SN))]
-            convergence[num] = Convergence.general_convergence(chi_widths[:len(SN)], chi_bins[:len(SN)], z_bins[:len(SN)],
-                                                   d_arr[f"{key}"], gal_chi[num])
+            convergence[num] = Convergence.general_convergence(chi_widths[:len(SN)], chi_bins[:len(SN)],
+                                                               z_bins[:len(SN)], d_arr[f"{key}"], gal_chi[num])
             conv_err[num] = Convergence.convergence_error(chi_widths[:len(SN)], chi_bins[:len(SN)], z_bins[:len(SN)],
-                                              exp[:len(SN)], gal_chi[num])
+                                                          exp[:len(SN)], gal_chi[num])
             num += 1
 
         conv_err += 0
@@ -154,10 +154,14 @@ def make_big_cone(data, redo=False):
         big_cone = {'Zs': zs[(RAs - centre[0]) ** 2 + (DECs - centre[1]) ** 2 <= radius ** 2],
                     'kappa': kappas[(RAs - centre[0]) ** 2 + (DECs - centre[1]) ** 2 <= radius ** 2]}
         for i in [1, 2]:
-            big_cone['Zs'] = np.append(big_cone['Zs'], zs[(RAs - centre[0] + 2 * i * radius) ** 2 + ( DECs - centre[1]) ** 2 <= radius ** 2])
-            big_cone['kappa'] = np.append(big_cone['kappa'], kappas[(RAs - centre[0] + 2 * i * radius) ** 2 + (DECs - centre[1]) ** 2 <= radius ** 2])
-            big_cone['Zs'] = np.append(big_cone['Zs'], zs[(RAs - centre[0] - 2 * i * radius) ** 2 + (DECs - centre[1]) ** 2 <= radius ** 2])
-            big_cone['kappa'] = np.append(big_cone['kappa'], kappas[(RAs - centre[0] - 2 * i * radius) ** 2 + (DECs - centre[1]) ** 2 <= radius ** 2])
+            big_cone['Zs'] = np.append(big_cone['Zs'], zs[(RAs - centre[0] + 2 * i * radius) ** 2 +
+                                                          (DECs - centre[1]) ** 2 <= radius ** 2])
+            big_cone['kappa'] = np.append(big_cone['kappa'], kappas[(RAs - centre[0] + 2 * i * radius) ** 2 +
+                                                                    (DECs - centre[1]) ** 2 <= radius ** 2])
+            big_cone['Zs'] = np.append(big_cone['Zs'], zs[(RAs - centre[0] - 2 * i * radius) ** 2 +
+                                                          (DECs - centre[1]) ** 2 <= radius ** 2])
+            big_cone['kappa'] = np.append(big_cone['kappa'], kappas[(RAs - centre[0] - 2 * i * radius) ** 2 +
+                                                                    (DECs - centre[1]) ** 2 <= radius ** 2])
 
         pickle_out = open(f"big_cone.pickle", "wb")
         pickle.dump(big_cone, pickle_out)
@@ -178,7 +182,7 @@ def find_expected(big_cone, r_big, bins, redo=False, plot=False):
     if redo:
         cumul_counts = []
         for num1, lim in enumerate(limits):
-            cumul_counts.append(sum(big_cone['Zs'][big_cone['Zs'] < lim]) / 5.0)
+            cumul_counts.append(sum(big_cone['Zs'][big_cone['Zs'] < lim]) / 5.0)  # Made 5 cones, so take average
             print(f"Sorted {num1+1}/{len(limits)}")
 
         pickle_out = open("MICEexpected.pickle", "wb")
@@ -212,7 +216,7 @@ def get_random(data, redo=False):
     zs = data['z']
     kappas = data['kappa']
     IDs = data['id']
-    flagged_data = {}
+
     # Don't want to deal with up to 30' (0.5 degrees) cones that have any portion outside left and right bounds.
     SN_DECs = DECs[RAs < max(RAs) - 0.5]
     SN_zs = zs[RAs < max(RAs) - 0.5]
@@ -256,14 +260,16 @@ def get_random(data, redo=False):
         pickle.dump(SN_data, pickle_out)
         pickle_out.close()
 
-        # Radii to split files into:
         lenses = {}
+        prev_rad = 0.0
         for cone_radius in RADII:
-            flagged_data[f"Radius{str(cone_radius)}"] = np.zeros(len(RAs), dtype=np.int8)
+            lenses[f"Radius{str(cone_radius)}"] = {}
             for num, (RA, DEC) in enumerate(zip(rand_RAs, rand_DECs)):
-                cone_indices = [(RAs - RA) ** 2 + (DECs - DEC) ** 2 <= (cone_radius / 60.0) ** 2]
-                flagged_data[f"Radius{str(cone_radius)}"][cone_indices] = [num+1]
-                print(flagged_data[f"Radius{str(cone_radius)}"][cone_indices])
+                cone_indices = [np.logical_and((RAs - RA) ** 2 + (DECs - DEC) ** 2 >= (prev_rad / 60.0) ** 2,
+                                               (RAs - RA) ** 2 + (DECs - DEC) ** 2 <= (cone_radius / 60.0) ** 2)]
+                lenses[f"Radius{str(cone_radius)}"][f"Shell{str(num+1)}"] = IDs[cone_indices]
+                print(f"Sorted {num+1}/{rand_samp_size} for radius {cone_radius}'")
+            print(lenses[f"Radius{str(cone_radius)}"][f"Shell5"])
             heights = np.zeros(rand_samp_size)
             outsides_u = [rand_DECs > 10.1 - cone_radius / 60.0]
             heights[outsides_u] = rand_DECs[outsides_u] - (10.1 - cone_radius / 60.0)
@@ -272,8 +278,9 @@ def get_random(data, redo=False):
             thetas = 2 * np.arccos(1 - heights / (cone_radius / 60.0))
             fraction_outside = 1 / (2 * np.pi) * (thetas - np.sin(thetas))
             weights = 1.0 - fraction_outside
-            lenses[f"Radius{str(cone_radius)}"] = {'WEIGHT': weights}
+            lenses[f"Radius{str(cone_radius)}"]['WEIGHT'] = weights
             print(f"Sorted radius {cone_radius}'")
+            prev_rad = cone_radius
         pickle_out = open(f"random_cones_new.pickle", "wb")
         pickle.dump(lenses, pickle_out)
         pickle_out.close()
@@ -357,43 +364,41 @@ def find_convergence(exp_data, redo=False, plot_scatter=False, plot_total=False,
     chi_widths = exp_data[2]
     chi_bis = exp_data[3]
     z_bins = exp_data[4]
-    if redo:                                                                                              #if redo:
-        pickle_in = open("MICE_SN_data.pickle", "rb")                                                     #    counts = {}
-        SN_data = pickle.load(pickle_in)                                                                  #    num = 0
-        SN_zs = SN_data["SNZ"]                                                                            #    for z in gal_z:
-        pickle_in = open("MICEkappa.pickle", "rb")                                                        #        bin_c = range(int(np.argmin(np.abs(limits - z))))
-        kappa = pickle.load(pickle_in)                                                                    #        counts[f"g{num}"] = np.zeros(len(bin_c))
-        r_i = 0                                                                                           #        for num2 in bin_c:
-        r_i_old = 0                                                                                       #            counts[f"g{num}"][num2] = sum([limits[num2] < data[f'SN{num+1}']['zs'][i] <= limits[num2 + 1]
-        for i in [1, 2, 3]:                                                                               #                                           for i in range(len(data[f'SN{num+1}']['zs']))])
-            with open(f"random_cones{i}.pickle", "rb") as pickle_in:                                      #        if sum(counts[f"g{num}"]) == 0:
-                lens_data = pickle.load(pickle_in)                                                        #            print(f'Total void for {data[f"SN{num+1}"]}')
-            r_i += len(lens_data.keys())                                                                  #        num += 1
-            for cone_radius in RADII[r_i_old:r_i]:                                                        #        if num % 5 == 0:
-                Zs = []                                                                                   #            print(f"Finished {num}/{len(gal_z)}")
-                SN_weights = []                                                                           #    convergence = np.zeros(len(counts))
-                for SN_key in lens_data[f"Radius{cone_radius}"].keys():                                   #    conv_err = np.zeros(len(counts))
-                    Zs.append(lens_data[f"Radius{cone_radius}"][SN_key]["Zs"])                            #    num = 0
-                    SN_weights.append(lens_data[f"Radius{cone_radius}"][SN_key]["WEIGHT"])                #    d_arr = {}
-                                                                                                          #    for key, SN in counts.items():
-                expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]                                #        d_arr[key] = (SN - exp[:len(SN)]) / exp[:(len(SN))]
-                kappa[f"Radius{str(cone_radius)}"] = {"SNkappa": [], "Total": 0}                          #        convergence[num] = general_convergence(chi_widths[:len(SN)], chi_bins[:len(SN)], z_bins[:len(SN)],
-                d_arr = []                                                                                #                                               d_arr[f"{key}"], gal_chi[num])
-                counts = []                                                                               #         conv_err[num] = convergence_error(chi_widths[:len(SN)], chi_bins[:len(SN)], z_bins[:len(SN)],
-                for num, z in enumerate(SN_zs):
-                    bin_c = range(int(np.argmin(np.abs(limits - z))))
-                    counts.append(np.zeros(len(bin_c)))
-                    for num2 in bin_c:
-                        tmp = [np.logical_and(limits[num2] < z, z <= limits[num2 + 1])]
-                        if weighted:
-                            counts[num][num2] = np.count_nonzero(tmp) / SN_weights[num]
-                        else:
-                            counts[num][num2] = np.count_nonzero(tmp)
-
-                    # print(f"Counted SN {num+1}/1500")
-
-                chiSNs = []
-                for z in SN_zs:
+    if redo:
+        pickle_in = open("MICE_SN_data.pickle", "rb")
+        SN_data = pickle.load(pickle_in)
+        SN_zs = SN_data["SNZ"]
+        pickle_in = open("MICEkappa.pickle", "rb")
+        kappa = pickle.load(pickle_in)
+        r_i = 0
+        r_i_old = 0
+        for i in [1, 2, 3]:
+            with open(f"random_cones{i}.pickle", "rb") as pickle_in:
+                lens_data = pickle.load(pickle_in)
+            r_i += len(lens_data.keys())
+            for cone_radius in RADII[r_i_old:r_i]:
+                Zs = []
+                SN_weights = []
+                for SN_key in lens_data[f"Radius{cone_radius}"].keys():
+                    Zs.append(lens_data[f"Radius{cone_radius}"][SN_key]["Zs"])
+                    SN_weights.append(lens_data[f"Radius{cone_radius}"][SN_key]["WEIGHT"])
+                                                                                                                        #if redo:
+                expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]                                              #    counts = {}
+                kappa[f"Radius{str(cone_radius)}"] = {"SNkappa": [], "Total": 0}                                        #    for z in gal_z:
+                d_arr = []                                                                                              #        bin_c = range(int(np.argmin(np.abs(limits - z))))
+                counts = []                                                                                             #        counts[f"g{num}"] = np.zeros(len(bin_c))
+                for num, z in enumerate(SN_zs):                                                                         #        for num2 in bin_c:
+                    bin_c = range(int(np.argmin(np.abs(limits - z))))                                                   #            counts[f"g{num}"][num2] = sum([limits[num2] < data[f'SN{num+1}']['zs'][i] <= limits[num2 + 1]
+                    counts.append(np.zeros(len(bin_c)))                                                                 #                                           for i in range(len(data[f'SN{num+1}']['zs']))])
+                    for num2 in bin_c:                                                                                  #        if sum(counts[f"g{num}"]) == 0:
+                        tmp = [np.logical_and(limits[num2] < z, z <= limits[num2 + 1])]                                 #            print(f'Total void for {data[f"SN{num+1}"]}')
+                        if weighted:                                                                                    #    convergence = np.zeros(len(counts))
+                            counts[num][num2] = np.count_nonzero(tmp) / SN_weights[num]                                 #    d_arr = {}
+                        else:                                                                                           #    for key, SN in counts.items():
+                            counts[num][num2] = np.count_nonzero(tmp)                                                   #        d_arr[key] = (SN - exp[:len(SN)]) / exp[:(len(SN))]
+                                                                                                                        #        convergence[num] = general_convergence(chi_widths[:len(SN)], chi_bins[:len(SN)], z_bins[:len(SN)],
+                chiSNs = []                                                                                             #                                               d_arr[f"{key}"], gal_chi[num])
+                for z in SN_zs:                                                                                         #         conv_err[num] = convergence_error(chi_widths[:len(SN)], chi_bins[:len(SN)], z_bins[:len(SN)],
                     chi = Convergence.comoving(np.linspace(0, z, 1001))
                     chiSNs.append(chi[-1])
 
