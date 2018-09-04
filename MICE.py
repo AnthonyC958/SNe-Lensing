@@ -69,9 +69,10 @@ def find_convergence_MICE(gal_chi, gal_z, limits, exp, chi_widths, chi_bins, z_b
         for key, SN in counts.items():
             d_arr[key] = (SN - exp[:len(SN)]) / exp[:(len(SN))]
             convergence[num] = Convergence.general_convergence(chi_widths[:len(SN)], chi_bins[:len(SN)],
-                                                               z_bins[:len(SN)], d_arr[f"{key}"], gal_chi[num])
+                                                               z_bins[:len(SN)], d_arr[f"{key}"], gal_chi[num], OM=0.25,
+                                                               h=0.7)
             conv_err[num] = Convergence.convergence_error(chi_widths[:len(SN)], chi_bins[:len(SN)], z_bins[:len(SN)],
-                                                          exp[:len(SN)], gal_chi[num])
+                                                          exp[:len(SN)], gal_chi[num], OM=0.25, h=0.7)
             num += 1
 
         conv_err += 0
@@ -176,7 +177,8 @@ def make_big_cone(data, redo=False):
 
 def find_expected(big_cone, r_big, bins, redo=False, plot=False):
     max_z = 1.41
-    chi_bin_widths, chi_bins, z_bins, z_bin_widths = Convergence.create_z_bins(0.01, max_z, bins)
+    chi_bin_widths, chi_bins, z_bins, z_bin_widths = Convergence.create_z_bins(0.01, max_z, bins, OM=0.25, OL=0.75,
+                                                                               h=0.7)
     limits = np.cumsum(z_bin_widths) + z_bins[0]
     expected = {}
     if redo:
@@ -241,7 +243,7 @@ def get_random(data, redo=False):
         dists = []
         rand_chis = []
         for z in rand_zs:
-            chi_to_z = Convergence.comoving(np.linspace(0, z, 1001), OM=0.25, OL=0.75)
+            chi_to_z = Convergence.comoving(np.linspace(0, z, 1001), OM=0.25, OL=0.75, h=0.7)
             dists.append(chi_to_z[-1] * (1 + z))
             rand_chis.append(chi_to_z[-1])
         mus = 5 * np.log10(np.array(dists) / 10 * 1E9)
@@ -349,7 +351,7 @@ def plot_cones(data, sorted_data, plot_hist=False, cone_radius=12.0):
         plt.show()
 
 
-def find_convergence(exp_data, redo=False, plot_scatter=False, plot_total=False, weighted=False):
+def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_total=False, weighted=False):
     """Finds the convergence along each line of sight to a SN for a variety of cone_widths.
 
     Inputs:
@@ -360,6 +362,9 @@ def find_convergence(exp_data, redo=False, plot_scatter=False, plot_total=False,
                      Default false.
      plot_total -- boolean that determines whether total convergence per cone radius is plotted. Default false.
     """
+    IDs = set(gal_data['id'])
+    all_zs = gal_data['z']
+    all_kappas = gal_data['kappa']
     limits = exp_data[0]
     chi_widths = exp_data[2]
     chi_bis = exp_data[3]
@@ -370,47 +375,47 @@ def find_convergence(exp_data, redo=False, plot_scatter=False, plot_total=False,
         SN_zs = SN_data["SNZ"]
         pickle_in = open("MICEkappa.pickle", "rb")
         kappa = pickle.load(pickle_in)
-        r_i = 0
-        r_i_old = 0
-        for i in [1, 2, 3]:
-            with open(f"random_cones{i}.pickle", "rb") as pickle_in:
-                lens_data = pickle.load(pickle_in)
-            r_i += len(lens_data.keys())
-            for cone_radius in RADII[r_i_old:r_i]:
-                Zs = []
-                SN_weights = []
-                for SN_key in lens_data[f"Radius{cone_radius}"].keys():
-                    Zs.append(lens_data[f"Radius{cone_radius}"][SN_key]["Zs"])
-                    SN_weights.append(lens_data[f"Radius{cone_radius}"][SN_key]["WEIGHT"])
-                                                                                                                        #if redo:
-                expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]                                              #    counts = {}
-                kappa[f"Radius{str(cone_radius)}"] = {"SNkappa": [], "Total": 0}                                        #    for z in gal_z:
-                d_arr = []                                                                                              #        bin_c = range(int(np.argmin(np.abs(limits - z))))
-                counts = []                                                                                             #        counts[f"g{num}"] = np.zeros(len(bin_c))
-                for num, z in enumerate(SN_zs):                                                                         #        for num2 in bin_c:
-                    bin_c = range(int(np.argmin(np.abs(limits - z))))                                                   #            counts[f"g{num}"][num2] = sum([limits[num2] < data[f'SN{num+1}']['zs'][i] <= limits[num2 + 1]
-                    counts.append(np.zeros(len(bin_c)))                                                                 #                                           for i in range(len(data[f'SN{num+1}']['zs']))])
-                    for num2 in bin_c:                                                                                  #        if sum(counts[f"g{num}"]) == 0:
-                        tmp = [np.logical_and(limits[num2] < z, z <= limits[num2 + 1])]                                 #            print(f'Total void for {data[f"SN{num+1}"]}')
-                        if weighted:                                                                                    #    convergence = np.zeros(len(counts))
-                            counts[num][num2] = np.count_nonzero(tmp) / SN_weights[num]                                 #    d_arr = {}
-                        else:                                                                                           #    for key, SN in counts.items():
-                            counts[num][num2] = np.count_nonzero(tmp)                                                   #        d_arr[key] = (SN - exp[:len(SN)]) / exp[:(len(SN))]
-                                                                                                                        #        convergence[num] = general_convergence(chi_widths[:len(SN)], chi_bins[:len(SN)], z_bins[:len(SN)],
-                chiSNs = []                                                                                             #                                               d_arr[f"{key}"], gal_chi[num])
-                for z in SN_zs:                                                                                         #         conv_err[num] = convergence_error(chi_widths[:len(SN)], chi_bins[:len(SN)], z_bins[:len(SN)],
-                    chi = Convergence.comoving(np.linspace(0, z, 1001))
-                    chiSNs.append(chi[-1])
+        pickle_in = open("random_cones_new.pickle", "rb")
+        lens_data = pickle.load(pickle_in)
 
-                for num, SN in enumerate(counts):
-                    d_arr.append((SN - expected_counts[:len(SN)]) / expected_counts[:(len(SN))])
-                    SNkappa, _ = Convergence.general_convergence(chi_widths[:len(SN)], chi_bis[:len(SN)],
-                                                                 z_bins[:len(SN)], d_arr[num], chiSNs[num])
-                    kappa[f"Radius{str(cone_radius)}"]["SNkappa"].append(SNkappa)
+        cone_zs = {}
+        for cone_radius in RADII:
+            SN_weights = lens_data[f"Radius{cone_radius}"]["WEIGHT"]
+            # Go through all SNe
+            for SN_num in range(1, len(SN_weights) + 1):
+                cone_IDs = np.array([], dtype=np.int16)
+                # Get shells from all previous RADII
+                for r in RADII[0:np.argmin(np.abs(RADII - np.array(cone_radius)))]:
+                    cone_IDs = np.append(cone_IDs, lens_data[f"Radius{r}"][f"Shell{SN_num}"])
+                # Get redshifts of all galaxies in each SN cone
+                cone_zs[f"SN{SN_num}"] = all_zs[[i for i, item in enumerate(cone_IDs) if item in IDs]]
+            expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]
+            kappa[f"Radius{str(cone_radius)}"] = {"SNkappa": [], "Total": 0}                                            # for z in gal_z:
+            d_arr = {}                                                                                                  #     bin_c = range(int(np.argmin(np.abs(limits - z))))
+            counts = {}                                                                                                 #     counts[f"g{num}"] = np.zeros(len(bin_c))
+            for num, (key, zs) in enumerate(cone_zs.items()):                                                           #     for num2 in bin_c:
+                bin_c = range(int(np.argmin(np.abs(limits - SN_zs[num]))))                                              #         counts[f"g{num}"][num2] = sum([limits[num2] < data[f'SN{num+1}']['zs'][i] <= limits[num2 + 1]
+                counts[key] = np.zeros(len(bin_c))
+                for num2 in bin_c:                                                                                      #     if sum(counts[f"g{num}"]) == 0:
+                    tmp = [np.logical_and(limits[num2] < zs, zs <= limits[num2 + 1])]                                   #         print(f'Total void for {data[f"SN{num+1}"]}')
+                    if weighted:                                                                                        # convergence = np.zeros(len(counts))
+                        counts[key][num2] = np.count_nonzero(tmp) / SN_weights[num]                                     # d_arr = {}
+                    else:                                                                                               # for key, SN in counts.items():
+                        counts[key][num2] = np.count_nonzero(tmp)                                                       #     d_arr[key] = (SN - exp[:len(SN)]) / exp[:(len(SN))]
+                                                                                                                        #     convergence[num] = general_convergence(chi_widths[:len(SN)], chi_bins[:len(SN)], z_bins[:len(SN)],
+            chiSNs = []                                                                                                 #                                            d_arr[f"{key}"], gal_chi[num])
+            for z in SN_zs:                                                                                             #      conv_err[num] = convergence_error(chi_widths[:len(SN)], chi_bins[:len(SN)], z_bins[:len(SN)],
+                chi = Convergence.comoving(np.linspace(0, z, 1001), OM=0.25, OL=0.75, h=0.7)
+                chiSNs.append(chi[-1])
 
-                kappa[f"Radius{str(cone_radius)}"]["Total"] = np.sum(kappa[f"Radius{str(cone_radius)}"]["SNkappa"])
-                print(f"Finished radius {str(cone_radius)}'")
-            r_i_old = r_i
+            for num, (key, cs) in enumerate(counts.items()):
+                d_arr[key] = (cs - expected_counts[:len(cs)]) / expected_counts[:(len(cs))]
+                SNkappa, _ = Convergence.general_convergence(chi_widths[:len(cs)], chi_bis[:len(cs)],
+                                                             z_bins[:len(cs)], d_arr[key], chiSNs[num], OM=0.25, h=0.7)
+                kappa[f"Radius{str(cone_radius)}"]["SNkappa"].append(SNkappa)
+
+            kappa[f"Radius{str(cone_radius)}"]["Total"] = np.sum(kappa[f"Radius{str(cone_radius)}"]["SNkappa"])
+            print(f"Finished radius {str(cone_radius)}'")
         pickle_out = open("MICEkappa.pickle", "wb")
         pickle.dump(kappa, pickle_out)
         pickle_out.close()
@@ -448,7 +453,7 @@ def find_convergence(exp_data, redo=False, plot_scatter=False, plot_total=False,
             # ax2.set_yticklabels([])
             plt.subplots_adjust(wspace=0, hspace=0)
             ax.plot([0, 1.5], [0, 0], color=grey, linestyle='--')
-            ax.axis([0, 1.5, -0.01, 0.01])
+            # ax.axis([0, 1.5, -0.01, 0.01])
             # ax2.axis([0, 180, -0.01, 0.01])
             # ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
             # ax.set_xticklabels([0, 0.2, 0.4, 0])
@@ -552,7 +557,7 @@ def find_mu_diff(SN_zs, SN_mus, OM=0.25, OL=0.75):
     """Finds the distance modulus of best fitting cosmology and hence residuals.
     """
     z_array = np.linspace(0.0, 1.5 + 0.01, 1001)
-    mu_cosm = 5 * np.log10((1 + z_array) * Convergence.comoving(z_array, OM=OM, OL=OL) * 1000) + 25
+    mu_cosm = 5 * np.log10((1 + z_array) * Convergence.comoving(z_array, OM=OM, OL=OL, h=0.7) * 1000) + 25
     mu_cosm_interp = np.interp(SN_zs, z_array, mu_cosm)
     mu_diff = SN_mus - mu_cosm_interp
     data = {"mu_diff": mu_diff, "mu_cosm": mu_cosm, "z_array": z_array}
@@ -608,11 +613,11 @@ if __name__ == "__main__":
     big_cone_centre = [(min(alldata['RA']) + max(alldata['RA'])) / 2, (min(alldata['DEC']) + max(alldata['DEC'])) / 2]
     big_cone_radius = round(min(max(alldata['RA']) - big_cone_centre[0], big_cone_centre[0] - min(alldata['RA']),
                                 max(alldata['DEC']) - big_cone_centre[1], big_cone_centre[1] - min(alldata['DEC'])), 2)
-    big_cone = make_big_cone(alldata, redo=False)
-    exp_data = find_expected(big_cone, big_cone_radius, 111, redo=False, plot=False)
+    big_cone = make_big_cone(alldata, redo=True)
+    exp_data = find_expected(big_cone, big_cone_radius, 111, redo=True, plot=False)
     get_random(alldata, redo=True)
     # plot_cones(alldata, sorted_data, plot_hist=True)
     # plot_Hubble()
-    conv = find_convergence(exp_data, redo=False, plot_total=True, plot_scatter=False, weighted=use_weighted)
+    conv = find_convergence(alldata, exp_data, redo=True, plot_total=True, plot_scatter=True, weighted=use_weighted)
     # cones.find_correlation(MICEconv, sorted_data, plot_correlation=True)
     find_correlation(conv, plot_radii=True)

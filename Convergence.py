@@ -8,8 +8,6 @@ orange = [255/255, 119/255, 15/255, 0.75]
 green = [0, 150/255, 100/255, 0.25]
 yellow = [253/255, 170/255, 0, 0.75]
 grey = [0.75, 0.75, 0.75]
-h = 0.738
-H0 = 1000 * 100 * h  # km/s/Gpc
 c = 2.998E5  # km/s
 G = 6.67E-11
 MSOL = 1.989E30
@@ -45,7 +43,7 @@ def get_h_inv(z_val, OM=0.27, OL=0.73):
     return 1.0 / H
 
 
-def comoving(zs_array, OM=0.27, OL=0.73):
+def comoving(zs_array, OM=0.27, OL=0.73, h=0.738):
     """Numerical integration of get_h_inv to create an array of comoving values.
 
     Inputs:
@@ -56,7 +54,7 @@ def comoving(zs_array, OM=0.27, OL=0.73):
     vecGet_h_inv = np.vectorize(get_h_inv)
     h_invs = vecGet_h_inv(zs_array, OM, OL)
     comoving_coord = sp.cumtrapz(h_invs, x=zs_array, initial=0)
-
+    H0 = 1000 * 100 * h  # km/s/Gpc
     dist = comoving_coord * c / H0
     return dist
 
@@ -73,7 +71,7 @@ def b_comoving_integrand(a_val, OM=0.27, OL=0.73):
     return 1 / np.sqrt(a_val * OM + a_val ** 2 * OK + a_val ** 4 * OL)
 
 
-def b_comoving(z_lo, z_hi, OM=0.27, OL=0.73, n=1001):
+def b_comoving(z_lo, z_hi, OM=0.27, OL=0.73, n=1001, h=0.738):
     """Numerical integration of b_comoving_integrand to create an array of comoving values. Uses start and end redshift
     as opposed to an array of z values.
 
@@ -90,7 +88,7 @@ def b_comoving(z_lo, z_hi, OM=0.27, OL=0.73, n=1001):
     a_arr = np.linspace(a1, a2, n)
     integrands = vecIntegrand(a_arr, OM, OL)
     comoving_coord = sp.cumtrapz(integrands, x=a_arr, initial=0)
-
+    H0 = 1000 * 100 * h  # km/s/Gpc
     return comoving_coord * c / H0
 
 
@@ -134,7 +132,7 @@ def create_chi_bins(z_lo, z_hi, num_bins, plot=False):
     return chi_widths, chis, zs, z_widths
 
 
-def create_z_bins(z_lo, z_hi, num_bins, plot=False):
+def create_z_bins(z_lo, z_hi, num_bins, plot=False, OM=0.27, OL=0.73, h=0.738):
     """Takes a line sight from z_lo to z_hi and divides it into bins even in redshift.
 
     Inputs:
@@ -150,7 +148,7 @@ def create_z_bins(z_lo, z_hi, num_bins, plot=False):
 
     chi_values = np.linspace(0, 0, len(z_values))
     for k in range(len(z_values)):
-        chi = b_comoving(z_lo, z_values[k])
+        chi = b_comoving(z_lo, z_values[k], OM=OM, OL=OL, h=h)
         chi_values[k] = chi[-1]
 
     chi_bin_edges = chi_values[0::2]
@@ -161,7 +159,7 @@ def create_z_bins(z_lo, z_hi, num_bins, plot=False):
         plt.plot([z_bin_edges, z_bin_edges], [chi_bin_edges[0], chi_bin_edges[-1]], color=[0.75, 0.75, 0.75],
                  linestyle='-', linewidth=0.8)
         plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.75, 0.75, 0.75], linestyle='-', linewidth=0.8)
-        plt.plot(np.linspace(z_lo, z_hi, 1001), b_comoving(z_lo, z_hi), color=colours[1])
+        plt.plot(np.linspace(z_lo, z_hi, 1001), b_comoving(z_lo, z_hi, OM=OM, OL=OL, h=h), color=colours[1])
         plt.plot(zs, chis, linestyle='', marker='o', markersize=3, color=colours[0])
         plt.xlabel(' $z$')
         
@@ -172,7 +170,7 @@ def create_z_bins(z_lo, z_hi, num_bins, plot=False):
     return chi_widths, chis, zs, z_widths
 
 
-def single_d_convergence(chi_widths, chis, zs, index, mass, SN_dist, OM=0.27):
+def single_d_convergence(chi_widths, chis, zs, index, mass, SN_dist, OM=0.27, h=0.738):
     """Calculates convergence along the line of sight for a single overdensity in redshift bin i.
 
     Inputs:
@@ -184,6 +182,7 @@ def single_d_convergence(chi_widths, chis, zs, index, mass, SN_dist, OM=0.27):
      SN_dist -- comoving distance to SN along line of sight.
      OM -- matter density parameter. Defaults to 0.27.
     """
+    H0 = 1000 * 100 * h  # km/s/Gpc
     coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
     # print(chi_widths)
     chi_widths[0] = chis[1] / 2
@@ -203,7 +202,7 @@ def single_d_convergence(chi_widths, chis, zs, index, mass, SN_dist, OM=0.27):
     return np.sum(k_i)
 
 
-def single_d_convergence_z(z_widths, chis, zs, index, mass, SN_dist, OM=0.27):
+def single_d_convergence_z(z_widths, chis, zs, index, mass, SN_dist, OM=0.27, h=0.738):
     """Same as single_d_convergence but for making dealing with bins equal in z.
 
     Inputs:
@@ -215,6 +214,7 @@ def single_d_convergence_z(z_widths, chis, zs, index, mass, SN_dist, OM=0.27):
      SN_dist -- comoving distance to SN along line of sight.
      OM -- matter density parameter. Defaults to 0.27.
     """
+    H0 = 1000 * 100 * h  # km/s/Gpc
     coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
     d_arr = np.linspace(0, 0, len(zs))
     # rho_0 = 3 * OM * H0 ** 2 / (8 * np.pi * G)
@@ -229,7 +229,7 @@ def single_d_convergence_z(z_widths, chis, zs, index, mass, SN_dist, OM=0.27):
     return np.sum(k_i)
 
 
-def convergence_error(chi_widths, chis, zs, expected_arr, SN_dist, OM=0.27):
+def convergence_error(chi_widths, chis, zs, expected_arr, SN_dist, OM=0.27, h=0.738):
     """Calculates the error in convergence due to Poisson noise in galaxy distribution.
 
     Inputs:
@@ -240,13 +240,14 @@ def convergence_error(chi_widths, chis, zs, expected_arr, SN_dist, OM=0.27):
      SN_dist -- comoving distance to SN along line of sight.
      OM -- matter density parameter. Defaults to 0.27.
     """
+    H0 = 1000 * 100 * h  # km/s/Gpc
     coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
     sf_arr = 1.0 / (1.0 + zs)
     k_i = coeff * chis * chi_widths * (SN_dist - chis) / SN_dist / expected_arr / sf_arr
     return np.sum(k_i)
 
 
-def general_convergence(chi_widths, chis, zs, d_arr, SN_dist, OM=0.27):
+def general_convergence(chi_widths, chis, zs, d_arr, SN_dist, OM=0.27, h=0.378):
     """Calculates convergence from an array of overdesnities for all bins along line of sight.
 
     Inputs:
@@ -257,6 +258,7 @@ def general_convergence(chi_widths, chis, zs, d_arr, SN_dist, OM=0.27):
      SN_dist -- comoving distance to SN along line of sight.
      OM -- matter density parameter. Defaults to 0.27.
     """
+    H0 = 1000 * 100 * h  # km/s/Gpc
     coeff = 3.0 * H0 ** 2 * OM / (2.0 * c ** 2)
     sf_arr = 1.0 / (1.0 + zs)
     k_i = coeff * chis * chi_widths * (SN_dist - chis) / SN_dist * d_arr / sf_arr
@@ -411,7 +413,7 @@ def compare_z_chi(conv_c_arr, conv_z_arr, chi_bins_c, chi_bins_z, z_bins_z, z_bi
     plt.show()
 
 
-def smoothed_m_convergence(tests, SN_dist, z_SN, OM=0.27):
+def smoothed_m_convergence(tests, SN_dist, z_SN, OM=0.27, h=0.738):
     """Plots the convergence of a single mass confined to the centre of the LOS with decreasing bin width.
 
     Inputs:
@@ -420,6 +422,7 @@ def smoothed_m_convergence(tests, SN_dist, z_SN, OM=0.27):
      z_SN -- redshift of supernova.
      OM -- matter density parameter. Defaults to 0.27.
     """
+    H0 = 1000 * 100 * h  # km/s/Gpc
     test_range = np.arange(3, tests, 2)
     conv = np.zeros(len(test_range))
     mass_mag = 15
