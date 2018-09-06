@@ -417,10 +417,11 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
                 pickle_in = open("kappa_weighted.pickle", "rb")
             else:
                 pickle_in = open("kappa.pickle", "rb")
+            kappa = pickle.load(pickle_in)
         else:
-            pickle_in = open("MICEkappa.pickle", "rb")
-        kappa = pickle.load(pickle_in)
-        for cone_radius in [12.0]:
+            # pickle_in = open("MICEkappa.pickle", "rb")
+            kappa = {}
+        for cone_radius in RADII:
             expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]
             lenses = lens_data[f"Radius{str(cone_radius)}"]
 
@@ -439,7 +440,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
                     else:
                         counts[key][num2] = np.count_nonzero(tmp)
                 num += 1
-                print(f"Counted SN {num}/749")
+                print(f"Counted SN {num}/{len(lenses.keys())}")
 
             SNe_data_radius = find_mu_diff(lens_data, cone_radius=cone_radius)
             chiSNs = []
@@ -469,19 +470,20 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
                 pickle_out = open("kappa_weighted.pickle", "wb")
             else:
                 pickle_out = open("kappaMICE.pickle", "wb")
-        else:
-            pickle_out = open("MICEkappa.pickle", "wb")
-        pickle.dump(kappa, pickle_out)
-        pickle_out.close()
+            pickle.dump(kappa, pickle_out)
+            pickle_out.close()
+        # else:
+        #     pickle_out = open("MICEkappa.pickle", "wb")
+
     else:
         if not MICE:
             if weighted:
                 pickle_in = open("kappa_weighted.pickle", "rb")
             else:
                 pickle_in = open("kappa.pickle", "rb")
-        else:
-            pickle_in = open("MICEkappa.pickle", "rb")
-        kappa = pickle.load(pickle_in)
+            kappa = pickle.load(pickle_in)
+        # else:
+        #     pickle_in = open("MICEkappa.pickle", "rb")
 
     for cone_radius in RADII:
         SNe_data_radius = find_mu_diff(lens_data, cone_radius=cone_radius)
@@ -530,7 +532,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
             # ax2.set_yticklabels([])
             plt.subplots_adjust(wspace=0, hspace=0)
             ax.plot([0, max_z], [0, 0], color=grey, linestyle='--')
-            ax.axis([0, max_z, -0.01, 0.01])
+            # ax.axis([0, max_z, -0.01, 0.01])
             # ax2.axis([0, 180, -0.01, 0.01])
             # ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
             # ax.set_xticklabels([0, 0.2, 0.4, 0])
