@@ -472,14 +472,14 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
             if weighted:
                 pickle_out = open("kappa_weighted.pickle", "wb")
             else:
-                pickle_out = open("kappaMICE.pickle", "wb")
+                pickle_out = open("kappa.pickle", "wb")
             pickle.dump(kappa, pickle_out)
             pickle_out.close()
         else:
             if weighted:
                 pickle_out = open("MICEkappa_weighted.pickle", "wb")
             else:
-                pickle_out = open("MICEkappaMICE.pickle", "wb")
+                pickle_out = open("MICEkappa.pickle", "wb")
             pickle.dump(kappa, pickle_out)
             pickle_out.close()
 
@@ -621,7 +621,7 @@ def find_correlation(convergence_data, lens_data, plot_correlation=False, plot_r
     """
     correlations = []
     correlation_errs = []
-    for cone_radius in [12.0]:
+    for cone_radius in RADII:
         SNe_data = find_mu_diff(lens_data, cone_radius)
         redshift_cut = [SNe_data['z'][i] > 0.2 for i in range(len(SNe_data['z']))]
         mu_diff = SNe_data["mu_diff"][redshift_cut]
@@ -693,7 +693,7 @@ def find_correlation(convergence_data, lens_data, plot_correlation=False, plot_r
     return [correlations, smooth_corr, smooth_u_err, smooth_d_err]
 
 
-def find_mu_diff(lenses, OM=0.27, OL=0.73, max_z=0.6, cone_radius=12.0):
+def find_mu_diff(lenses, OM=0.27, OL=0.73, h=0.738, max_z=0.6, cone_radius=12.0):
     """Finds the distance modulus of best fitting cosmology and hence residuals.
 
     Inputs:
@@ -710,7 +710,7 @@ def find_mu_diff(lenses, OM=0.27, OL=0.73, max_z=0.6, cone_radius=12.0):
         SNmu_err[c] = SN['SNMU_ERR']
         c += 1
     z_array = np.linspace(0.0, max_z+0.01, 1001)
-    mu_cosm = 5 * np.log10((1 + z_array) * comoving(z_array, OM=OM, OL=OL) * 1000) + 25
+    mu_cosm = 5 * np.log10((1 + z_array) * comoving(z_array, OM=OM, OL=OL, h=h) * 1000) + 25
     mu_cosm_interp = np.interp(SNzs, z_array, mu_cosm)
     mu_diff = SNmus - mu_cosm_interp
 
