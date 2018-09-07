@@ -111,6 +111,9 @@ def find_expected(big_cone, r_big, bins, redo=False, plot=False):
     chi_bin_widths, chi_bins, z_bins, z_bin_widths = Convergence.create_z_bins(0.01, max_z, bins, OM=0.25, OL=0.75,
                                                                                h=0.7)
     limits = np.cumsum(z_bin_widths) + z_bins[0]
+    print(limits)
+    limits = np.insert(limits, 0, 0)
+    print(limits)
     expected = {}
     if redo:
         cumul_counts = []
@@ -118,17 +121,17 @@ def find_expected(big_cone, r_big, bins, redo=False, plot=False):
             cumul_counts.append(sum(big_cone['Zs'][big_cone['Zs'] < lim]) / 5.0)  # Made 5 cones, so take average
             print(f"Sorted {num1+1}/{len(limits)}")
 
+        expected_big = np.diff([cumul_counts[i] for i in range(len(limits))])
+        for cone_radius in RADII:
+            expected[f"Radius{str(cone_radius)}"] = [expected_big[i] * (cone_radius / r_big / 60.0) ** 2
+                                                     for i in range(len(expected_big))]
+
         pickle_out = open("MICEexpected.pickle", "wb")
-        pickle.dump(cumul_counts, pickle_out)
+        pickle.dump(expected, pickle_out)
         pickle_out.close()
     else:
         pickle_in = open("MICEexpected.pickle", "rb")
-        cumul_counts = pickle.load(pickle_in)
-
-    expected_big = np.diff([cumul_counts[i] for i in range(len(limits))])
-    for cone_radius in RADII:
-        expected[f"Radius{str(cone_radius)}"] = [expected_big[i] * (cone_radius / r_big / 60.0) ** 2
-                                                 for i in range(len(expected_big))]
+        expected = pickle.load(pickle_in)
 
     if plot:
         for cone_radius in RADII:
@@ -544,7 +547,7 @@ if __name__ == "__main__":
     big_cone_radius = round(min(max(alldata['RA']) - big_cone_centre[0], big_cone_centre[0] - min(alldata['RA']),
                                 max(alldata['DEC']) - big_cone_centre[1], big_cone_centre[1] - min(alldata['DEC'])), 2)
     big_cone = make_big_cone(alldata, redo=False)
-    exp_data = find_expected(big_cone, big_cone_radius, 111, redo=False, plot=False)
+    exp_data = find_expected(big_cone, big_cone_radius, 111, redo=True, plot=False)
     get_random(alldata, redo=False)
     # plot_cones(alldata, sorted_data, plot_hist=True)
     # plot_Hubble()
@@ -575,6 +578,7 @@ if __name__ == "__main__":
                 gal_zs[key] = alldata['z'][cone_IDs]
                 data[f'Radius{rad}'][key] = {"Zs": gal_zs[key], "SNZ": SN_z[j], "SNMU": SN_mu[j],
                                              "SNMU_ERR": SN_mu_err[j], "WEIGHT": lens_data[f"Radius{rad}"]['WEIGHT'][j]}
+    # print(data["Radius30.0"].keys())
     # cones_MICE_conv = cones.find_convergence(data, exp_data, redo=False, plot_scatter=False, plot_total=True, MICE=True,
     #                                          weighted=True, max_z=1.5)
     pickle_in = open("MICEkappa.pickle", "rb")
