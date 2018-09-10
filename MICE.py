@@ -149,17 +149,17 @@ def get_random(data, redo=False):
     DECs = data['DEC']
     zs = data['z']
     kappas = data['kappa']
-    IDs = data['id']
 
     # Don't want to deal with up to 30' (0.5 degrees) cones that have any portion outside left and right bounds.
-    SN_DECs = DECs[RAs < max(RAs) - 0.5]
-    SN_zs = zs[RAs < max(RAs) - 0.5]
-    SN_kappas = kappas[RAs < max(RAs) - 0.5]
-    SN_RAs = RAs[RAs < max(RAs) - 0.5]
-    SN_DECs = SN_DECs[SN_RAs > min(RAs) + 0.5]
-    SN_zs = SN_zs[SN_RAs > min(RAs) + 0.5]
-    SN_kappas = SN_kappas[SN_RAs > min(RAs) + 0.5]
-    SN_RAs = SN_RAs[SN_RAs > min(RAs) + 0.5]
+    SN_DECs = DECs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
+    SN_zs = zs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
+    SN_kappas = kappas[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
+    SN_RAs = RAs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
+
+    SN_RAs = SN_RAs[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
+    SN_kappas = SN_kappas[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
+    SN_zs = SN_zs[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
+    SN_DECs = SN_DECs[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
 
     if redo:
         # Pick random sample
@@ -204,17 +204,17 @@ def get_random(data, redo=False):
                 lenses[f"Radius{str(cone_radius)}"][f"Shell{str(num+1)}"] = np.where(cone_indices[0] == 1)
                 print(f"Sorted {num+1}/{rand_samp_size} for radius {cone_radius}'")
             heights = np.zeros(rand_samp_size)
-            outsides_u = [rand_DECs > 10.1 - cone_radius / 60.0]
-            heights[outsides_u] = rand_DECs[outsides_u] - (10.1 - cone_radius / 60.0)
-            outsides_d = [rand_DECs < cone_radius / 60.0]
-            heights[outsides_d] = cone_radius / 60.0 - rand_DECs[outsides_d]
-            thetas = 2 * np.arccos(1 - heights / (cone_radius / 60.0))
-            fraction_outside = 1 / (2 * np.pi) * (thetas - np.sin(thetas))
-            weights = 1.0 - fraction_outside
+            # outsides_u = [rand_DECs > 10.1 - cone_radius / 60.0]
+            # heights[outsides_u] = rand_DECs[outsides_u] - (10.1 - cone_radius / 60.0)
+            # outsides_d = [rand_DECs < cone_radius / 60.0]
+            # heights[outsides_d] = cone_radius / 60.0 - rand_DECs[outsides_d]
+            # thetas = 2 * np.arccos(1 - heights / (cone_radius / 60.0))
+            # fraction_outside = 1 / (2 * np.pi) * (thetas - np.sin(thetas))
+            weights = 1.0 - heights
             lenses[f"Radius{str(cone_radius)}"]['WEIGHT'] = weights
             print(f"Sorted radius {cone_radius}'")
             prev_rad = cone_radius
-        pickle_out = open(f"random_cones_new.pickle", "wb")
+        pickle_out = open(f"random_cones_new_fis2.pickle", "wb")
         pickle.dump(lenses, pickle_out)
         pickle_out.close()
 
@@ -566,9 +566,10 @@ if __name__ == "__main__":
                                 max(alldata['DEC']) - big_cone_centre[1], big_cone_centre[1] - min(alldata['DEC'])), 2)
     big_cone = make_big_cone(alldata, redo=False)
     exp_data = find_expected(big_cone, big_cone_radius, 111, redo=False, plot=False)
-    get_random(alldata, redo=False)
+    get_random(alldata, redo=True)
     # plot_cones(alldata, sorted_data, plot_hist=True)
     # plot_Hubble()
+
     conv = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=use_weighted)
     use_weighted = not use_weighted
     conv = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=use_weighted)
