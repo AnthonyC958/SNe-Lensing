@@ -505,8 +505,8 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
         mean_kappa = []
         standard_error = []
         conv = kappa[f"Radius{str(cone_radius)}"]["SNkappa"]
-        counts = kappa[f"Radius{str(cone_radius)}"]["Counts"]
-        d_arr = kappa[f"Radius{str(cone_radius)}"]["delta"]
+        # counts = kappa[f"Radius{str(cone_radius)}"]["Counts"]
+        # d_arr = kappa[f"Radius{str(cone_radius)}"]["delta"]
 
         # SN_num = 669
         # SN_key = f"SN{str(SN_num)}"
@@ -556,7 +556,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
 
     if plot_total:
         conv_total = []
-        for cone_radius in [12.0]:
+        for cone_radius in RADII:
             conv_total.append(kappa[f"Radius{str(cone_radius)}"]["Total"])
         plt.ylabel("$\kappa$")
         plt.xlabel("Cone Radius (arcmin)")
@@ -727,8 +727,8 @@ if __name__ == "__main__":
     cone_array = make_test_cones(data, redo=False, plot=False)
     exp_data = find_expected_counts(cone_array, 51, redo=False, plot=False)
 
-    convergence = find_convergence(lensing_gals, exp_data, redo=True, plot_scatter=True,
-                                   plot_total=False, weighted=use_weighted)
+    convergence = find_convergence(lensing_gals, exp_data, redo=False, plot_scatter=False,
+                                   plot_total=True, weighted=use_weighted)
 
     # plt.plot(S_data['kappa'], S_data['kappa'], color=colours[1])
     # plt.plot(S_data['kappa'], convergence, color=colours[0], marker='o', markersize=3, linestyle='')
@@ -742,7 +742,7 @@ if __name__ == "__main__":
 
     # plot_Hubble(lensing_gals)
 
-    unweighted = find_correlation(convergence, lensing_gals, plot_correlation=True, plot_radii=False)
+    unweighted = find_correlation(convergence, lensing_gals, plot_correlation=False, plot_radii=True)
     # use_weighted = True
     # lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
     # convergence = find_convergence_MICE(lensing_gals, exp_data, redo=False, plot_scatter=False,
