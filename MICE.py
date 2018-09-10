@@ -190,7 +190,7 @@ def get_random(data, redo=False):
         SN_data['SNDEC'] = rand_DECs
         SN_data['SNMU'] = rand_mus
         SN_data['SNMU_ERR'] = rand_errs
-        pickle_out = open("MICE_SN_data.pickle", "wb")
+        pickle_out = open("MICE_SN_data_fis.pickle", "wb")
         pickle.dump(SN_data, pickle_out)
         pickle_out.close()
 
@@ -304,7 +304,7 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
         SN_zs = SN_data["SNZ"]
         kappa = {}
         if fis:
-            pickle_in = open("random_cones_new_fis.pickle", "rb")
+            pickle_in = open("random_cones_new_fis2.pickle", "rb")
         else:
             pickle_in = open("random_cones_new.pickle", "rb")
         lens_data = pickle.load(pickle_in)
@@ -315,14 +315,13 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
                 SN_weights = lens_data[f"Radius{cone_radius}"]["WEIGHT"]
             # Go through all SNe
             for SN_num, key in enumerate(lens_data[f"Radius{cone_radius}"].keys()):
-                if SN_num > 0:
+                if key != 'WEIGHT':
                     cone_indices = np.array([], dtype=np.int16)
                     # Get shells from all previous RADII
                     for r in RADII[0:np.argmin(np.abs(RADII - np.array(cone_radius))) + 1]:
                         cone_indices = np.append(cone_indices, lens_data[f"Radius{r}"][key])
                     # Get redshifts of all galaxies in each SN cone
                     cone_zs[key] = all_zs[cone_indices]
-            print(len(cone_zs))
             expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]
             kappa[f"Radius{str(cone_radius)}"] = {"SNkappa": [], "Total": 0, "SNallkappas": {}}
             d_arr = {}
@@ -357,7 +356,7 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
             else:
                 pickle_out = open("MICEkappa.pickle", "wb")
         else:
-            pickle_out = open("MICEkappa_fis.pickle", "wb")
+            pickle_out = open("MICEkappa_fis2.pickle", "wb")
         pickle.dump(kappa, pickle_out)
         pickle_out.close()
     else:
@@ -367,7 +366,7 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
             else:
                 pickle_in = open("MICEkappa.pickle", "rb")
         else:
-            pickle_in = open("MICEkappa_fis.pickle", "rb")
+            pickle_in = open("MICEkappa_fis2.pickle", "rb")
         kappa = pickle.load(pickle_in)
         pickle_in = open("MICE_SN_data.pickle", "rb")
         SN_data = pickle.load(pickle_in)
@@ -436,10 +435,10 @@ def find_correlation(convergence_data, plot_correlation=False, plot_radii=False,
     correlations = []
     correlation_errs = []
     for cone_radius in RADII:
-        pickle_in = open("MICE_SN_data.pickle", "rb")
-        SN_data = pickle.load(pickle_in)
         if fis:
-            pickle_in = open("MICEkappa.pickle", "rb")
+            pickle_in = open("MICE_SN_data_fis.pickle", "rb")
+            SN_data = pickle.load(pickle_in)
+            pickle_in = open("MICEkappa_fis2.pickle", "rb")
             kappa = pickle.load(pickle_in)
             fis_indices = []
             for key in convergence_data[f'Radius{cone_radius}']['SNallkappas'].keys():
@@ -448,6 +447,8 @@ def find_correlation(convergence_data, plot_correlation=False, plot_radii=False,
             mu_diff = SN_data["mu_diff"][fis_indices][redshift_cut]
             conv = np.array(kappa[f"Radius{str(cone_radius)}"]["SNkappa"])[fis_indices][redshift_cut]
         else:
+            pickle_in = open("MICE_SN_data.pickle", "rb")
+            SN_data = pickle.load(pickle_in)
             redshift_cut = [SN_data['SNZ'] > 0.2]
             mu_diff = SN_data["mu_diff"][redshift_cut]
             conv = np.array(convergence_data[f"Radius{str(cone_radius)}"]["SNkappa"])[redshift_cut]
@@ -564,9 +565,9 @@ if __name__ == "__main__":
     big_cone_centre = [(min(alldata['RA']) + max(alldata['RA'])) / 2, (min(alldata['DEC']) + max(alldata['DEC'])) / 2]
     big_cone_radius = round(min(max(alldata['RA']) - big_cone_centre[0], big_cone_centre[0] - min(alldata['RA']),
                                 max(alldata['DEC']) - big_cone_centre[1], big_cone_centre[1] - min(alldata['DEC'])), 2)
-    big_cone = make_big_cone(alldata, redo=False)
+    big_cone = make_big_cone(alldata, redo=True)
     exp_data = find_expected(big_cone, big_cone_radius, 111, redo=False, plot=False)
-    get_random(alldata, redo=True)
+    get_random(alldata, redo=False)
     # plot_cones(alldata, sorted_data, plot_hist=True)
     # plot_Hubble()
 
@@ -619,26 +620,24 @@ if __name__ == "__main__":
     #             number_fis[n] += 1
     # plt.plot(RADII, number_fis, '+')
     # plt.show()
-    kappa_fis = find_convergence(alldata, exp_data, redo=False, plot_total=True, plot_scatter=True, weighted=False, fis=True)
-    pickle_out = open("MICEkappa_fis.pickle", "wb")
-    pickle.dump(kappa_fis, pickle_out)
-    pickle_out.close()
-    pickle_in = open("MICEkappa_fis.pickle", "rb")
+    # kappa_fis = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=False,
+    #                              fis=True)
+    pickle_in = open("MICEkappa_fis2.pickle", "rb")
     kappa_fis = pickle.load(pickle_in)
-    fully_in_sample = find_correlation(kappa_fis, plot_correlation=False, plot_radii=False, fis=True)
+    fully_in_sample = find_correlation(kappa_fis, plot_correlation=False, plot_radii=True, fis=True)
 
     plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
     plt.plot(RADII, unweighted[1], color=colours[0])
     plt.plot(RADII, unweighted[0], marker='x', linestyle='', color=[0, 0.5, 0.9])
     plt.fill_between(RADII, unweighted[2], unweighted[3], color=colours[0], alpha=0.3)
     plt.plot(RADII, weighted[1], color=colours[1])
-    plt.plot(RADII, weighted[0], marker='x', linestyle='', color=[0.7, 0.2, 0])
+    plt.plot(RADII, weighted[0], marker='x', linestyle='', color=[0.7, 0.3, 0])
     plt.fill_between(RADII, weighted[2], weighted[3], color=colours[1], alpha=0.3)
     plt.plot(RADII, fully_in_sample[1], color=colours[2])
     plt.plot(RADII, fully_in_sample[0], marker='x', linestyle='', color=[0.7, 0.1, 0.6])
     plt.fill_between(RADII, fully_in_sample[2], fully_in_sample[3], color=colours[2], alpha=0.3)
     kwargs1 = {'marker': 'x', 'markeredgecolor': [0, 0.5, 0.9], 'color': colours[0]}
-    kwargs2 = {'marker': 'x', 'markeredgecolor': [0.7, 0.2, 0], 'color': colours[1]}
+    kwargs2 = {'marker': 'x', 'markeredgecolor': [0.7, 0.3, 0], 'color': colours[1]}
     kwargs3 = {'marker': 'x', 'markeredgecolor': [0.7, 0.1, 0.6], 'color': colours[2]}
     plt.plot([], [], label='Unweighted', **kwargs1)
     plt.plot([], [], label='Weighted', **kwargs2)
@@ -654,7 +653,7 @@ if __name__ == "__main__":
     kappa = pickle.load(pickle_in)
     pickle_in = open("MICEkappa_weighted.pickle", "rb")
     kappa_weighted = pickle.load(pickle_in)
-    pickle_in = open("MICEkappa_fis.pickle", "rb")
+    pickle_in = open("MICEkappa_fis2.pickle", "rb")
     kappa_fis = pickle.load(pickle_in)
     conv_total = []
     conv_total_weighted = []
