@@ -179,11 +179,12 @@ def get_random(data, redo=False):
             dists.append(chi_to_z[-1] * (1 + z))
             rand_chis.append(chi_to_z[-1])
         mus = 5 * np.log10(np.array(dists) / 10 * 1E9)
-        rand_mus = mus * (1 - 5 / np.log(10) * rand_kappas)
+        rand_mus = mus - (5.0 / np.log(10) * rand_kappas)
         rand_errs = np.array([abs(random.uniform(0.1+0.3*rand_zs[i], 0.14+0.75*rand_zs[i]))
                               for i in range(rand_samp_size)])
 
-        SN_data = find_mu_diff(rand_zs, rand_mus)
+        SN_data = find_mu_cosm(rand_zs, rand_mus)
+        SN_data['mu_diff'] = - (5.0 / np.log(10) * rand_kappas)
         SN_data['SNZ'] = rand_zs
         SN_data['SNkappa'] = rand_kappas
         SN_data['SNRA'] = rand_RAs
@@ -438,11 +439,11 @@ def find_correlation(convergence_data, plot_correlation=False, plot_radii=False,
         if fis:
             pickle_in = open("MICE_SN_data_fis.pickle", "rb")
             SN_data = pickle.load(pickle_in)
-            pickle_in = open("MICEkappa_fis2.pickle", "rb")
+            pickle_in = open("MICEkappa_fis.pickle", "rb")
             kappa = pickle.load(pickle_in)
             fis_indices = []
             for key in convergence_data[f'Radius{cone_radius}']['SNallkappas'].keys():
-                fis_indices.append(int(key[5:]) - 1)
+                fis_indices.append(int(key[2:]) - 1)
             redshift_cut = [SN_data['SNZ'][fis_indices] > 0.2]
             mu_diff = SN_data["mu_diff"][fis_indices][redshift_cut]
             conv = np.array(kappa[f"Radius{str(cone_radius)}"]["SNkappa"])[fis_indices][redshift_cut]
@@ -505,14 +506,13 @@ def find_correlation(convergence_data, plot_correlation=False, plot_radii=False,
     return [correlations, smooth_corr, smooth_u_err, smooth_d_err]
 
 
-def find_mu_diff(SN_zs, SN_mus, OM=0.25, OL=0.75):
+def find_mu_cosm(SN_zs, SN_mus, OM=0.25, OL=0.75):
     """Finds the distance modulus of best fitting cosmology and hence residuals.
     """
     z_array = np.linspace(0.0, 1.5 + 0.01, 1001)
     mu_cosm = 5 * np.log10((1 + z_array) * Convergence.comoving(z_array, OM=OM, OL=OL, h=0.7) * 1000) + 25
     mu_cosm_interp = np.interp(SN_zs, z_array, mu_cosm)
-    mu_diff = SN_mus - mu_cosm_interp
-    data = {"mu_diff": mu_diff, "mu_cosm": mu_cosm, "z_array": z_array}
+    data = {"mu_cosm": mu_cosm, "z_array": z_array}
     return data
 
 
@@ -544,12 +544,12 @@ def plot_Hubble():
     plt.subplots_adjust(wspace=0, hspace=0)
     ax.set_xticklabels([])
     ax.tick_params(labelsize=12)
-    ax.errorbar(z, mu, mu_err, linestyle='', linewidth=0.8, marker='o',
+    ax.errorbar(z[::3], mu[::3], mu_err[::3], linestyle='', linewidth=0.8, marker='o',
                 markersize=2, capsize=2, color='C3', zorder=0)
     ax.set_ylim([35, max(mu)+1])
     ax.set_xlim([0, 1.5])
     ax.plot(z_arr, mu_cosm, linestyle='--', linewidth=0.8, color='C0', zorder=10)
-    ax2.errorbar(z, mu_diff, mu_err, linestyle='', linewidth=1, marker='o',
+    ax2.errorbar(z[::3], mu_diff[::3], mu_err[::3], linestyle='', linewidth=1, marker='o',
                  markersize=2, capsize=2, color='C3', zorder=0)
     ax2.plot(z_arr, np.zeros(len(z_arr)), zorder=10, color='C0', linewidth=0.8, linestyle='--')
     ax2.set_ylim(-1.4, 1.4)
@@ -569,7 +569,7 @@ if __name__ == "__main__":
     exp_data = find_expected(big_cone, big_cone_radius, 111, redo=False, plot=False)
     get_random(alldata, redo=False)
     # plot_cones(alldata, sorted_data, plot_hist=True)
-    # plot_Hubble()
+    plot_Hubble()
 
     conv = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=use_weighted)
     use_weighted = not use_weighted
@@ -622,9 +622,9 @@ if __name__ == "__main__":
     # plt.show()
     # kappa_fis = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=False,
     #                              fis=True)
-    pickle_in = open("MICEkappa_fis2.pickle", "rb")
+    pickle_in = open("MICEkappa.pickle", "rb")
     kappa_fis = pickle.load(pickle_in)
-    fully_in_sample = find_correlation(kappa_fis, plot_correlation=False, plot_radii=True, fis=True)
+    fully_in_sample = find_correlation(kappa_fis, plot_correlation=False, plot_radii=False, fis=True)
 
     plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
     plt.plot(RADII, unweighted[1], color=colours[0])
@@ -653,7 +653,7 @@ if __name__ == "__main__":
     kappa = pickle.load(pickle_in)
     pickle_in = open("MICEkappa_weighted.pickle", "rb")
     kappa_weighted = pickle.load(pickle_in)
-    pickle_in = open("MICEkappa_fis2.pickle", "rb")
+    pickle_in = open("MICEkappa_fis.pickle", "rb")
     kappa_fis = pickle.load(pickle_in)
     conv_total = []
     conv_total_weighted = []
