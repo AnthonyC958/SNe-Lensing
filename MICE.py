@@ -156,10 +156,10 @@ def get_random(data, redo=False):
     SN_kappas = kappas[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
     SN_RAs = RAs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
 
-    SN_RAs = SN_RAs[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
-    SN_kappas = SN_kappas[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
-    SN_zs = SN_zs[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
-    SN_DECs = SN_DECs[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
+    # SN_RAs = SN_RAs[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
+    # SN_kappas = SN_kappas[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
+    # SN_zs = SN_zs[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
+    # SN_DECs = SN_DECs[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
 
     if redo:
         # Pick random sample
@@ -180,20 +180,16 @@ def get_random(data, redo=False):
             rand_chis.append(chi_to_z[-1])
         mus = 5 * np.log10(np.array(dists) / 10 * 1E9)
         rand_mus = mus - (5.0 / np.log(10) * rand_kappas)
-        rand_errs = np.array([abs(random.uniform(0.1+0.3*rand_zs[i], 0.14+0.75*rand_zs[i]))
+        rand_errs = np.array([abs(random.uniform(0.1+0.1*rand_zs[i], 0.14+0.45*rand_zs[i]))
                               for i in range(rand_samp_size)])
+        mu_diff = - (5.0 / np.log(10) * rand_kappas)
 
-        SN_data = find_mu_cosm(rand_zs, rand_mus)
-        SN_data['mu_diff'] = - (5.0 / np.log(10) * rand_kappas)
-        SN_data['SNZ'] = rand_zs
-        SN_data['SNkappa'] = rand_kappas
-        SN_data['SNRA'] = rand_RAs
-        SN_data['SNDEC'] = rand_DECs
-        SN_data['SNMU'] = rand_mus
-        SN_data['SNMU_ERR'] = rand_errs
-        pickle_out = open("MICE_SN_data_fis.pickle", "wb")
+        SN_data = {'mu_diff': mu_diff, 'SNZ': rand_zs, 'SNkappa': rand_kappas,
+                   'SNRA': rand_RAs, 'SNDEC': rand_DECs, 'SNMU': rand_mus, 'SNMU_ERR': rand_errs}
+        pickle_out = open("MICE_SN_data.pickle", "wb")
         pickle.dump(SN_data, pickle_out)
         pickle_out.close()
+        print("Finished SN_data")
 
         lenses = {}
         prev_rad = 0.0
@@ -205,17 +201,17 @@ def get_random(data, redo=False):
                 lenses[f"Radius{str(cone_radius)}"][f"Shell{str(num+1)}"] = np.where(cone_indices[0] == 1)
                 print(f"Sorted {num+1}/{rand_samp_size} for radius {cone_radius}'")
             heights = np.zeros(rand_samp_size)
-            # outsides_u = [rand_DECs > 10.1 - cone_radius / 60.0]
-            # heights[outsides_u] = rand_DECs[outsides_u] - (10.1 - cone_radius / 60.0)
-            # outsides_d = [rand_DECs < cone_radius / 60.0]
-            # heights[outsides_d] = cone_radius / 60.0 - rand_DECs[outsides_d]
-            # thetas = 2 * np.arccos(1 - heights / (cone_radius / 60.0))
-            # fraction_outside = 1 / (2 * np.pi) * (thetas - np.sin(thetas))
-            weights = 1.0 - heights
+            outsides_u = [rand_DECs > 10.1 - cone_radius / 60.0]
+            heights[outsides_u] = rand_DECs[outsides_u] - (10.1 - cone_radius / 60.0)
+            outsides_d = [rand_DECs < cone_radius / 60.0]
+            heights[outsides_d] = cone_radius / 60.0 - rand_DECs[outsides_d]
+            thetas = 2 * np.arccos(1 - heights / (cone_radius / 60.0))
+            fraction_outside = 1 / (2 * np.pi) * (thetas - np.sin(thetas))
+            weights = 1.0 - fraction_outside
             lenses[f"Radius{str(cone_radius)}"]['WEIGHT'] = weights
             print(f"Sorted radius {cone_radius}'")
             prev_rad = cone_radius
-        pickle_out = open(f"random_cones_new_fis2.pickle", "wb")
+        pickle_out = open(f"random_cones_new.pickle", "wb")
         pickle.dump(lenses, pickle_out)
         pickle_out.close()
 
@@ -300,15 +296,17 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
     chi_bis = exp_data[3]
     z_bins = exp_data[4]
     if redo:
-        pickle_in = open("MICE_SN_data.pickle", "rb")
-        SN_data = pickle.load(pickle_in)
-        SN_zs = SN_data["SNZ"]
         kappa = {}
         if fis:
-            pickle_in = open("random_cones_new_fis2.pickle", "rb")
+            pickle_in = open("MICE_SN_data.pickle", "rb")
+            SN_data = pickle.load(pickle_in)
+            pickle_in = open("random_cones_new.pickle", "rb")
         else:
+            pickle_in = open("MICE_SN_data.pickle", "rb")
+            SN_data = pickle.load(pickle_in)
             pickle_in = open("random_cones_new.pickle", "rb")
         lens_data = pickle.load(pickle_in)
+        SN_zs = SN_data["SNZ"]
 
         cone_zs = {}
         for cone_radius in RADII:
@@ -367,7 +365,7 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
             else:
                 pickle_in = open("MICEkappa.pickle", "rb")
         else:
-            pickle_in = open("MICEkappa_fis2.pickle", "rb")
+            pickle_in = open("MICEkappa_fis.pickle", "rb")
         kappa = pickle.load(pickle_in)
         pickle_in = open("MICE_SN_data.pickle", "rb")
         SN_data = pickle.load(pickle_in)
@@ -437,13 +435,13 @@ def find_correlation(convergence_data, plot_correlation=False, plot_radii=False,
     correlation_errs = []
     for cone_radius in RADII:
         if fis:
-            pickle_in = open("MICE_SN_data_fis.pickle", "rb")
+            pickle_in = open("MICE_SN_data.pickle", "rb")
             SN_data = pickle.load(pickle_in)
             pickle_in = open("MICEkappa_fis.pickle", "rb")
             kappa = pickle.load(pickle_in)
             fis_indices = []
             for key in convergence_data[f'Radius{cone_radius}']['SNallkappas'].keys():
-                fis_indices.append(int(key[2:]) - 1)
+                fis_indices.append(int(key[5:]) - 1)
             redshift_cut = [SN_data['SNZ'][fis_indices] > 0.2]
             mu_diff = SN_data["mu_diff"][fis_indices][redshift_cut]
             conv = np.array(kappa[f"Radius{str(cone_radius)}"]["SNkappa"])[fis_indices][redshift_cut]
@@ -506,16 +504,6 @@ def find_correlation(convergence_data, plot_correlation=False, plot_radii=False,
     return [correlations, smooth_corr, smooth_u_err, smooth_d_err]
 
 
-def find_mu_cosm(SN_zs, SN_mus, OM=0.25, OL=0.75):
-    """Finds the distance modulus of best fitting cosmology and hence residuals.
-    """
-    z_array = np.linspace(0.0, 1.5 + 0.01, 1001)
-    mu_cosm = 5 * np.log10((1 + z_array) * Convergence.comoving(z_array, OM=OM, OL=OL, h=0.7) * 1000) + 25
-    mu_cosm_interp = np.interp(SN_zs, z_array, mu_cosm)
-    data = {"mu_cosm": mu_cosm, "z_array": z_array}
-    return data
-
-
 def plot_Hubble():
     """Plots the Hubble diagram (distance modulus against redshift), including the best fitting cosmology, and
     residuals from best cosmology.
@@ -560,20 +548,21 @@ def plot_Hubble():
 
 
 if __name__ == "__main__":
-    use_weighted = True
+    use_weighted = False
     alldata = get_data()
     big_cone_centre = [(min(alldata['RA']) + max(alldata['RA'])) / 2, (min(alldata['DEC']) + max(alldata['DEC'])) / 2]
     big_cone_radius = round(min(max(alldata['RA']) - big_cone_centre[0], big_cone_centre[0] - min(alldata['RA']),
                                 max(alldata['DEC']) - big_cone_centre[1], big_cone_centre[1] - min(alldata['DEC'])), 2)
-    big_cone = make_big_cone(alldata, redo=True)
+    big_cone = make_big_cone(alldata, redo=False)
     exp_data = find_expected(big_cone, big_cone_radius, 111, redo=False, plot=False)
     get_random(alldata, redo=False)
     # plot_cones(alldata, sorted_data, plot_hist=True)
-    plot_Hubble()
+    # plot_Hubble()
 
-    conv = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=use_weighted)
+    kappa = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=use_weighted)
     use_weighted = not use_weighted
-    conv = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=use_weighted)
+    kappa_weighted = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False,
+                                      weighted=use_weighted)
 
     # pickle_in = open("MICE_SN_data.pickle", "rb")
     # SN_data = pickle.load(pickle_in)
@@ -620,10 +609,8 @@ if __name__ == "__main__":
     #             number_fis[n] += 1
     # plt.plot(RADII, number_fis, '+')
     # plt.show()
-    # kappa_fis = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=False,
-    #                              fis=True)
-    pickle_in = open("MICEkappa.pickle", "rb")
-    kappa_fis = pickle.load(pickle_in)
+    kappa_fis = find_convergence(alldata, exp_data, redo=False, plot_total=True, plot_scatter=False, weighted=False,
+                                 fis=True)
     fully_in_sample = find_correlation(kappa_fis, plot_correlation=False, plot_radii=False, fis=True)
 
     plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
@@ -649,12 +636,6 @@ if __name__ == "__main__":
     plt.ylabel("Spearman's Rank Coefficient")
     plt.show()
 
-    pickle_in = open("MICEkappa.pickle", "rb")
-    kappa = pickle.load(pickle_in)
-    pickle_in = open("MICEkappa_weighted.pickle", "rb")
-    kappa_weighted = pickle.load(pickle_in)
-    pickle_in = open("MICEkappa_fis.pickle", "rb")
-    kappa_fis = pickle.load(pickle_in)
     conv_total = []
     conv_total_weighted = []
     conv_total_fis = []
