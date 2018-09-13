@@ -205,19 +205,16 @@ def plot_cones(cut_data, sorted_data, plot_hist=False, cone_radius=12.0):
     DEC1 = cut_data['DEC1']
     fig, ax = plt.subplots()
     ax.plot(RA1, DEC1, marker='o', linestyle='', markersize=1, color=[0.5, 0.5, 0.5])
-    for SN, dict1, in lenses.items():
-        RAs = np.array(dict1['RAs'])
-        DECs = np.array(dict1['DECs'])
-        indices2 = dict1['Zs'] > dict1['SNZ']
-        ax.plot(RAs[indices2], DECs[indices2], marker='o', linestyle='', markersize=1, color='k',
-                label="Background" if SN == 'SN1' else "")
+    contRAs = []
+    contDECs = []
     for SN, dict1, in lenses.items():
         RAs = np.array(dict1['RAs'])
         DECs = np.array(dict1['DECs'])
         indices1 = dict1['Zs'] <= dict1['SNZ']
-        ax.plot(RAs[indices1], DECs[indices1], marker='o', linestyle='', markersize=3, color=colours[0],
-                label="Foreground" if SN == 'SN1' else "")
-        p = PatchCollection(patches, alpha=0.4, color=colours[0])
+        contRAs = np.append(contRAs, RAs[indices1])
+        contDECs = np.append(contDECs, DECs[indices1])
+    ax.plot(contRAs, contDECs, marker='o', linestyle='', markersize=3, color=colours[0])
+    p = PatchCollection(patches, alpha=0.4, color=colours[0])
     ax.add_collection(p)
     SNRA = []
     SNDEC = []
@@ -228,7 +225,7 @@ def plot_cones(cut_data, sorted_data, plot_hist=False, cone_radius=12.0):
     ax.plot(SNRA, SNDEC, marker='o', linestyle='', markersize=3, label='Supernova', color=colours[1])
     plt.xlabel('$\\alpha$')
     plt.ylabel('$\delta$')
-    plt.text(27, -0.8, f"{cone_radius}' radius")
+    # plt.text(27, -0.8, f"{cone_radius}' radius")
     # plt.legend(loc='lower right')
     plt.axis('equal')
     plt.xlim([24.5, 27.5])
@@ -262,11 +259,11 @@ def make_test_cones(cut_data, redo=False, plot=False):
     if redo:
         pickle_in = open("test_cones.pickle", "rb")
         test_cones = pickle.load(pickle_in)
-        x0 = -50.6 * 60.0  # Convert ounds in degrees to radians
+        x0 = -50.6 * 60.0  # Convert bounds in degrees to radians
         x1 = 58.1 * 60.0
         y0 = 1.25 * 60.0
         y1 = -1.25 * 60.0
-        for cone_radius in [13.75]:
+        for cone_radius in [6.0]:
             tests = []
             if cone_radius > 12.0:
                 for a in range(int((x1 - x0) / (2 * cone_radius))):
@@ -476,7 +473,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
             pickle_in = open("kappa_fis.pickle", "rb")
             kappa = pickle.load(pickle_in)
 
-    for cone_radius in RADII:
+    for cone_radius in [12.0]:
         SNe_data_radius = find_mu_diff(lens_data, cone_radius=cone_radius)
         lenses = lens_data[f"Radius{str(cone_radius)}"]
         bins = np.linspace(0.025, max_z - 0.025, 12)
@@ -512,24 +509,22 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
 
         if plot_scatter:
             conv = kappa[f"Radius{str(cone_radius)}"]["SNkappa"]
-            # ax = plt.subplot2grid((1, 4), (0, 0), colspan=3)
-            ax = plt.subplot2grid((1, 1), (0, 0))
-            # ax2 = plt.subplot2grid((1, 4), (0, 3))
+            ax = plt.subplot2grid((1, 4), (0, 0), colspan=3)
+            # ax = plt.subplot2grid((1, 1), (0, 0))
+            ax2 = plt.subplot2grid((1, 4), (0, 3))
             ax.set_ylabel("$\kappa$")
             ax.set_xlabel("$z$")
-            # ax2.set_xlabel("Count")
-            ax.tick_params(labelsize=12)
-            # ax2.tick_params(labelsize=12)
-            # ax2.set_yticklabels([])
+            ax2.set_xlabel("Count")
+            ax2.set_yticklabels([])
             plt.subplots_adjust(wspace=0, hspace=0)
             ax.plot([0, max_z], [0, 0], color=grey, linestyle='--')
-            # ax.axis([0, max_z, -0.01, 0.01])
-            # ax2.axis([0, 180, -0.01, 0.01])
+            ax.axis([0, max_z, -0.01, 0.01])
+            ax2.axis([0, 180, -0.01, 0.01])
             # ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
-            # ax.set_xticklabels([0, 0.2, 0.4, 0])
+            ax.set_xticklabels([0, 0.2, 0.4, 0])
             ax.plot(SNe_data_radius['z'], conv, linestyle='', marker='o', markersize=2, color=colours[0])
-            # ax2.hist(conv_total, bins=np.arange(-0.015, 0.02 + 0.001, 0.001), orientation='horizontal',
-            #          fc=green, edgecolor=colours[0])
+            ax2.hist(conv, bins=np.arange(-0.015, 0.02 + 0.001, 0.001), orientation='horizontal',
+                     fc=green, edgecolor=colours[0])
             ax.errorbar(bins, mean_kappa, standard_error, marker='s', color='r', markersize=3, capsize=3)
             plt.show()
 
@@ -633,7 +628,7 @@ def find_correlation(convergence_data, lens_data, plot_correlation=False, plot_r
             plt.xlabel('$\kappa$')
             plt.ylabel('$\Delta\mu$')
             # plt.xlim([-0.008, 0.011])
-            plt.legend(frameon=0, loc='lower right')
+            # plt.legend(frameon=0, loc='lower right')
             # plt.ylim([-0.3, 0.3])
             plt.text(0.0038, -0.19, f'$\\rho$ = {round(rho, 3)} $\pm$ {round(rho_err, 3)}', fontsize=16)
             # print([convergence_cut[cuts2][i] for i in range(len(convergence_cut[cuts2]))])
@@ -689,10 +684,10 @@ if __name__ == "__main__":
     use_weighted = False
     data, S_data = get_data(new_data=False)
     lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
-    # plot_cones(data, lensing_gals, plot_hist=False, cone_radius=30.0)
+    plot_cones(data, lensing_gals, plot_hist=False, cone_radius=12.0)
     cone_array = make_test_cones(data, redo=False, plot=False)
-    exp_data = find_expected_counts(cone_array, 51, redo=True, plot=False)
-    redo_conv = True
+    exp_data = find_expected_counts(cone_array, 51, redo=False, plot=False)
+    redo_conv = False
     kappa = find_convergence(lensing_gals, exp_data, redo=redo_conv, plot_scatter=False,
                              plot_total=False, weighted=use_weighted)
 
@@ -713,7 +708,7 @@ if __name__ == "__main__":
     lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
     kappa_weighted = find_convergence(lensing_gals, exp_data, redo=redo_conv, plot_scatter=False, plot_total=False,
                                       weighted=use_weighted)
-    weighted = find_correlation(kappa_weighted, lensing_gals, plot_correlation=False, plot_radii=False)
+    weighted = find_correlation(kappa_weighted, lensing_gals, plot_correlation=True, plot_radii=False)
 
     lensing_gals_fully_in_sample = {}
     number_fis = np.zeros(len(RADII))

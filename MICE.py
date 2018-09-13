@@ -179,11 +179,13 @@ def get_random(data, redo=False):
             dists.append(chi_to_z[-1] * (1 + z))
             rand_chis.append(chi_to_z[-1])
         mus = 5 * np.log10(np.array(dists) / 10 * 1E9)
-        rand_mus = mus - (5.0 / np.log(10) * rand_kappas)
-        rand_errs = np.array([abs(random.uniform(0.1+0.1*rand_zs[i], 0.14+0.45*rand_zs[i]))
-                              for i in range(rand_samp_size)])
         mu_diff = - (5.0 / np.log(10) * rand_kappas)
-
+        for i in range(len(mu_diff)):
+            mu_diff[i] += random.gauss(0.0, rand_zs[i] * 0.1 / 1.5 + 0.15)
+        rand_mus = mus + mu_diff
+        rand_errs = np.array([abs(random.uniform(0.05+0.1*rand_zs[i], 0.1+0.45*rand_zs[i]))
+                              for i in range(rand_samp_size)])
+        # rand_errs = np.ones(len(mu_diff)) * 0.1
         SN_data = {'mu_diff': mu_diff, 'SNZ': rand_zs, 'SNkappa': rand_kappas,
                    'SNRA': rand_RAs, 'SNDEC': rand_DECs, 'SNMU': rand_mus, 'SNMU_ERR': rand_errs}
         pickle_out = open("MICE_SN_data.pickle", "wb")
@@ -521,9 +523,9 @@ def plot_Hubble():
     z = SN_data["SNZ"]
     mu = SN_data['SNMU']
     mu_err = SN_data['SNMU_ERR']
-    mu_cosm = SN_data['mu_cosm']
+    z_array = np.linspace(0.0, 1.5 + 0.01, 1001)
+    mu_cosm = 5 * np.log10((1 + z_array) * Convergence.comoving(z_array, OM=0.25, OL=0.75, h=0.7) * 1000) + 25
     mu_diff = SN_data['mu_diff']
-    z_arr = SN_data['z_array']
     ax = plt.subplot2grid((2, 1), (0, 0))
     ax2 = plt.subplot2grid((2, 1), (1, 0))
     ax.set_ylabel("$\mu$")
@@ -532,15 +534,18 @@ def plot_Hubble():
     plt.subplots_adjust(wspace=0, hspace=0)
     ax.set_xticklabels([])
     ax.tick_params(labelsize=12)
-    ax.errorbar(z[::3], mu[::3], mu_err[::3], linestyle='', linewidth=0.8, marker='o',
-                markersize=2, capsize=2, color='C3', zorder=0)
-    ax.set_ylim([35, max(mu)+1])
+    ax.errorbar(z[::2], mu[::2], mu_err[::2], linestyle='', linewidth=0.8, marker='o',
+                markersize=2, capsize=2, color='C3', zorder=0, alpha=0.4)
+    ax.plot(z[::2], mu[::2], linestyle='', marker='o', markersize=2, color='C3', alpha=0.25, markerfacecolor='C3')
+
+    ax.set_ylim([38.5, 46])
     ax.set_xlim([0, 1.5])
-    ax.plot(z_arr, mu_cosm, linestyle='--', linewidth=0.8, color='C0', zorder=10)
-    ax2.errorbar(z[::3], mu_diff[::3], mu_err[::3], linestyle='', linewidth=1, marker='o',
-                 markersize=2, capsize=2, color='C3', zorder=0)
-    ax2.plot(z_arr, np.zeros(len(z_arr)), zorder=10, color='C0', linewidth=0.8, linestyle='--')
-    ax2.set_ylim(-1.4, 1.4)
+    ax.plot(z_array, mu_cosm, linestyle='--', linewidth=0.8, color='C0', zorder=10)
+    ax2.errorbar(z[::2], mu_diff[::2], mu_err[::2], linestyle='', linewidth=1, marker='o',
+                 markersize=2, capsize=2, color='C3', zorder=0, alpha=0.4)
+    ax2.plot(z[::2], mu_diff[::2], linestyle='', marker='o', markersize=2, color='C3', alpha=0.25, markerfacecolor='C3')
+    ax2.plot(z_array, np.zeros(len(z_array)), zorder=10, color='C0', linewidth=0.8, linestyle='--')
+    ax2.set_ylim(-1.0, 1.0)
     ax2.set_xlim([0, 1.5])
     ax2.tick_params(labelsize=12)
 
@@ -557,7 +562,7 @@ if __name__ == "__main__":
     exp_data = find_expected(big_cone, big_cone_radius, 111, redo=False, plot=False)
     get_random(alldata, redo=False)
     # plot_cones(alldata, sorted_data, plot_hist=True)
-    # plot_Hubble()
+    plot_Hubble()
 
     kappa = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=use_weighted)
     use_weighted = not use_weighted

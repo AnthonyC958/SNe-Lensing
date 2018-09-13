@@ -247,7 +247,7 @@ def convergence_error(chi_widths, chis, zs, expected_arr, SN_dist, OM=0.27, h=0.
     return np.sum(k_i)
 
 
-def general_convergence(chi_widths, chis, zs, d_arr, SN_dist, OM=0.27, h=0.378):
+def general_convergence(chi_widths, chis, zs, d_arr, SN_dist, OM=0.27, h=0.738):
     """Calculates convergence from an array of overdesnities for all bins along line of sight.
 
     Inputs:
