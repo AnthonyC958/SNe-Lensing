@@ -21,6 +21,7 @@ RADII = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,
          18.5, 19.0, 19.5, 20.0, 21.0, 22.0, 23.0,
          24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0]
 colours = [[0, 150/255, 100/255], [225/255, 149/255, 0], [207/255, 0, 48/255], 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
+grey = [0.75, 0.75, 0.75]
 
 
 def vz(z):
@@ -37,6 +38,9 @@ for num, theta in enumerate(np.array(RADII)[[0, 15, 27, 41, 57, 69, 76, 83]]):
     plt.plot(zs, Dperp, color=colours[0], alpha=(1 - num/9.0), label=f"{theta}'", linewidth=1.5)
 labelLines(plt.gca().get_lines(), xvals=[1.375, 1.35, 1.32, 1.28, 1.23, 1.185, 1.11, 1.0],
            zorder=2.5, fontsize=12, align=False)
+plt.plot([0.6, 0.6], [-5, 45], linestyle='--', color=grey)
+plt.text(0.4, 30, 'SDSS', color=grey, fontsize=16)
+plt.ylim([-2, 42])
 plt.xlabel('$z$')
 plt.ylabel('Perpendicular Distance (Mpc)')
 plt.show()

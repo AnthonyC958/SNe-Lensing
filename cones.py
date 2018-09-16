@@ -411,7 +411,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
         else:
             pickle_in = open("kappa_fis.pickle", "rb")
             kappa = pickle.load(pickle_in)
-        for cone_radius in RADII:
+        for cone_radius in [12.0]:
             expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]
             lenses = lens_data[f"Radius{str(cone_radius)}"]
 
@@ -434,7 +434,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
             for SN in SNe_data_radius['z']:
                 chi = comoving(np.linspace(0, SN, 1001))
                 chiSNs.append(chi[-1])
-
+            # c_arr = []
             for num, (key, SN) in enumerate(counts.items()):
                 d_arr[key] = (SN - expected_counts[:len(SN)]) / expected_counts[:(len(SN))]
                 # kappa[f"Radius{str(cone_radius)}"]["SNkappa"][num], kappa[f"Radius{str(cone_radius)}"][key] =
@@ -446,9 +446,18 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
                 SNkappa_err = convergence_error(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)],
                                                 expected_counts[:len(SN)], chiSNs[num])
                 kappa[f"Radius{str(cone_radius)}"]["SNerr"].append(SNkappa_err)
+                # c_arr.append(SN)
             kappa[f"Radius{str(cone_radius)}"]["Total"] = np.sum(kappa[f"Radius{str(cone_radius)}"]["SNkappa"])
             kappa[f"Radius{str(cone_radius)}"]["Counts"] = counts
             kappa[f"Radius{str(cone_radius)}"]["delta"] = d_arr
+
+            # s = plt.scatter(SNe_data_radius['z'], kappa[f"Radius{str(cone_radius)}"]["SNkappa"],
+            #                 c=[sum(c_arr[i]) for i in range(len(c_arr))], cmap='coolwarm')
+            # cbar = plt.colorbar(s)
+            # cbar.set_label('$z$')
+            # plt.xlabel('Total Count')
+            # plt.ylabel('$\kappa$')
+            # plt.show()
             print(f"Finished radius {str(cone_radius)}'")
         if not fis:
             if weighted:
@@ -708,7 +717,7 @@ if __name__ == "__main__":
     lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
     kappa_weighted = find_convergence(lensing_gals, exp_data, redo=redo_conv, plot_scatter=False, plot_total=False,
                                       weighted=use_weighted)
-    weighted = find_correlation(kappa_weighted, lensing_gals, plot_correlation=True, plot_radii=False)
+    weighted = find_correlation(kappa_weighted, lensing_gals, plot_correlation=False, plot_radii=False)
 
     lensing_gals_fully_in_sample = {}
     number_fis = np.zeros(len(RADII))
