@@ -11,7 +11,8 @@ import pickle
 from scipy.signal import savgol_filter
 import collections
 
-colours = [[0, 150/255, 100/255], [225/255, 149/255, 0], [207/255, 0, 48/255], 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
+colours = [[0, 150/255, 100/255], [225/255, 149/255, 0], [207/255, 0, 48/255], [145/255, 4/255, 180/255],
+           'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
 blue = [23/255, 114/255, 183/255, 0.75]
 orange = [255/255, 119/255, 15/255, 0.75]
 green = [0, 150/255, 100/255, 0.75]
@@ -186,11 +187,10 @@ def get_random(data, redo=False):
         mus = 5 * np.log10(np.array(dists) / 10 * 1E9)
         mu_diff = - (5.0 / np.log(10) * rand_kappas)
         for i in range(len(mu_diff)):
-            mu_diff[i] += random.gauss(0.0, rand_zs[i] * 0.1 / 1.5 + 0.15)
+            mu_diff[i] += random.gauss(0.0, rand_zs[i] * 0.1 / 1.5 + 0.15)  # Width is 0.15 at z=0, 0.25 at z=1.5
         rand_mus = mus + mu_diff
         rand_errs = np.array([abs(random.uniform(0.05+0.1*rand_zs[i], 0.1+0.45*rand_zs[i]))
                               for i in range(rand_samp_size)])
-        # rand_errs = np.ones(len(mu_diff)) * 0.1
         SN_data = {'mu_diff': mu_diff, 'SNZ': rand_zs, 'SNkappa': rand_kappas,
                    'SNRA': rand_RAs, 'SNDEC': rand_DECs, 'SNMU': rand_mus, 'SNMU_ERR': rand_errs}
         pickle_out = open("MICE_SN_data.pickle", "wb")
@@ -311,16 +311,21 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
     z_bins = exp_data[4]
     if redo:
         kappa = {}
-        pickle_in = open("MICE_SN_data.pickle", "rb")
-        SN_data = pickle.load(pickle_in)
         if fis:
+            pickle_in = open("MICE_SN_data_fis.pickle", "rb")
+            SN_data = pickle.load(pickle_in)
             pickle_in = open("random_cones_new_fis.pickle", "rb")
         else:
+            pickle_in = open("MICE_SN_data.pickle", "rb")
+            SN_data = pickle.load(pickle_in)
             pickle_in = open("random_cones_new.pickle", "rb")
         lens_data = pickle.load(pickle_in)
-        SN_zs = SN_data["SNZ"]
-        mu_diffs = SN_data["mu_diff"]
+
         for cone_radius in RADII:
+            if fis:
+                SN_zs = SN_data[f"Radius{cone_radius}"]["SNZ"]
+            else:
+                SN_zs = SN_data["SNZ"]
             cone_zs = {}
             if weighted:
                 SN_weights = lens_data[f"Radius{cone_radius}"]["WEIGHT"]
@@ -477,10 +482,8 @@ def find_correlation(convergence_data, radii, plot_correlation=False, plot_radii
         if fis:
             pickle_in = open("MICE_SN_data_fis.pickle", "rb")
             SN_data = pickle.load(pickle_in)
-            pickle_in = open("MICEkappa_fis.pickle", "rb")
-            kappa = pickle.load(pickle_in)
             mu_diff = SN_data[f"Radius{str(cone_radius)}"]["mu_diff"]
-            conv = np.array(kappa[f"Radius{str(cone_radius)}"]["SNkappa"])
+            conv = np.array(convergence_data[f"Radius{str(cone_radius)}"]["SNkappa"])
         else:
             pickle_in = open("MICE_SN_data.pickle", "rb")
             SN_data = pickle.load(pickle_in)
@@ -636,12 +639,12 @@ if __name__ == "__main__":
     kappa_weighted = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=True,
                                       weighted=use_weighted)
     # degredation([5.0, 6.0, 7.0, 10.0, 12.0])
-    # pickle_in = open("MICE_SN_data.pickle", "rb")
-    # SN_data = pickle.load(pickle_in)
+    pickle_in = open("MICE_SN_data.pickle", "rb")
+    SN_data = pickle.load(pickle_in)
     # pickle_in = open("random_cones_new.pickle", "rb")
     # lens_data = pickle.load(pickle_in)
     # SN_z = SN_data["SNZ"]
-    # SN_kappa = SN_data["SNkappa"]
+    SN_kappa = SN_data["SNkappa"]
     # SN_mu = SN_data['SNMU']
     # SN_mu_err = SN_data['SNMU_ERR']
     # SN_chi = []
@@ -681,36 +684,52 @@ if __name__ == "__main__":
     #             number_fis[n] += 1
     # plt.plot(RADII, number_fis, '+')
     # plt.show()
-    kappa_fis = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=True, weighted=False,
+    kappa_fis = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=False,
                                  fis=True)
     fully_in_sample = find_correlation(kappa_fis, RADII, plot_correlation=False, plot_radii=True, fis=True)
 
-    plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
-    plt.plot(RADII, unweighted[1], color=colours[0])
-    plt.plot(RADII, unweighted[0], marker='x', linestyle='', color=[0, 0.5, 0.9])
-    plt.fill_between(RADII, unweighted[2], unweighted[3], color=colours[0], alpha=0.3)
-    plt.plot(RADII, weighted[1], color=colours[1])
-    plt.plot(RADII, weighted[0], marker='x', linestyle='', color=[0.7, 0.3, 0])
-    plt.fill_between(RADII, weighted[2], weighted[3], color=colours[1], alpha=0.3)
-    plt.plot(RADII, fully_in_sample[1], color=colours[2])
-    plt.plot(RADII, fully_in_sample[0], marker='x', linestyle='', color=[0.7, 0.1, 0.6])
-    plt.fill_between(RADII, fully_in_sample[2], fully_in_sample[3], color=colours[2], alpha=0.3)
+    fig, ax = plt.subplots()
+    # ax2 = fig.add_axes([0.55, 0.5, 0.35, 0.35])
+    ax.plot([0, 30], [0, 0], color=grey, linestyle='--')
+    ax.plot(RADII, unweighted[1], color=colours[0])
+    ax.plot(RADII, unweighted[0], marker='x', linestyle='', color=[0, 0.5, 0.9])
+    ax.fill_between(RADII, unweighted[2], unweighted[3], color=colours[0], alpha=0.3)
+    ax.plot(RADII, weighted[1], color=colours[1])
+    ax.plot(RADII, weighted[0], marker='x', linestyle='', color=[0.7, 0.3, 0])
+    ax.fill_between(RADII, weighted[2], weighted[3], color=colours[1], alpha=0.3)
+    ax.plot(RADII, fully_in_sample[1], color=colours[2])
+    ax.plot(RADII, fully_in_sample[0], marker='x', linestyle='', color=[0.7, 0.1, 0.6])
+    ax.fill_between(RADII, fully_in_sample[2], fully_in_sample[3], color=colours[2], alpha=0.3)
     kwargs1 = {'marker': 'x', 'markeredgecolor': [0, 0.5, 0.9], 'color': colours[0]}
     kwargs2 = {'marker': 'x', 'markeredgecolor': [0.7, 0.3, 0], 'color': colours[1]}
     kwargs3 = {'marker': 'x', 'markeredgecolor': [0.7, 0.1, 0.6], 'color': colours[2]}
-    plt.plot([], [], label='Unweighted', **kwargs1)
-    plt.plot([], [], label='Weighted', **kwargs2)
-    plt.plot([], [], label='Fully In Sample', **kwargs3)
-    plt.gca().invert_yaxis()
-    plt.xlim([0, 30.1])
-    plt.legend(frameon=0)
-    plt.xlabel('Cone Radius (arcmin)')
-    plt.ylabel("Spearman's Rank Coefficient")
+    ax.plot([], [], label='Unweighted', **kwargs1)
+    ax.plot([], [], label='Weighted', **kwargs2)
+    ax.plot([], [], label='Fully In Sample', **kwargs3)
+    ax.invert_yaxis()
+    ax.set_xlim([0, 30])
+    # ax.set_ylim([0.2, 0.65])
+    ax.legend(frameon=0, loc='lower left')
+    ax.set_xlabel('Cone Radius (arcmin)')
+    ax.set_ylabel("Spearman's Rank Coefficient")
+    # ax2.plot([0, 30], [0, 0], color=grey, linestyle='--')
+    # ax2.plot(RADII, unweighted[1], color=colours[0])
+    # ax2.plot(RADII, unweighted[0], marker='x', linestyle='', color=[0, 0.5, 0.9])
+    # ax2.fill_between(RADII, unweighted[2], unweighted[3], color=colours[0], alpha=0.3)
+    # ax2.plot(RADII, weighted[1], color=colours[1])
+    # ax2.plot(RADII, weighted[0], marker='x', linestyle='', color=[0.7, 0.3, 0])
+    # ax2.fill_between(RADII, weighted[2], weighted[3], color=colours[1], alpha=0.3)
+    # ax2.plot(RADII, fully_in_sample[1], color=colours[2])
+    # ax2.plot(RADII, fully_in_sample[0], marker='x', linestyle='', color=[0.7, 0.1, 0.6])
+    # ax2.fill_between(RADII, fully_in_sample[2], fully_in_sample[3], color=colours[2], alpha=0.3)
+    # ax2.set_xlim([0.6, 6.6])
+    # ax2.set_ylim([0.535, 0.62])
     plt.show()
 
     conv_total = []
     conv_total_weighted = []
     conv_total_fis = []
+    conv_total_MICE = sum(SN_kappa)
     for cone_radius in RADII:
         conv_total.append(kappa[f"Radius{str(cone_radius)}"]["Total"])
         conv_total_weighted.append(kappa_weighted[f"Radius{str(cone_radius)}"]["Total"])
@@ -723,6 +742,7 @@ if __name__ == "__main__":
     plt.plot(RADII, conv_total, marker='o', markersize=2, color=colours[0], label='Unweighted')
     plt.plot(RADII, conv_total_weighted, marker='o', markersize=2, color=colours[1], label='Weighted')
     plt.plot(RADII, conv_total_fis, marker='o', markersize=2, color=colours[2], label='Fully in sample')
+    plt.plot(RADII, [conv_total_MICE for i in range(84)], marker='o', markersize=2, color=colours[3], label='MICECAT')
     plt.legend(frameon=0)
     plt.show()
 
