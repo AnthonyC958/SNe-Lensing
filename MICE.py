@@ -592,7 +592,7 @@ def plot_Hubble():
     plt.show()
 
 
-def degredation(radii):
+def degradation(radii):
     pickle_in = open("MICE_SN_data.pickle", "rb")
     SN_data = pickle.load(pickle_in)
     pickle_in = open("MICEkappa_fis.pickle", "rb")
@@ -638,7 +638,7 @@ if __name__ == "__main__":
     use_weighted = not use_weighted
     kappa_weighted = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=True,
                                       weighted=use_weighted)
-    # degredation([5.0, 6.0, 7.0, 10.0, 12.0])
+    # degradation([5.0, 6.0, 7.0, 10.0, 12.0])
     pickle_in = open("MICE_SN_data.pickle", "rb")
     SN_data = pickle.load(pickle_in)
     # pickle_in = open("random_cones_new.pickle", "rb")

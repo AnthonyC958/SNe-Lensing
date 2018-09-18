@@ -385,7 +385,7 @@ def find_expected_counts(test_cones, bins, redo=False, plot=False):
 
 
 def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_total=False, weighted=False, max_z=0.6,
-                     fis=False):
+                     fis=False, impact=False):
     """Finds the convergence along each line of sight to a SN for a variety of cone_widths.
 
     Inputs:
@@ -402,16 +402,18 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
     chis = exp_data[3]
     zs = exp_data[4]
     if redo:
-        if not fis:
-            if weighted:
-                pickle_in = open("kappa_weighted.pickle", "rb")
-            else:
-                pickle_in = open("kappa.pickle", "rb")
-            kappa = pickle.load(pickle_in)
-        else:
+        if weighted:
+            pickle_in = open("kappa_weighted.pickle", "rb")
+        elif fis:
             pickle_in = open("kappa_fis.pickle", "rb")
-            kappa = pickle.load(pickle_in)
-        for cone_radius in [12.0]:
+        elif impact:
+            # pickle_in = open("kappa_impact.pickle", "rb")
+            pass
+        else:
+            pickle_in = open("kappa.pickle", "rb")
+        # kappa = pickle.load(pickle_in)
+        kappa = {}
+        for cone_radius in RADII:
             expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]
             lenses = lens_data[f"Radius{str(cone_radius)}"]
 
@@ -424,8 +426,18 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
                 counts[key] = np.zeros(len(bin_c))
                 for num2 in bin_c:
                     tmp = [np.logical_and(limits[num2] < lenses[key]['Zs'], (lenses[key]['Zs'] <= limits[num2 + 1]))]
+                    IPs = np.array(lenses[key]["IPWEIGHT"])[tmp]
+
                     if weighted:
                         counts[key][num2] = np.count_nonzero(tmp) / lenses[key]['WEIGHT']
+                    elif impact:
+                        if len(IPs) == 0:
+                            counts[key][num2] = np.count_nonzero(tmp)  # / lenses[key]['WEIGHT']
+                        else:
+                            print(len(IPs), len(tmp[0]))
+                            counts[key][num2] = sum(np.array([int(tmp[0][i])*IPs[i] for i in range(len(tmp[0]))])) / \
+                                                lenses[key]['WEIGHT']
+                            # print(counts[key][num2])
                     else:
                         counts[key][num2] = np.count_nonzero(tmp)
 
@@ -693,7 +705,7 @@ if __name__ == "__main__":
     use_weighted = False
     data, S_data = get_data(new_data=False)
     lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
-    plot_cones(data, lensing_gals, plot_hist=False, cone_radius=12.0)
+    # plot_cones(data, lensing_gals, plot_hist=False, cone_radius=12.0)
     cone_array = make_test_cones(data, redo=False, plot=False)
     exp_data = find_expected_counts(cone_array, 51, redo=False, plot=False)
     redo_conv = False
@@ -731,9 +743,13 @@ if __name__ == "__main__":
         num += 1
     # plt.plot(RADII, number_fis, '+')
     # plt.show()
+    lensing_gals = sort_SN_gals(data, redo=False, weighted=False)
     kappa_fis = find_convergence(lensing_gals_fully_in_sample, exp_data, redo=redo_conv, plot_total=False, fis=True)
     fully_in_sample = find_correlation(kappa_fis, lensing_gals_fully_in_sample, plot_correlation=False,
                                        plot_radii=False)
+
+    kappa_impact = find_convergence(lensing_gals, exp_data, redo=True, plot_total=True, impact=True)
+    imopact = find_correlation(kappa_impact, lensing_gals, plot_radii=True)
 
     plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
     plt.plot(RADII, unweighted[1], color=colours[0])
