@@ -17,47 +17,43 @@ RADII = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,
          18.5, 19.0, 19.5, 20.0, 21.0, 22.0, 23.0,
          24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0]
 
-# with open("random_cones1_new.pickle", "rb") as pickle_in:
-#     lenses = pickle.load(pickle_in)
-#     print(lenses.keys())
-#
-# plt.plot(0, 0)
-# plt.show()
+with open(f"random_cones_new.pickle", "rb") as pickle_in:
+    lenses = pickle.load(pickle_in)
+with open("MICE_SN_data.pickle", "rb") as pickle_in:
+    SN_data = pickle.load(pickle_in)
+SN_data_fis = {}
 
-# with open(f"random_cones_new.pickle", "rb") as pickle_in:
-#     lenses = pickle.load(pickle_in)
-# with open("MICE_SN_data.pickle", "rb") as pickle_in:
-#     SN_data = pickle.load(pickle_in)
-# SN_data_fis = {}
-#
-# for key, item in lenses.items():
-#     print(key)
-#     FIS_indices = np.where(item["WEIGHT"] == 1.0)
-#     print(len(FIS_indices[0]))
-#     for num, w in enumerate(item["WEIGHT"]):
-#         if w != 1.0:
-#             lenses[key].pop(f"Shell{num+1}")
-#     SN_data_fis[key] = {"mu_diff": SN_data["mu_diff"][FIS_indices],
-#                         "SNZ": SN_data["SNZ"][FIS_indices],
-#                         "SNkappa": SN_data["SNkappa"][FIS_indices],
-#                         "SNRA": SN_data["SNRA"][FIS_indices],
-#                         "SNDEC": SN_data["SNDEC"][FIS_indices],
-#                         "SNMU": SN_data["SNMU"][FIS_indices],
-#                         "SNMU_ERR": SN_data["SNMU_ERR"][FIS_indices]}
-#
-# pickle_out = open(f"random_cones_new_fis.pickle", "wb")
-# pickle.dump(lenses, pickle_out)
-# pickle_out.close()
-#
-# print(SN_data_fis["Radius20.0"]['mu_diff'])
-# pickle_out = open(f"MICE_SN_data_fis.pickle", "wb")
-# pickle.dump(SN_data_fis, pickle_out)
-# pickle_out.close()
+for key, item in lenses.items():
+    print(key)
+    FIS_indices = np.where(item["WEIGHT"] == 1.0)
+    print(len(FIS_indices[0]))
+    for num, w in enumerate(item["WEIGHT"]):
+        if w != 1.0:
+            lenses[key].pop(f"Shell{num+1}")
+    SN_data_fis[key] = {"mu_diff": SN_data["mu_diff"][FIS_indices],
+                        "SNZ": SN_data["SNZ"][FIS_indices],
+                        "SNkappa": SN_data["SNkappa"][FIS_indices],
+                        "SNRA": SN_data["SNRA"][FIS_indices],
+                        "SNDEC": SN_data["SNDEC"][FIS_indices],
+                        "SNMU": SN_data["SNMU"][FIS_indices],
+                        "SNMU_ERR": SN_data["SNMU_ERR"][FIS_indices]}
 
-with open(f"lenses.pickle", "rb") as pickle_in:
+pickle_out = open(f"random_cones_new_fis.pickle", "wb")
+pickle.dump(lenses, pickle_out)
+pickle_out.close()
+
+print(SN_data_fis["Radius20.0"]['mu_diff'])
+pickle_out = open(f"MICE_SN_data_fis.pickle", "wb")
+pickle.dump(SN_data_fis, pickle_out)
+pickle_out.close()
+
+crit_weight = 0.1
+crit_angle = 12.0
+with open(f"lenses_weighted.pickle", "rb") as pickle_in:
     lenses = pickle.load(pickle_in)
 # print(lenses['Radius12.0']["SN356"]["IPWEIGHT"])
-
+fine_z = np.linspace(0, 0.7, 1001)
+Dpara_fine = Convergence.comoving(fine_z)
 for radius in RADII:
     print(radius)
     for key, item in lenses[f'Radius{radius}'].items():
@@ -66,12 +62,12 @@ for radius in RADII:
             # print(item["SNRA"], item["SNDEC"])
             # print(item["RAs"], item["DECs"])
             theta = (((ra - item["SNRA"])**2 + (dec - item["SNDEC"])**2)**0.5*np.pi/180)
-            Dpara = Convergence.b_comoving(0, z, OM=0.27, OL=0.73, h=0.738, n=201)[-1] * 1000.0
-            limperp = 0.2*np.pi/180 * Dpara
+            Dpara = np.interp(z, fine_z, Dpara_fine) * 1000.0
+            limperp = crit_angle/60.0*np.pi/180 * Dpara
             Dperp = theta * Dpara
             # print(theta*180/np.pi*60, (1/Dperp + 0.1 - 1/limperp))
-            lenses[f'Radius{radius}'][key]['IPWEIGHT'].append(1/Dperp + 0.1 - 1/limperp)
+            lenses[f'Radius{radius}'][key]['IPWEIGHT'].append(crit_weight*limperp/Dperp)
 
-pickle_out = open(f"lenses.pickle", "wb")
+pickle_out = open(f"lenses_weighted.pickle", "wb")
 pickle.dump(lenses, pickle_out)
 pickle_out.close()

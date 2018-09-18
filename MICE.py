@@ -541,7 +541,7 @@ def find_correlation(convergence_data, radii, plot_correlation=False, plot_radii
         plt.ylabel("Spearman's Rank Coefficient")
         plt.gca().invert_yaxis()
         plt.show()
-        return [correlations, smooth_corr, smooth_u_err, smooth_d_err]
+        return [correlations, smooth_corr, smooth_u_err, smooth_d_err, np.array(u_err) - np.array(correlations)]
 
     return correlations, correlation_errs
 
@@ -687,7 +687,7 @@ if __name__ == "__main__":
     kappa_fis = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=False,
                                  fis=True)
     fully_in_sample = find_correlation(kappa_fis, RADII, plot_correlation=False, plot_radii=True, fis=True)
-
+    # print(fully_in_sample[0][12], fully_in_sample[4][12])
     fig, ax = plt.subplots()
     # ax2 = fig.add_axes([0.55, 0.5, 0.35, 0.35])
     ax.plot([0, 30], [0, 0], color=grey, linestyle='--')
