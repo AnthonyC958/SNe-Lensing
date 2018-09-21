@@ -615,7 +615,7 @@ def find_correlation(convergence_data, lens_data, plot_correlation=False, plot_r
     correlation_errs = []
     for cone_radius in RADII:
         SNe_data = find_mu_diff(lens_data, cone_radius=cone_radius)
-        redshift_cut = [SNe_data['z'] > 0.2]
+        redshift_cut = np.logical_and(SNe_data['z'] > 0.3, SNe_data['z'] < 0.5)
         mu_diff = SNe_data["mu_diff"][redshift_cut]
         conv = np.array(convergence_data[f"Radius{str(cone_radius)}"]["SNkappa"])[redshift_cut]
 
@@ -750,28 +750,28 @@ if __name__ == "__main__":
     impact = find_correlation(kappa_impact, lensing_gals_fully_in_sample, plot_radii=True)
     # print(unweighted[0][53], unweighted[4][53], weighted[0][53], weighted[4][53], fully_in_sample[0][53],
     #       fully_in_sample[4][53], fully_in_sample[0][58], fully_in_sample[4][58])
-    plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
-    plt.plot(RADII, unweighted[1], color=colours[0])
-    plt.plot(RADII, unweighted[0], marker='x', linestyle='', color=[0, 0.5, 0.9])
-    plt.fill_between(RADII, unweighted[2], unweighted[3], color=colours[0], alpha=0.3)
-    plt.plot(RADII, weighted[1], color=colours[1])
-    plt.plot(RADII, weighted[0], marker='x', linestyle='', color=[0.7, 0.3, 0])
-    plt.fill_between(RADII, weighted[2], weighted[3], color=colours[1], alpha=0.3)
-    plt.plot(RADII, fully_in_sample[1], color=colours[2])
-    plt.plot(RADII, fully_in_sample[0], marker='x', linestyle='', color=[0.7, 0.1, 0.6])
-    plt.fill_between(RADII, fully_in_sample[2], fully_in_sample[3], color=colours[2], alpha=0.3)
+    # plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
+    # plt.plot(RADII, unweighted[1], color=colours[0])
+    # plt.plot(RADII, unweighted[0], marker='x', linestyle='', color=[0, 0.5, 0.9])
+    # plt.fill_between(RADII, unweighted[2], unweighted[3], color=colours[0], alpha=0.3)
+    # plt.plot(RADII, weighted[1], color=colours[1])
+    # plt.plot(RADII, weighted[0], marker='x', linestyle='', color=[0.7, 0.3, 0])
+    # plt.fill_between(RADII, weighted[2], weighted[3], color=colours[1], alpha=0.3)
+    # plt.plot(RADII, fully_in_sample[1], color=colours[2])
+    # plt.plot(RADII, fully_in_sample[0], marker='x', linestyle='', color=[0.7, 0.1, 0.6])
+    # plt.fill_between(RADII, fully_in_sample[2], fully_in_sample[3], color=colours[2], alpha=0.3)
     kwargs1 = {'marker': 'x', 'markeredgecolor': [0, 0.5, 0.9], 'color': colours[0]}
     kwargs2 = {'marker': 'x', 'markeredgecolor': [0.7, 0.3, 0], 'color': colours[1]}
     kwargs3 = {'marker': 'x', 'markeredgecolor': [0.7, 0.1, 0.6], 'color': colours[2]}
-    plt.plot([], [], label='Unweighted', **kwargs1)
-    plt.plot([], [], label='Weighted', **kwargs2)
-    plt.plot([], [], label='Fully In Sample', **kwargs3)
-    plt.gca().invert_yaxis()
-    plt.xlim([0, 30.0])
-    plt.legend(frameon=0)
-    plt.xlabel('Cone Radius (arcmin)')
-    plt.ylabel("Spearman's Rank Coefficient")
-    plt.show()
+    # plt.plot([], [], label='Unweighted', **kwargs1)
+    # plt.plot([], [], label='Weighted', **kwargs2)
+    # plt.plot([], [], label='Fully In Sample', **kwargs3)
+    # plt.gca().invert_yaxis()
+    # plt.xlim([0, 30.0])
+    # plt.legend(frameon=0)
+    # plt.xlabel('Cone Radius (arcmin)')
+    # plt.ylabel("Spearman's Rank Coefficient")
+    # plt.show()
 
     plt.plot(RADII, fully_in_sample[1], color=colours[2])
     plt.plot(RADII, fully_in_sample[0], marker='x', linestyle='', color=[0.7, 0.1, 0.6])
@@ -792,17 +792,29 @@ if __name__ == "__main__":
     conv_total = []
     conv_total_weighted = []
     conv_total_fis = []
+    conv_total_impact = []
     for cone_radius in RADII:
         conv_total.append(kappa[f"Radius{str(cone_radius)}"]["Total"])
         conv_total_weighted.append(kappa_weighted[f"Radius{str(cone_radius)}"]["Total"])
         conv_total_fis.append(kappa_fis[f"Radius{str(cone_radius)}"]["Total"])
+        conv_total_impact.append(kappa_impact[f"Radius{str(cone_radius)}"]["Total"]/100)
+    # plt.ylabel("Total Convergence")
+    # plt.xlabel("Cone Radius (arcmin)")
+    # plt.tick_params(labelsize=12)
+    # plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
+    # plt.axis([0, 30, -1, 1.5])
+    # plt.plot(RADII, conv_total, marker='o', markersize=2, color=colours[0], label='Unweighted')
+    # plt.plot(RADII, conv_total_weighted, marker='o', markersize=2, color=colours[1], label='Weighted')
+    # plt.plot(RADII, conv_total_fis, marker='o', markersize=2, color=colours[2], label='Fully in sample')
+    # plt.legend(frameon=0)
+    # plt.show()
+
     plt.ylabel("Total Convergence")
     plt.xlabel("Cone Radius (arcmin)")
     plt.tick_params(labelsize=12)
     plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
     plt.axis([0, 30, -1, 1.5])
-    plt.plot(RADII, conv_total, marker='o', markersize=2, color=colours[0], label='Unweighted')
-    plt.plot(RADII, conv_total_weighted, marker='o', markersize=2, color=colours[1], label='Weighted')
     plt.plot(RADII, conv_total_fis, marker='o', markersize=2, color=colours[2], label='Fully in sample')
+    plt.plot(RADII, conv_total_impact, marker='o', markersize=2, color=colours[3], label='Impact')
     plt.legend(frameon=0)
     plt.show()

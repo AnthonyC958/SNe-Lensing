@@ -17,8 +17,8 @@ RADII = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,
          18.5, 19.0, 19.5, 20.0, 21.0, 22.0, 23.0,
          24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0]
 
-with open(f"random_cones_new.pickle", "rb") as pickle_in:
-    lenses = pickle.load(pickle_in)
+# with open(f"random_cones_new.pickle", "rb") as pickle_in:
+#     lenses = pickle.load(pickle_in)
 with open("MICE_SN_data.pickle", "rb") as pickle_in:
     SN_data = pickle.load(pickle_in)
 # SN_data_fis = {}
@@ -66,17 +66,14 @@ for radius in [30.0]:
             # print(item["RAs"], item["DECs"])
             theta = (((ra - item["SNRA"])**2 + (dec - item["SNDEC"])**2)**0.5*np.pi/180)
             Dpara = np.interp(z, fine_z, Dpara_fine) * 1000.0
-            limperp = crit_angle/60.0*np.pi/180 * Dpara
-            Dperp = theta * Dpara
+            limperp = crit_angle/60.0*np.pi/180 * Dpara / (1+z)
+            Dperp = theta * Dpara / (1 + z)
             # print(theta*180/np.pi*60, (1/Dperp + 0.1 - 1/limperp))
             lenses[f'Radius{radius}'][key]['IPWEIGHT'].append(crit_weight*limperp/Dperp)
             zs.append(z)
             perps.append(Dperp)
             ws.append(crit_weight*limperp/Dperp)
 plt.scatter(perps, ws, c=zs)
-plt.show()
-plt.plot(30.0/60.0*np.pi/180.0*np.linspace(0.0052, 16.5, 1001), 30.0/60.0*np.pi/180.0*np.pi/3.0 * np.interp(0.1, fine_z, Dpara_fine) * 1200.0/np.linspace(0.0052, 16.5, 1001))
-plt.plot(30.0/60.0*np.pi/180.0*np.linspace(0.025, 16.5, 1001), 30.0/60.0*np.pi/180.0*np.pi/3.0 * np.interp(0.5, fine_z, Dpara_fine) * 1200.0/np.linspace(0.025, 16.5, 1001))
 plt.show()
 # pickle_out = open(f"lenses_weighted.pickle", "wb")
 # pickle.dump(lenses, pickle_out)
