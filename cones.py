@@ -8,7 +8,7 @@ import csv
 import pickle
 from scipy.signal import savgol_filter
 
-colours = [[0, 150/255, 100/255], [225/255, 149/255, 0], [207/255, 0, 48/255], [145/255, 4/255, 180/255],
+colours = [[0, 150/255, 100/255], [225/255, 149/255, 0], [207/255, 0, 48/255], [30/255, 10/255, 171/255],
            'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
 blue = [23/255, 114/255, 183/255, 0.75]
 orange = [255/255, 119/255, 15/255, 0.75]
@@ -777,9 +777,9 @@ if __name__ == "__main__":
     plt.plot(RADII, fully_in_sample[0], marker='x', linestyle='', color=[0.7, 0.1, 0.6])
     plt.fill_between(RADII, fully_in_sample[2], fully_in_sample[3], color=colours[2], alpha=0.3)
     plt.plot(RADII, impact[1], color=colours[3])
-    plt.plot(RADII, impact[0], marker='x', linestyle='', color=[0.4, 0.25, 0.7])
+    plt.plot(RADII, impact[0], marker='x', linestyle='', color=[60/255, 90/255, 240/255])
     plt.fill_between(RADII, impact[2], impact[3], color=colours[3], alpha=0.3)
-    kwargs4 = {'marker': 'x', 'markeredgecolor': [0.4, 0.25, 0.7], 'color': colours[3]}
+    kwargs4 = {'marker': 'x', 'markeredgecolor': [60/255, 90/255, 240/255], 'color': colours[3]}
     plt.plot([], [], label='Fully In Sample', **kwargs3)
     plt.plot([], [], label='Impact Parameter', **kwargs4)
     plt.gca().invert_yaxis()

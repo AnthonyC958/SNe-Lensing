@@ -21,31 +21,31 @@ with open(f"random_cones_new.pickle", "rb") as pickle_in:
     lenses = pickle.load(pickle_in)
 with open("MICE_SN_data.pickle", "rb") as pickle_in:
     SN_data = pickle.load(pickle_in)
-SN_data_fis = {}
+# SN_data_fis = {}
 
-for key, item in lenses.items():
-    print(key)
-    FIS_indices = np.where(item["WEIGHT"] == 1.0)
-    print(len(FIS_indices[0]))
-    for num, w in enumerate(item["WEIGHT"]):
-        if w != 1.0:
-            lenses[key].pop(f"Shell{num+1}")
-    SN_data_fis[key] = {"mu_diff": SN_data["mu_diff"][FIS_indices],
-                        "SNZ": SN_data["SNZ"][FIS_indices],
-                        "SNkappa": SN_data["SNkappa"][FIS_indices],
-                        "SNRA": SN_data["SNRA"][FIS_indices],
-                        "SNDEC": SN_data["SNDEC"][FIS_indices],
-                        "SNMU": SN_data["SNMU"][FIS_indices],
-                        "SNMU_ERR": SN_data["SNMU_ERR"][FIS_indices]}
-
-pickle_out = open(f"random_cones_new_fis.pickle", "wb")
-pickle.dump(lenses, pickle_out)
-pickle_out.close()
-
-print(SN_data_fis["Radius20.0"]['mu_diff'])
-pickle_out = open(f"MICE_SN_data_fis.pickle", "wb")
-pickle.dump(SN_data_fis, pickle_out)
-pickle_out.close()
+# for key, item in lenses.items():
+#     print(key)
+#     FIS_indices = np.where(item["WEIGHT"] == 1.0)
+#     print(len(FIS_indices[0]))
+#     for num, w in enumerate(item["WEIGHT"]):
+#         if w != 1.0:
+#             lenses[key].pop(f"Shell{num+1}")
+#     SN_data_fis[key] = {"mu_diff": SN_data["mu_diff"][FIS_indices],
+#                         "SNZ": SN_data["SNZ"][FIS_indices],
+#                         "SNkappa": SN_data["SNkappa"][FIS_indices],
+#                         "SNRA": SN_data["SNRA"][FIS_indices],
+#                         "SNDEC": SN_data["SNDEC"][FIS_indices],
+#                         "SNMU": SN_data["SNMU"][FIS_indices],
+#                         "SNMU_ERR": SN_data["SNMU_ERR"][FIS_indices]}
+#
+# pickle_out = open(f"random_cones_new_fis.pickle", "wb")
+# pickle.dump(lenses, pickle_out)
+# pickle_out.close()
+#
+# print(SN_data_fis["Radius20.0"]['mu_diff'])
+# pickle_out = open(f"MICE_SN_data_fis.pickle", "wb")
+# pickle.dump(SN_data_fis, pickle_out)
+# pickle_out.close()
 
 crit_weight = 0.1
 crit_angle = 12.0
@@ -54,7 +54,10 @@ with open(f"lenses_weighted.pickle", "rb") as pickle_in:
 # print(lenses['Radius12.0']["SN356"]["IPWEIGHT"])
 fine_z = np.linspace(0, 0.7, 1001)
 Dpara_fine = Convergence.comoving(fine_z)
-for radius in RADII:
+zs = []
+perps = []
+ws=[]
+for radius in [30.0]:
     print(radius)
     for key, item in lenses[f'Radius{radius}'].items():
         lenses[f'Radius{radius}'][key]['IPWEIGHT'] = []
@@ -67,7 +70,14 @@ for radius in RADII:
             Dperp = theta * Dpara
             # print(theta*180/np.pi*60, (1/Dperp + 0.1 - 1/limperp))
             lenses[f'Radius{radius}'][key]['IPWEIGHT'].append(crit_weight*limperp/Dperp)
-
-pickle_out = open(f"lenses_weighted.pickle", "wb")
-pickle.dump(lenses, pickle_out)
-pickle_out.close()
+            zs.append(z)
+            perps.append(Dperp)
+            ws.append(crit_weight*limperp/Dperp)
+plt.scatter(perps, ws, c=zs)
+plt.show()
+plt.plot(30.0/60.0*np.pi/180.0*np.linspace(0.0052, 16.5, 1001), 30.0/60.0*np.pi/180.0*np.pi/3.0 * np.interp(0.1, fine_z, Dpara_fine) * 1200.0/np.linspace(0.0052, 16.5, 1001))
+plt.plot(30.0/60.0*np.pi/180.0*np.linspace(0.025, 16.5, 1001), 30.0/60.0*np.pi/180.0*np.pi/3.0 * np.interp(0.5, fine_z, Dpara_fine) * 1200.0/np.linspace(0.025, 16.5, 1001))
+plt.show()
+# pickle_out = open(f"lenses_weighted.pickle", "wb")
+# pickle.dump(lenses, pickle_out)
+# pickle_out.close()
