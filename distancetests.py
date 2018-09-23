@@ -33,14 +33,26 @@ def vz(z):
 v = c*0.1
 zs = np.linspace(0, 1.5, 1001)
 for num, theta in enumerate(np.array(RADII)[[0, 15, 27, 41, 57, 69, 76, 83]]):
-    theta_rad = theta/60 * np.pi/180.
-    Dperp = theta_rad * Convergence.comoving(zs, OM=0.25, OL=0.75, h=0.7)*1000.0
-    plt.plot(zs, Dperp, color=colours[0], alpha=(1 - num/9.0), label=f"{theta}'", linewidth=1.5)
-labelLines(plt.gca().get_lines(), xvals=[1.375, 1.35, 1.32, 1.28, 1.23, 1.185, 1.11, 1.0],
-           zorder=2.5, fontsize=12, align=False)
+    theta_rad = theta / 60 * np.pi / 180.
+    Dperp = theta_rad * Convergence.comoving(zs, OM=0.25, OL=0.75, h=0.7) * 1000.0 / (1 + zs)
+    plt.plot(zs, Dperp, color=colours[0], alpha=(1 - num / 9.0), label=f"{theta}'", linewidth=1.5)
+# labelLines(plt.gca().get_lines(), xvals=[1.375, 1.35, 1.32, 1.28, 1.23, 1.185, 1.11, 1.0],
+    labelLines(plt.gca().get_lines(), xvals=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+           zorder=2.5, fontsize=12, align=False, color='k')
+for num, theta in enumerate(np.array(RADII)[[0, 15, 27, 41, 57, 69, 76, 83]]):
+    theta_rad = theta / 60 * np.pi / 180.
+    Dperp = theta_rad * Convergence.comoving(zs[0:401], OM=0.27, OL=0.73, h=0.738) * 1000.0 / (1 + zs[0:401])
+    plt.plot(zs[:401], Dperp, color=colours[0], alpha=(1 - num / 9.0), label=f"{theta}'", linewidth=1.5, linestyle='--')
+plt.fill_between([0, 1.5], [2, 2], [10, 10], color=colours[1], alpha=0.1, zorder=10)
+kwargsMICE = {'color': colours[0], 'linestyle': '-'}
+kwargsSDSS = {'color': colours[0], 'linestyle': '--'}
+hMICE, = plt.plot([], [], **kwargsMICE)
+hSDSS, = plt.plot([], [], **kwargsSDSS)
+plt.legend((hMICE, hSDSS),('MICE', 'SDSS'), frameon=0)
 plt.plot([0.6, 0.6], [-5, 45], linestyle='--', color=grey)
-plt.text(0.4, 30, 'SDSS', color=grey, fontsize=16)
-plt.ylim([-2, 42])
+# plt.text(0.4, 15, 'SDSS', color=grey, fontsize=16)
+plt.ylim([-1, 18])
+plt.xlim([0, 1.5])
 plt.xlabel('$z$')
 plt.ylabel('Perpendicular Distance (Mpc)')
 plt.show()
