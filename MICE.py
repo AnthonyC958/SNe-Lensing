@@ -625,6 +625,16 @@ def degradation(radii):
 if __name__ == "__main__":
     use_weighted = False
     alldata = get_data()
+    fig = plt.figure()
+    ax = fig.add_subplot(111, polar=True)
+    c = ax.plot(np.array(alldata['RA'])[np.logical_and(np.array(alldata['z']) < 0.15, np.array(alldata['DEC']) > 0)],
+                np.array(alldata['z'])[np.logical_and(np.array(alldata['z']) < 0.15, np.array(alldata['DEC']) > 0)],
+                color=colours[0], marker='.', markersize=2, linestyle='', alpha=0.5)
+    ax.set_thetamin(240)
+    ax.set_thetamax(300)
+    ax.set_theta_zero_location("W")
+    plt.show()
+
     big_cone_centre = [(min(alldata['RA']) + max(alldata['RA'])) / 2, (min(alldata['DEC']) + max(alldata['DEC'])) / 2]
     big_cone_radius = round(min(max(alldata['RA']) - big_cone_centre[0], big_cone_centre[0] - min(alldata['RA']),
                                 max(alldata['DEC']) - big_cone_centre[1], big_cone_centre[1] - min(alldata['DEC'])), 2)

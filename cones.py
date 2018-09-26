@@ -78,6 +78,7 @@ def get_data(new_data=False):
                       'HR': S_HR, 'dHR': S_dHR}
         with fits.open(NAMES[0])as hdul1:
             with fits.open(NAMES[1]) as hdul2:
+                # print(repr(hdul1[1].header))
                 RA1 = [hdul1[1].data['RA'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
                        hdul1[1].data['CLASS'][i] == 'GALAXY' and hdul1[1].data['Z'][i] >= 0.01]
                 DEC1 = [hdul1[1].data['DEC'][i] for i in np.arange(len(hdul1[1].data['DEC'])) if
@@ -716,7 +717,20 @@ def find_mu_diff(lenses, OM=0.27, OL=0.73, h=0.738, max_z=0.6, cone_radius=12.0,
 
 if __name__ == "__main__":
     use_weighted = False
-    data, S_data = get_data(new_data=False)
+    data, S_data = get_data(new_data=True)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, polar=True)
+    c = ax.plot(np.array(data['RA1'])[np.logical_and(np.array(data['z1']) < 0.15, np.array(data['DEC1']) > -10)],
+                np.array(data['z1'])[np.logical_and(np.array(data['z1']) < 0.15, np.array(data['DEC1']) > -10)],
+                color=colours[0], marker='.', markersize=2, linestyle='', alpha=0.4)
+    c = ax.plot(np.array(data['RA2'])[np.logical_and(np.array(data['z2']) < 0.15, np.array(data['DEC2']) > -10)],
+                np.array(data['z2'])[np.logical_and(np.array(data['z2']) < 0.15, np.array(data['DEC2']) > -10)],
+                color=colours[1], marker='.', markersize=4, linestyle='')
+    # ax.set_thetamin(-20)
+    # ax.set_thetamax(20)
+    ax.set_theta_zero_location("N")
+    plt.show()
     lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
     # plot_cones(data, lensing_gals, plot_hist=False, cone_radius=12.0)
     cone_array = make_test_cones(data, redo=False, plot=False)
