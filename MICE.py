@@ -627,12 +627,18 @@ if __name__ == "__main__":
     alldata = get_data()
     fig = plt.figure()
     ax = fig.add_subplot(111, polar=True)
-    c = ax.plot(np.array(alldata['RA'])[np.logical_and(np.array(alldata['z']) < 0.15, np.array(alldata['DEC']) > 0)],
-                np.array(alldata['z'])[np.logical_and(np.array(alldata['z']) < 0.15, np.array(alldata['DEC']) > 0)],
-                color=colours[0], marker='.', markersize=2, linestyle='', alpha=0.5)
-    ax.set_thetamin(240)
-    ax.set_thetamax(300)
-    ax.set_theta_zero_location("W")
+    c = ax.plot(np.deg2rad(np.array(alldata['RA'])[np.logical_and(np.array(alldata['z']) < 0.2, np.array(alldata['DEC']) > 0)]),
+                np.array(alldata['z'])[np.logical_and(np.array(alldata['z']) < 0.2, np.array(alldata['DEC']) > 0)],
+                color=colours[0], marker='.', markersize=2, linestyle='', alpha=0.3)
+    ax.set_thetamin(0)
+    ax.set_thetamax(18)
+    ax.set_rlim(0, 0.2)
+    label_position = ax.get_rlabel_position()
+    ax.text(np.radians(label_position) - 0.6, ax.get_rmax() / 1.7, '$z$', ha='center', va='center', fontsize=20)
+    ax.text(np.radians(label_position) - 0.23, ax.get_rmax() / 0.94, '$\\alpha$', ha='center', va='center', fontsize=20)
+    ax.set_rticks([0.0, 0.05, 0.1, 0.15, 0.2])
+    ax.set_thetagrids([0.0, 6.0, 12.0, 18.0])
+    ax.set_theta_offset(81*np.pi/180)
     plt.show()
 
     big_cone_centre = [(min(alldata['RA']) + max(alldata['RA'])) / 2, (min(alldata['DEC']) + max(alldata['DEC'])) / 2]

@@ -717,18 +717,19 @@ def find_mu_diff(lenses, OM=0.27, OL=0.73, h=0.738, max_z=0.6, cone_radius=12.0,
 
 if __name__ == "__main__":
     use_weighted = False
-    data, S_data = get_data(new_data=True)
+    data, S_data = get_data(new_data=False)
 
     fig = plt.figure()
-    ax = fig.add_subplot(111, polar=True)
-    c = ax.plot(np.array(data['RA1'])[np.logical_and(np.array(data['z1']) < 0.15, np.array(data['DEC1']) > -10)],
+    ax = fig.add_subplot(111, projection='polar')
+    c = ax.plot(np.deg2rad(np.array(data['RA1'])[np.logical_and(np.array(data['z1']) < 0.15, np.array(data['DEC1']) > -10)]),
                 np.array(data['z1'])[np.logical_and(np.array(data['z1']) < 0.15, np.array(data['DEC1']) > -10)],
-                color=colours[0], marker='.', markersize=2, linestyle='', alpha=0.4)
-    c = ax.plot(np.array(data['RA2'])[np.logical_and(np.array(data['z2']) < 0.15, np.array(data['DEC2']) > -10)],
-                np.array(data['z2'])[np.logical_and(np.array(data['z2']) < 0.15, np.array(data['DEC2']) > -10)],
-                color=colours[1], marker='.', markersize=4, linestyle='')
-    # ax.set_thetamin(-20)
-    # ax.set_thetamax(20)
+                color=colours[0], marker='.', markersize=2, linestyle='', alpha=0.3)
+    label_position = ax.get_rlabel_position()
+    ax.text(np.radians(label_position) - 1.5, ax.get_rmax() / 1.78, '$z$', ha='center', va='center', fontsize=20)
+    ax.text(np.radians(label_position) - 0.385, ax.get_rmax() / 0.94, '$\\alpha$', ha='center', va='center', fontsize=20)
+    ax.set_thetamin(-51)
+    ax.set_thetamax(58)
+    ax.set_rlim(0, 0.15)
     ax.set_theta_zero_location("N")
     plt.show()
     lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
