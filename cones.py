@@ -7,6 +7,7 @@ from scipy.stats import rankdata
 import csv
 import pickle
 from scipy.signal import savgol_filter
+from mpl_toolkits.mplot3d import Axes3D
 
 colours = [[0, 150/255, 100/255], [225/255, 149/255, 0], [207/255, 0, 48/255], [30/255, 10/255, 171/255],
            'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
@@ -753,6 +754,20 @@ if __name__ == "__main__":
     ax.set_theta_zero_location("N")
     plt.show()
     lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
+    #
+    # SN669 = lensing_gals['Radius12.0']['SN669']
+    # RAs = SN669['RAs']
+    # DECs = SN669['DECs']
+    # Zs = SN669['Zs']
+    # Xs = Zs * np.cos(DECs) * np.cos(RAs)
+    # Ys = Zs * np.cos(DECs) * np.sin(RAs)
+    # fig = plt.figure()
+    # ZZs = Zs * np.sin(DECs)
+    # ax = fig.add_subplot(111, projection='3d')
+    # ax.scatter(Xs, Ys, ZZs, c=Zs)
+    # plt.show()
+    # print(SN669)
+    # exit()
     # plot_cones(data, lensing_gals, plot_hist=False, cone_radius=12.0)
     cone_array = make_test_cones(data, redo=False, plot=False)
     exp_data = find_expected_counts(cone_array, 51, redo=False, plot=False)

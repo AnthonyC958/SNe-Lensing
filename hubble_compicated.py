@@ -120,7 +120,7 @@ print(len(zz))
 ombest = 0.25
 wbest = -1.15
 best = (ombest, 1 - ombest, wbest)
-test1 = (0.0, 1.0, -0.5)
+test1 = (0.225, 1-0.225, -1.0)
 test2 = (0.25, 0.75, -1)
 zz_model = np.linspace(0, 1.45, 500)  # Make logarithmic redshift array to better sample low-z
 mu_model = dist_mod(zz_model, *best)  # Calculate the distance modulus corresponding to the model redshifts

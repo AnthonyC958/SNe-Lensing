@@ -74,16 +74,16 @@ H0 = 70.0
 c_H0 = 2.998E5 / H0
 
 # ---------- Set up fitting ranges ---------------------------
-n = 21  # Increase this for a finer grid
+n = 501  # Increase this for a finer grid
 oms = np.linspace(0, 0.5, n)  # Array of matter densities
 ws = np.linspace(-0.5, -1.5, n)  # Array of cosmological constant values
 chi2 = np.ones((n, n)) * np.inf  # Array to hold our chi2 values, set initially to super large values
 
-n_marg = 200  # Number of steps in marginalisation
+n_marg = 500  # Number of steps in marginalisation
 mscr_guess = 5.0 * np.log10(c_H0) + 25  # Initial guess for best mscr
-mscr = np.linspace(mscr_guess - 0.5, mscr_guess + 0.5, n_marg)  # Array of mscr values to marginalise over
-mscr_used = np.zeros((n, n))  # Array to hold the best fit mscr value for each om, ol combination
-
+mscr = np.linspace(mscr_guess - 1.0, mscr_guess + 1.0, n_marg)  # Array of mscr values to marginalise over
+mscr_used = np.zeros((n, n)) # Array to hold the best fit mscr value for each om, ol combination
+z_small = np.linspace(0, max(zz), 100)
 # ---------- Do the fit ---------------------------
 saved_output_filename = "saved_grid_%d.txt" % n
 
@@ -93,12 +93,13 @@ if os.path.exists(saved_output_filename):  # Load the last run with n grid if we
 else:
     for i, om in enumerate(oms):
         for j, w in enumerate(ws):
-            mu_model = dist_mod(zz, om, 1 - om, w)
-            mu_model_norm = np.array(np.repeat(mu_model, len(mscr)), dtype=object)
+            mu_model_small = dist_mod(z_small, om, 1 - om, w)
+            mu_model = np.interp(zz, z_small, mu_model_small)
+            # mu_model_norm = np.array(np.repeat(mu_model, len(mscr)), dtype=object)
             for k, m in enumerate(mscr):
                 mu_model_norm = mu_model + m
                 chi2_test = np.sum((mu_model_norm - mu) ** 2 / mu_error2) + ((om - 0.25) / 0.08) ** 2 + (
-                            (w - 1.0) / 0.1) ** 2  # Priors might be added in the wrong scope
+                            (w + 1.0) / 0.1) ** 2  # Priors might be added in the wrong scope
                 if chi2_test < chi2[i, j]:
                     chi2[i, j] = chi2_test
                     mscr_used[i, j] = k
@@ -114,8 +115,24 @@ print('Best fit values are (om,w)=(%s,%s)' % (oms[ibest[0]], ws[ibest[1]]))
 print('Reduced chi^2 for the best fit is %s' % chi2_reduced[ibest[0], ibest[1]])
 
 # Plot contours of 1, 2, and 3 sigma
-plt.contour(oms, ws, np.transpose(chi2 - np.amin(chi2)), cmap="winter", **{'levels': [2.30, 6.18, 11.83]})
-plt.xlabel("$\Omega_m$", fontsize=12)
-plt.ylabel("$w$", fontsize=12)
-plt.savefig("contours.pdf", bbox_inches="tight", transparent=True)
-plt.close()
+omlikelihood = np.sum(likelihood, 1)
+wlikelihood = np.sum(likelihood, 0)
+ax1 = plt.subplot2grid((4, 4), (1, 0), colspan=3, rowspan=3)
+ax1.contour(oms, ws, np.transpose(chi2 - np.amin(chi2)), cmap="winter", **{'levels': [2.30, 6.18, 11.83]})
+ax1.set_xlabel("$\Omega_m$", fontsize=12)
+ax1.set_ylabel("$w$", fontsize=12)
+ax2 = plt.subplot2grid((4, 4), (0, 0), colspan=3)
+ax2.plot(oms, omlikelihood)
+ax2.set_xticklabels([])
+ax3 = plt.subplot2grid((4, 4), (1, 3), rowspan=3)
+ax3.plot(wlikelihood, ws)
+# ax3.set_yticklabels([])
+plt.subplots_adjust(wspace=0, hspace=0)
+ax1.set_xlim([0.1, 0.35])
+ax2.set_xlim([0.1, 0.35])
+ax1.set_ylim([-1.4, -0.7])
+ax3.set_ylim([-1.4, -0.7])
+plt.show()
+print(oms[np.where(abs(-2*np.log(omlikelihood) - 1.0) < 0.5)])
+# plt.savefig("contours.pdf", bbox_inches="tight", transparent=True)
+# plt.close()
