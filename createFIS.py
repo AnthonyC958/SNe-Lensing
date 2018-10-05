@@ -92,6 +92,7 @@ def find_avg_counts(cut_data, exp_data):
 #     lenses = pickle.load(pickle_in)
 with open("MICE_SN_data.pickle", "rb") as pickle_in:
     SN_data = pickle.load(pickle_in)
+print(SN_data.keys())
 # SN_data_fis = {}
 
 # for key, item in lenses.items():

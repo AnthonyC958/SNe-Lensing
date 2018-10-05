@@ -120,11 +120,11 @@ def find_expected(big_cone, r_big, bins, redo=False, plot=False):
             expected_big.append(np.count_nonzero(np.logical_and(big_cone['Zs'] > limits[num1], big_cone['Zs'] <
                                                                 limits[num1 + 1])) / 5.0)
             # Made 5 cones, so take average
-        plt.plot(limits[1:], [np.cumsum(expected_big)[i] * (12.0 / r_big / 60.0) ** 2 for i in range(len(expected_big))],
-                 marker='o', markersize=2.5, color=colours[0])
-        plt.xlabel('$z$')
-        plt.ylabel('Cumulative Count')
-        plt.show()
+        # plt.plot(limits[1:], [np.cumsum(expected_big)[i] * (12.0 / r_big / 60.0) ** 2 for i in range(len(expected_big))],
+        #          marker='o', markersize=2.5, color=colours[0])
+        # plt.xlabel('$z$')
+        # plt.ylabel('Cumulative Count')
+        # plt.show()
 
         for cone_radius in RADII:
             expected[f"Radius{str(cone_radius)}"] = [expected_big[i] * (cone_radius / r_big / 60.0) ** 2
@@ -374,15 +374,15 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
 
             kappa[f"Radius{str(cone_radius)}"]["Total"] = np.sum(kappa[f"Radius{str(cone_radius)}"]["SNkappa"])
             print(f"Finished radius {str(cone_radius)}'")
-        if not fis:
-            if weighted:
-                pickle_out = open("MICEkappa_weighted.pickle", "wb")
-            else:
-                pickle_out = open("MICEkappa.pickle", "wb")
-        else:
-            pickle_out = open("MICEkappa_fis.pickle", "wb")
-        pickle.dump(kappa, pickle_out)
-        pickle_out.close()
+        # if not fis:
+        #     if weighted:
+        #         pickle_out = open("MICEkappa_weighted.pickle", "wb")
+        #     else:
+        #         pickle_out = open("MICEkappa.pickle", "wb")
+        # else:
+        #     pickle_out = open("MICEkappa_fis.pickle", "wb")
+        # pickle.dump(kappa, pickle_out)
+        # pickle_out.close()
     else:
         if not fis:
             pickle_in = open("MICE_SN_data.pickle", "rb")
@@ -622,6 +622,25 @@ def degradation(radii):
     plt.show()
 
 
+def bin_test(alldata, big_cone, big_cone_radius):
+    corrs = []
+    bins = [11, 21, 31, 51, 101, 151]
+    for num_bins in bins:
+        exp_data = find_expected(big_cone, big_cone_radius, num_bins, redo=True)
+        kappa = find_convergence(alldata, exp_data, redo=True, fis=True)
+        correlation = find_correlation(kappa, RADII, fis=True)
+        corrs.append(correlation[0])
+
+    for i, num_bins in enumerate(bins):
+        plt.plot(RADII, corrs[i], label=f"{num_bins-1}")
+    plt.legend(frameon=0)
+    plt.xlabel('Radius (arcmin)')
+    plt.xlim([1, 20])
+    plt.ylabel('Correlation Coefficient')
+    plt.gca().invert_yaxis()
+    plt.show()
+
+
 if __name__ == "__main__":
     use_weighted = False
     alldata = get_data()
@@ -634,8 +653,8 @@ if __name__ == "__main__":
     ax.set_thetamax(18)
     ax.set_rlim(0, 0.2)
     label_position = ax.get_rlabel_position()
-    ax.text(np.radians(label_position) - 0.6, ax.get_rmax() / 1.7, '$z$', ha='center', va='center', fontsize=20)
-    ax.text(np.radians(label_position) - 0.23, ax.get_rmax() / 0.94, '$\\alpha$', ha='center', va='center', fontsize=20)
+    ax.text(np.radians(label_position) - 0.6, ax.get_rmax() / 1.7, '$z$', ha='center', va='center', fontsize=38)
+    ax.text(np.radians(label_position) - 0.23, ax.get_rmax() / 0.94, '$\\alpha$', ha='center', va='center', fontsize=38)
     ax.set_rticks([0.0, 0.05, 0.1, 0.15, 0.2])
     ax.set_thetagrids([0.0, 6.0, 12.0, 18.0])
     ax.set_theta_offset(81*np.pi/180)
@@ -645,6 +664,8 @@ if __name__ == "__main__":
     big_cone_radius = round(min(max(alldata['RA']) - big_cone_centre[0], big_cone_centre[0] - min(alldata['RA']),
                                 max(alldata['DEC']) - big_cone_centre[1], big_cone_centre[1] - min(alldata['DEC'])), 2)
     big_cone = make_big_cone(alldata, redo=False)
+    bin_test(alldata, big_cone, big_cone_radius)
+    exit()
     exp_data = find_expected(big_cone, big_cone_radius, 111, redo=False, plot=False)
     get_random(alldata, redo=False)
     # plot_cones(alldata, plot_hist=True, cone_radius=6.0)
