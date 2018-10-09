@@ -88,6 +88,95 @@ def find_avg_counts(cut_data, exp_data):
     pickle_out.close()
     return avg_counts, avg_IPs
 
+
+def find_expected_weights(cut_data, bins, redo=False, plot=False):
+    """Uses the test cones to find the expected number of galaxies per bin, for bins of even redshift.
+
+    Inputs:
+     test_cones -- dictionary of data to obtain expected counts from for a variety of cone widths.
+     bins -- number of bins along the line of sight to maximum SN comoving distance.
+     redo -- boolean that determines whether expected counts are calculated or loaded. Default false.
+     plot -- boolean that determines whether expected counts are plotted. Default false.
+    """
+    max_z = 0.6
+    chi_bin_widths, chi_bins, z_bins, z_bin_widths = Convergence.create_z_bins(0.01, max_z, bins)
+    limits = np.cumsum(z_bin_widths)
+
+    if redo:
+        RA1 = np.array(cut_data['RA1'])
+        DEC1 = np.array(cut_data['DEC1'])
+        RA2 = cut_data['RA2']
+        DEC2 = np.array(cut_data['DEC2'])
+        z1 = np.array(cut_data['z1'])
+        z2 = cut_data['z2']
+        lens_data = {}
+        for cone_radius in RADII:
+
+            lens_data[f"Radius{str(cone_radius)}"] = {}
+            for num, (SRA, SDE, SZ) in enumerate(zip(RA2, DEC2, z2)):
+                lens_data[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}'] = {'Zs': [], 'SNZ': SZ, 'SNRA': SRA,
+                                                                             'SNDEC': SDE, 'RAs': [], 'DECs': []}
+
+                if SDE > 1.28 - cone_radius / 60.0:
+                    h = SDE - (1.28 - cone_radius / 60.0)
+                elif SDE < -(1.28 - cone_radius / 60.0):
+                    h = -(1.28 - cone_radius / 60.0) - SDE
+                else:
+                    h = 0
+
+                if h == 0:
+                    lens_data[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['WEIGHT'] = 1.0
+                    indices = [(RA1 - SRA) ** 2 + (DEC1 - SDE) ** 2 <= (cone_radius / 60.0) ** 2]
+                    lens_data[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['Zs'] = z1[indices]
+                    lens_data[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['RAs'] = RA1[indices]
+                    lens_data[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['DECs'] = DEC1[indices]
+            print(f"Finished sorting radius {str(cone_radius)}'")
+
+        expected = {}
+        for cone_radius in RADII:
+            # IPs = {}
+            lens = lens_data[f"Radius{str(cone_radius)}"]
+            cumul_tot = np.zeros((len(limits), len(lens)))
+            for num1, lim in enumerate(limits):
+                for num2, (key, item) in enumerate(lens.items()):
+                    # IPs[key] = np.zeros(51 - 2)
+                    thetas = (((item['RAs'] - item["SNRA"]) ** 2 + (
+                            item['DECs'] - item["SNDEC"]) ** 2) ** 0.5 * np.pi / 180)
+                    Dparas = thetas * np.interp(item['Zs'], fine_z, Dpara_fine) * 1000.0 / (1 + np.array(item['Zs']))
+                    all_IPs = 1 / Dparas
+                    cumul_tot[num1][num2] = np.sum(all_IPs[item['Zs'] < lim])
+            expected[f"Radius{str(cone_radius)}"] = np.diff(np.mean(cumul_tot, 1))
+            # for index, count in enumerate(expected[f"Radius{str(cone_radius)}"]):
+            #     if count == 0:
+            #         try:
+            #             expected[f"Radius{str(cone_radius)}"][index] = 0.5 * (expected[f"Radius{str(cone_radius)}"]
+            #                                                                   [index+1] + expected[
+            #                                                                    f"Radius{str(cone_radius)}"][index-1])
+            #         except IndexError:
+            #             expected[f"Radius{str(cone_radius)}"][index] = 0.5 * (expected[f"Radius{str(cone_radius)}"]
+            #                                                                   [index] + expected[
+            #                                                                    f"Radius{str(cone_radius)}"][index - 1])
+
+            print(f"Finished radius {str(cone_radius)}'")
+        pickle_out = open("expected_IPs.pickle", "wb")
+        pickle.dump(expected, pickle_out)
+        pickle_out.close()
+    else:
+        pickle_in = open("expected_IPs.pickle", "rb")
+        expected = pickle.load(pickle_in)
+
+    if plot:
+        for cone_radius in RADII:
+            plt.plot([0, 0.6], [0, 0], color=[0.75, 0.75, 0.75], linestyle='--')
+            plt.plot((limits[1:]+limits[:-1])/2.0, expected[f"Radius{str(cone_radius)}"], marker='o',
+                     markersize=2.5, color=colours[0])
+            plt.xlabel('$z$')
+            plt.ylabel('Expected Count')
+            plt.xlim([0, 0.6])
+            plt.show()
+
+    return [limits, expected, chi_bin_widths, chi_bins, z_bins]
+
 # with open(f"random_cones_new.pickle", "rb") as pickle_in:
 #     lenses = pickle.load(pickle_in)
 with open("MICE_SN_data.pickle", "rb") as pickle_in:
@@ -127,6 +216,8 @@ Dpara_fine = Convergence.comoving(fine_z)
 data, _ = cones.get_data(new_data=False)
 lenses = cones.sort_SN_gals(data, redo=False, weighted=True)
 exp = cones.find_expected_counts(_, 51)
+exp_data = find_expected_weights(data, 51, redo=False)
+
 # average_counts = find_avg_counts(data, exp)
 with open(f"avgs_per_bin.pickle", "rb") as pickle_in:
     average_counts = pickle.load(pickle_in)
@@ -141,62 +232,66 @@ perps = []
 ws = []
 lenses_IP = {}
 # lenses_IP[crit_dist] = {}
-for radius in RADII:
-    print(radius)
-    lenses_IP[f'Radius{radius}'] = {}
-    average_per_bin = []
-    for key, item in lenses[f'Radius{radius}'].items():
-        if lenses[f'Radius{radius}'][key]["WEIGHT"] == 1.0:
-            lenses_IP[f'Radius{radius}'][key] = {"SNZ": lenses[f'Radius{radius}'][key]["SNZ"],
-                                                 "Zs": lenses[f'Radius{radius}'][key]["Zs"],
-                                                 "SNMU": lenses[f'Radius{radius}'][key]["SNMU"],
-                                                 "SNMU_ERR": lenses[f'Radius{radius}'][key]["SNMU_ERR"],
-                                                 "IPWEIGHT": []}
-            exp[0].put(0, 0)
-            for z, ra, dec in zip(item['Zs'], item["RAs"], item["DECs"]):
-                bin_num = np.where([np.logical_and(exp[0][i] < z, exp[0][i + 1] > z) for i in range(len(exp[0]) - 1)])[0]
-                # print(z, exp[0][bin_num[0]], exp[0][bin_num[0]+1], bin_num[0])
-                theta = (((ra - item["SNRA"])**2 + (dec - item["SNDEC"])**2)**0.5*np.pi/180)
-                Dpara = np.interp(z, fine_z, Dpara_fine) * 1000.0
-                # limperp = crit_angle/60.0*np.pi/180 * Dpara / (1+z)
-                Dperp = theta * Dpara / (1 + z)
-                # print(theta*180/np.pi*60, (1/Dperp + 0.1 - 1/limperp))
-                # print(z, bin_num[0], exp[0][bin_num[0]])
-                lenses_IP[f'Radius{radius}'][key]['IPWEIGHT'].append(average_counts[0][f"Radius{radius}"][bin_num[0]] /
-                                                                     average_counts[1][f"Radius{radius}"][bin_num[0]] /
-                                                                     Dperp)
-                # zs.append(z)
-                # perps.append(Dperp)
-                # ws.append(crit_weight*limperp/Dperp)
-    print(len(lenses_IP[f'Radius{radius}']))
-# print(lenses_IP.keys())
-# print(lenses_IP[3.0].keys())
-# print(lenses_IP[3.0]["Radius3.0"].keys())
-# print(lenses_IP[3.0]["Radius3.0"]["SN342"].keys())
-# print(lenses_IP[2.5]["Radius3.0"]["SN342"]["IPWEIGHT"], lenses_IP[2.5]["Radius3.0"]["SN343"]["IPWEIGHT"],
-#       lenses_IP[7.5]["Radius3.0"]["SN342"]["IPWEIGHT"], lenses_IP[10.0]["Radius3.0"]["SN342"]["IPWEIGHT"])
+redo_IP = False
+if redo_IP:
+    for radius in RADII:
+        print(radius)
+        lenses_IP[f'Radius{radius}'] = {}
+        average_per_bin = []
+        for key, item in lenses[f'Radius{radius}'].items():
+            if lenses[f'Radius{radius}'][key]["WEIGHT"] == 1.0:
+                lenses_IP[f'Radius{radius}'][key] = {"SNZ": lenses[f'Radius{radius}'][key]["SNZ"],
+                                                     "Zs": lenses[f'Radius{radius}'][key]["Zs"],
+                                                     "SNMU": lenses[f'Radius{radius}'][key]["SNMU"],
+                                                     "SNMU_ERR": lenses[f'Radius{radius}'][key]["SNMU_ERR"],
+                                                     "IPWEIGHT": []}
+                exp[0].put(0, 0)
+                for z, ra, dec in zip(item['Zs'], item["RAs"], item["DECs"]):
+                    bin_num = np.where([np.logical_and(exp[0][i] < z, exp[0][i + 1] > z) for i in range(len(exp[0]) - 1)])[0]
+                    # print(z, exp[0][bin_num[0]], exp[0][bin_num[0]+1], bin_num[0])
+                    theta = (((ra - item["SNRA"])**2 + (dec - item["SNDEC"])**2)**0.5*np.pi/180)
+                    Dpara = np.interp(z, fine_z, Dpara_fine) * 1000.0
+                    # limperp = crit_angle/60.0*np.pi/180 * Dpara / (1+z)
+                    Dperp = theta * Dpara / (1 + z)
+                    # print(theta*180/np.pi*60, (1/Dperp + 0.1 - 1/limperp))
+                    # print(z, bin_num[0], exp[0][bin_num[0]])
+                    # lenses_IP[f'Radius{radius}'][key]['IPWEIGHT'].append(average_counts[0][f"Radius{radius}"][bin_num[0]]/
+                    #                                                      average_counts[1][f"Radius{radius}"][bin_num[0]]/
+                    #                                                      Dperp)
+                    lenses_IP[f'Radius{radius}'][key]['IPWEIGHT'].append(1.0 / Dperp)
+                    # zs.append(z)
+                    # perps.append(Dperp)
+                    # ws.append(crit_weight*limperp/Dperp)
+        print(len(lenses_IP[f'Radius{radius}']))
+    # print(lenses_IP.keys())
+    # print(lenses_IP[3.0].keys())
+    # print(lenses_IP[3.0]["Radius3.0"].keys())
+    # print(lenses_IP[3.0]["Radius3.0"]["SN342"].keys())
+    # print(lenses_IP[2.5]["Radius3.0"]["SN342"]["IPWEIGHT"], lenses_IP[2.5]["Radius3.0"]["SN343"]["IPWEIGHT"],
+    #       lenses_IP[7.5]["Radius3.0"]["SN342"]["IPWEIGHT"], lenses_IP[10.0]["Radius3.0"]["SN342"]["IPWEIGHT"])
 
-plt.plot(fine_z, 0.05*np.pi/180.0 * Dpara_fine / (1 + fine_z) * 1000, color=colours[0], linestyle='-', label="3.0'")
-plt.plot(fine_z, 0.1*np.pi/180.0 * Dpara_fine / (1 + fine_z) * 1000, color=colours[1], linestyle='-', label="6.0'")
-plt.plot(fine_z, 0.2*np.pi/180.0 * Dpara_fine / (1 + fine_z) * 1000, color=colours[2], linestyle='-', label="12.0'")
-plt.plot(fine_z, 0.4*np.pi/180.0 * Dpara_fine / (1 + fine_z) * 1000, color=colours[3], linestyle='-', label="24.0'")
-plt.plot(fine_z, np.ones(len(fine_z)) * 2.5, color=colours[0], linestyle='--', label='2.5 Mpc')
-plt.plot(fine_z, np.ones(len(fine_z)) * 5.0, color=colours[1], linestyle='--', label='5.0 Mpc')
-plt.plot(fine_z, np.ones(len(fine_z)) * 7.5, color=colours[2], linestyle='--', label='7.5 Mpc')
-plt.plot(fine_z, np.ones(len(fine_z)) * 10.0, color=colours[3], linestyle='--', label='10.0 Mpc')
-plt.axis([0, 0.6, 0, 11])
-plt.xlabel("z")
-plt.ylabel("Prependicular Distance (Mpc)")
-# plt.legend(frameon=0)
+    # plt.plot(fine_z, 0.05*np.pi/180.0 * Dpara0)")
+    # plt.legend(frameon=0)
 
-s = plt.scatter(perps, ws, c=zs, cmap='coolwarm')
-# plt.gca().set_yscale('log')
-# plt.gca().set_xscale('log')
-# cbar = plt.colorbar(s)
-# cbar.set_label('$z$')
-# plt.xlim(0.00038, 15)
+    s = plt.scatter(perps, ws, c=zs, cmap='coolwarm')
+    # plt.gca().set_yscale('log')
+    # plt.gca().set_xscale('log')
+    # cbar = plt.colorbar(s)
+    # cbar.set_label('$z$')
+    # plt.xlim(0.00038, 15)
+    # plt.show()
+
+    pickle_out = open(f"lenses_IP3.pickle", "wb")
+    pickle.dump(lenses_IP, pickle_out)
+    pickle_out.close()
+else:
+    pickle_in = open("lenses_IP3.pickle", "rb")
+    lenses_IP = pickle.load(pickle_in)
+
+kappa_impact = cones.find_convergence(lenses_IP, exp_data, redo=False, plot_scatter=False, impact=True)
+conv_total_impact = []
+for cone_radius in RADII:
+    conv_total_impact.append(kappa_impact[f"Radius{str(cone_radius)}"]["Total"])
+plt.plot(RADII, conv_total_impact, marker='o', markersize=2, color=colours[3])
 plt.show()
-
-pickle_out = open(f"lenses_IP3.pickle", "wb")
-pickle.dump(lenses_IP, pickle_out)
-pickle_out.close()
+impact = cones.find_correlation(kappa_impact, lenses_IP, plot_radii=True, impact=True)

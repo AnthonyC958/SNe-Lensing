@@ -117,9 +117,9 @@ print(len(zz))
 # test3 = (0.0, 1.0, -0.6)
 
 # Uncomment for MICECAT fits
-ombest = 0.25
-wbest = -1.15
-best = (ombest, 1 - ombest, wbest)
+ombest = 0.20
+wbest = -1.0
+best = (ombest, 0.75, wbest)
 test1 = (0.225, 1-0.225, -1.0)
 test2 = (0.25, 0.75, -1)
 zz_model = np.linspace(0, 1.45, 500)  # Make logarithmic redshift array to better sample low-z

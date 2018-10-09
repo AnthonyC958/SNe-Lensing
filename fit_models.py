@@ -5,9 +5,26 @@ import matplotlib
 import pickle
 import csv
 from astropy.io import fits
+import matplotlib.colors
 
 matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
+
+plt.rcParams['font.family'] = 'serif'
+plt.rcParams['font.serif'] = 'Stixgeneral'
+plt.rcParams['mathtext.fontset'] = 'stix'
+plt.rcParams['axes.labelsize'] = 20
+plt.rcParams['axes.titlesize'] = 16
+plt.rcParams['xtick.labelsize'] = 16
+plt.rcParams['ytick.labelsize'] = 16
+plt.rcParams['legend.fontsize'] = 16
+plt.rcParams['figure.titlesize'] = 20
+plt.rcParams['xtick.top'] = True
+plt.rcParams['ytick.right'] = True
+plt.rcParams['xtick.direction'] = 'in'
+plt.rcParams['ytick.direction'] = 'in'
+plt.rcParams['xtick.minor.visible'] = True
+plt.rcParams['ytick.minor.visible'] = True
 
 
 def Hz_inverse(z, om, ol):
@@ -57,12 +74,22 @@ def dist_mod(zs, om, ol, w):
 # test     = g10f['M0DIF']
 
 # ---------- Uncomment to load MICECAT data  -------------------------------------
-with open("MICE_SN_data.pickle", "rb") as pickle_in:
+with open("MICE_SN_data_optimistic.pickle", "rb") as pickle_in:
     SN_data = pickle.load(pickle_in)
 zz = SN_data['SNZ']
 mu = SN_data['SNMU']
+
 mu_error = SN_data['SNMU_ERR']
 mu_error2 = mu_error ** 2  # squared for ease of use later
+pickle_in = open("MICEkappa_weighted.pickle", "rb")
+# kappa_weighted = pickle.load(pickle_in)
+# kappa_est = kappa_weighted["Radius6.25"]["SNkappa"]
+kappa_est = SN_data["SNkappa"]
+mu = mu + (5.0 / np.log(10) * np.array(kappa_est))
+# plt.errorbar(zz, mu, mu_error, marker='.', linestyle='')
+# plt.show()
+# exit()
+
 # data = np.genfromtxt("jla_lcparams_simple_new.txt",names=True,comments='#',dtype=None, skip_header=11)
 # zz = data['zcmb']
 # mu = data['mb']
@@ -79,13 +106,13 @@ oms = np.linspace(0, 0.5, n)  # Array of matter densities
 ws = np.linspace(-0.5, -1.5, n)  # Array of cosmological constant values
 chi2 = np.ones((n, n)) * np.inf  # Array to hold our chi2 values, set initially to super large values
 
-n_marg = 500  # Number of steps in marginalisation
+n_marg = 200  # Number of steps in marginalisation
 mscr_guess = 5.0 * np.log10(c_H0) + 25  # Initial guess for best mscr
-mscr = np.linspace(mscr_guess - 1.0, mscr_guess + 1.0, n_marg)  # Array of mscr values to marginalise over
-mscr_used = np.zeros((n, n)) # Array to hold the best fit mscr value for each om, ol combination
+mscr = np.linspace(mscr_guess - 0.5, mscr_guess + 0.5, n_marg)  # Array of mscr values to marginalise over
+mscr_used = np.zeros((n, n))  # Array to hold the best fit mscr value for each om, ol combination
 z_small = np.linspace(0, max(zz), 100)
 # ---------- Do the fit ---------------------------
-saved_output_filename = "saved_grid_%d.txt" % n
+saved_output_filename = "saved_grid_%d_corr_opt.txt" % n
 
 if os.path.exists(saved_output_filename):  # Load the last run with n grid if we can find it
     print("Loading saved data. Delete %s if you want to regenerate the points\n" % saved_output_filename)
@@ -99,7 +126,7 @@ else:
             for k, m in enumerate(mscr):
                 mu_model_norm = mu_model + m
                 chi2_test = np.sum((mu_model_norm - mu) ** 2 / mu_error2) + ((om - 0.25) / 0.08) ** 2 + (
-                            (w + 1.0) / 0.1) ** 2  # Priors might be added in the wrong scope
+                        (w + 1.0) / 0.1) ** 2  # Priors might be added in the wrong scope
                 if chi2_test < chi2[i, j]:
                     chi2[i, j] = chi2_test
                     mscr_used[i, j] = k
@@ -115,24 +142,53 @@ print('Best fit values are (om,w)=(%s,%s)' % (oms[ibest[0]], ws[ibest[1]]))
 print('Reduced chi^2 for the best fit is %s' % chi2_reduced[ibest[0], ibest[1]])
 
 # Plot contours of 1, 2, and 3 sigma
+green1 = [0, 150 / 255, 100 / 255, 1.0]
+green2 = [0, 150 / 255, 100 / 255, 0.6]
+green3 = [0, 150 / 255, 100 / 255, 0.3]
+gmap = matplotlib.colors.LinearSegmentedColormap.from_list("", [green1, green2, green3])
 omlikelihood = np.sum(likelihood, 1)
 wlikelihood = np.sum(likelihood, 0)
 ax1 = plt.subplot2grid((4, 4), (1, 0), colspan=3, rowspan=3)
-ax1.contour(oms, ws, np.transpose(chi2 - np.amin(chi2)), cmap="winter", **{'levels': [2.30, 6.18, 11.83]})
-ax1.set_xlabel("$\Omega_m$", fontsize=12)
-ax1.set_ylabel("$w$", fontsize=12)
+ax1.contour(oms, ws, np.transpose(chi2 - np.amin(chi2)), cmap=gmap, **{'levels': [2.30, 6.18, 11.83]})
+ax1.set_xlabel("$\Omega_M$")
+ax1.set_ylabel("$w$")
+ax1.set_xticks([0.15, 0.20, 0.25, 0.30])
+ax1.set_yticks([-1.4, -1.3, -1.2, -1.1, -1.0, -0.9, -0.8])
 ax2 = plt.subplot2grid((4, 4), (0, 0), colspan=3)
-ax2.plot(oms, omlikelihood)
+ax2.plot(oms, omlikelihood, color=green1)
+ax2.set_ylabel('$\mathcal{L}$')
 ax2.set_xticklabels([])
 ax3 = plt.subplot2grid((4, 4), (1, 3), rowspan=3)
-ax3.plot(wlikelihood, ws)
-# ax3.set_yticklabels([])
+ax3.plot(wlikelihood, ws, color=green1)
+ax3.set_yticks([-1.4, -1.3, -1.2, -1.1, -1.0, -0.9, -0.8])
+ax3.set_yticklabels([])
+ax3.set_xlabel('$\mathcal{L}$')
 plt.subplots_adjust(wspace=0, hspace=0)
 ax1.set_xlim([0.1, 0.35])
 ax2.set_xlim([0.1, 0.35])
+ax2.set_ylim([0, 66])
 ax1.set_ylim([-1.4, -0.7])
 ax3.set_ylim([-1.4, -0.7])
+ax3.set_xlim([0, 33])
+wbest = ws[np.where(wlikelihood == np.max(wlikelihood))]
+ombest = oms[np.where(omlikelihood == np.max(omlikelihood))]
+om1sig = oms[np.where(abs(-2 * np.log(omlikelihood) - np.amin(-2 * np.log(omlikelihood)) - 1.0) < 0.05)]
+w1sig = ws[np.where(abs(-2 * np.log(wlikelihood) - np.amin(-2 * np.log(wlikelihood)) - 1.0) < 0.025)]
+print(om1sig, w1sig)
+ax1.plot(ombest, wbest, 'x', color=[225 / 255, 149 / 255, 0])
+ax1.plot([om1sig[0], om1sig[0]], [-1.4, -0.7], color=[0.75, 0.75, 0.75], linestyle='--')
+ax1.plot([om1sig[1], om1sig[1]], [-1.4, -0.7], color=[0.75, 0.75, 0.75], linestyle='--')
+ax1.plot([0.1, 0.35], [w1sig[0], w1sig[0]], color=[0.75, 0.75, 0.75], linestyle='--')
+ax1.plot([0.1, 0.35], [w1sig[1], w1sig[1]], color=[0.75, 0.75, 0.75], linestyle='--')
+ax2.plot([om1sig[0], om1sig[0]], [0, 66], color=[0.75, 0.75, 0.75], linestyle='--')
+ax2.plot([om1sig[1], om1sig[1]], [0, 66], color=[0.75, 0.75, 0.75], linestyle='--')
+ax3.plot([0, 33], [w1sig[0], w1sig[0]], color=[0.75, 0.75, 0.75], linestyle='--')
+ax3.plot([0, 33], [w1sig[1], w1sig[1]], color=[0.75, 0.75, 0.75], linestyle='--')
+ax1.plot([om1sig[0], om1sig[1]], [wbest, wbest], color=[225 / 255, 149 / 255, 0])
+ax1.plot([ombest, ombest], [w1sig[0], w1sig[1]], color=[225 / 255, 149 / 255, 0])
+print(f'Omega_M = {round(ombest[0], 3)} + {round(max(om1sig)-ombest[0], 3)} - {round(ombest[0]-om1sig[0], 3)}')
+print(f'w = {round(wbest[0], 3)} + {round(max(w1sig)-wbest[0], 3)} - {round(wbest[0]-min(w1sig), 3)}')
 plt.show()
-print(oms[np.where(abs(-2*np.log(omlikelihood) - 1.0) < 0.5)])
+
 # plt.savefig("contours.pdf", bbox_inches="tight", transparent=True)
 # plt.close()

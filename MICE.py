@@ -126,13 +126,13 @@ def find_expected(big_cone, r_big, bins, redo=False, plot=False):
         # plt.ylabel('Cumulative Count')
         # plt.show()
 
-        for cone_radius in RADII:
+        for cone_radius in [3.5, 9.0]:
             expected[f"Radius{str(cone_radius)}"] = [expected_big[i] * (cone_radius / r_big / 60.0) ** 2
                                                      for i in range(len(expected_big))]
 
-        pickle_out = open("MICEexpected.pickle", "wb")
-        pickle.dump(expected, pickle_out)
-        pickle_out.close()
+        # pickle_out = open("MICEexpected.pickle", "wb")
+        # pickle.dump(expected, pickle_out)
+        # pickle_out.close()
     else:
         pickle_in = open("MICEexpected.pickle", "rb")
         expected = pickle.load(pickle_in)
@@ -321,7 +321,7 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
             pickle_in = open("random_cones_new.pickle", "rb")
         lens_data = pickle.load(pickle_in)
 
-        for cone_radius in RADII:
+        for cone_radius in [3.5, 9.0]:
             if fis:
                 SN_zs = SN_data[f"Radius{cone_radius}"]["SNZ"]
             else:
@@ -397,33 +397,33 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
             pickle_in = open("MICEkappa_fis.pickle", "rb")
         kappa = pickle.load(pickle_in)
 
-    for cone_radius in [12.0]:
-        if fis:
-            SN_zs = SN_data[f"Radius{cone_radius}"]["SNZ"]
-            SN_kappas = SN_data[f"Radius{cone_radius}"]["SNkappa"]
-        else:
-            SN_zs = SN_data["SNZ"]
-            SN_kappas = SN_data["SNkappa"]
-        bins = np.linspace(0.05, 1.4 - 0.05, 14)
-        # print(bins)
-        mean_kappa = []
-        standard_error = []
-        mean_MICEkappa = []
-        standard_MICEerror = []
-        conv = kappa[f"Radius{str(cone_radius)}"]["SNkappa"]
+        for cone_radius in [12.0]:
+            if fis:
+                SN_zs = SN_data[f"Radius{cone_radius}"]["SNZ"]
+                SN_kappas = SN_data[f"Radius{cone_radius}"]["SNkappa"]
+            else:
+                SN_zs = SN_data["SNZ"]
+                SN_kappas = SN_data["SNkappa"]
+            bins = np.linspace(0.05, 1.4 - 0.05, 14)
+            # print(bins)
+            mean_kappa = []
+            standard_error = []
+            mean_MICEkappa = []
+            standard_MICEerror = []
+            conv = kappa[f"Radius{str(cone_radius)}"]["SNkappa"]
 
-        for b in bins:
-            ks = []
-            MICEks = []
-            for z, k, Mk in zip(SN_zs, conv, SN_kappas):
-                if b - 0.05 < z <= b + 0.05:
-                    ks.append(k)
-                    MICEks.append(Mk)
+            for b in bins:
+                ks = []
+                MICEks = []
+                for z, k, Mk in zip(SN_zs, conv, SN_kappas):
+                    if b - 0.05 < z <= b + 0.05:
+                        ks.append(k)
+                        MICEks.append(Mk)
 
-            mean_kappa.append(np.mean(ks))
-            mean_MICEkappa.append(np.mean(MICEks))
-            standard_error.append(np.std(ks) / np.sqrt(len(ks)))
-            standard_MICEerror.append(np.std(MICEks) / np.sqrt(len(MICEks)))
+                mean_kappa.append(np.mean(ks))
+                mean_MICEkappa.append(np.mean(MICEks))
+                standard_error.append(np.std(ks) / np.sqrt(len(ks)))
+                standard_MICEerror.append(np.std(MICEks) / np.sqrt(len(MICEks)))
 
         if plot_scatter:
             conv = kappa[f"Radius{str(cone_radius)}"]["SNkappa"]
@@ -575,15 +575,15 @@ def plot_Hubble():
     ax.set_xticklabels([])
     ax.tick_params(labelsize=12)
     ax.errorbar(z[::2], mu[::2], mu_err[::2], linestyle='', linewidth=0.8, marker='o',
-                markersize=2, capsize=2, color='C3', zorder=0, alpha=0.4)
-    ax.plot(z[::2], mu[::2], linestyle='', marker='o', markersize=2, color='C3', alpha=0.25, markerfacecolor='C3')
+                markersize=2, capsize=2, color='C3', zorder=0, alpha=0.6, elinewidth=0.7)
+    ax.plot(z[::2], mu[::2], linestyle='', marker='o', markersize=2, color='C3', alpha=0.4, markerfacecolor='C3')
 
     ax.set_ylim([38.5, 46])
     ax.set_xlim([0, 1.5])
     ax.plot(z_array, mu_cosm, linestyle='--', linewidth=0.8, color='C0', zorder=10)
     ax2.errorbar(z[::2], mu_diff[::2], mu_err[::2], linestyle='', linewidth=1, marker='o',
-                 markersize=2, capsize=2, color='C3', zorder=0, alpha=0.4)
-    ax2.plot(z[::2], mu_diff[::2], linestyle='', marker='o', markersize=2, color='C3', alpha=0.25, markerfacecolor='C3')
+                 markersize=2, capsize=2, color='C3', zorder=0, alpha=0.6, elinewidth=0.7)
+    ax2.plot(z[::2], mu_diff[::2], linestyle='', marker='o', markersize=2, color='C3', alpha=0.4, markerfacecolor='C3')
     ax2.plot(z_array, np.zeros(len(z_array)), zorder=10, color='C0', linewidth=0.8, linestyle='--')
     ax2.set_ylim(-1.0, 1.0)
     ax2.set_xlim([0, 1.5])
@@ -624,21 +624,40 @@ def degradation(radii):
 
 def bin_test(alldata, big_cone, big_cone_radius):
     corrs = []
+    kappas = []
     bins = [11, 21, 31, 51, 101, 151]
     for num_bins in bins:
         exp_data = find_expected(big_cone, big_cone_radius, num_bins, redo=True)
         kappa = find_convergence(alldata, exp_data, redo=True, fis=True)
-        correlation = find_correlation(kappa, RADII, fis=True)
-        corrs.append(correlation[0])
+        counts, bin_edges = np.histogram(kappa['Radius3.5']['SNkappa'], bins=np.arange(-0.04, 0.07 + 0.002, 0.002))
+        bin_centres = 0.5 * (bin_edges[1:] + bin_edges[:-1])
+        counts2, bin_edges2 = np.histogram(kappa['Radius9.0']['SNkappa'], bins=np.arange(-0.04, 0.07 + 0.002, 0.002))
+        bin_centres2 = 0.5 * (bin_edges2[1:] + bin_edges2[:-1])
+        kappas.append([[bin_centres, counts], [bin_centres2, counts2]])
+        # correlation = find_correlation(kappa, RADII, fis=True)
+        # corrs.append(correlation[0])
 
     for i, num_bins in enumerate(bins):
-        plt.plot(RADII, corrs[i], label=f"{num_bins-1}")
+        # plt.plot(RADII, corrs[i], label=f"{num_bins-1}")
+        plt.plot(kappas[i][0][0], kappas[i][0][1], label=f"{num_bins-1}")
     plt.legend(frameon=0)
-    plt.xlabel('Radius (arcmin)')
-    plt.xlim([1, 20])
-    plt.ylabel('Correlation Coefficient')
-    plt.gca().invert_yaxis()
+    plt.xlabel('$\kappa$')
+    # plt.xlim([1, 20])
+    plt.ylabel('Count')
+    # plt.gca().invert_yaxis()
     plt.show()
+
+    for i, num_bins in enumerate(bins):
+        # plt.plot(RADII, corrs[i], label=f"{num_bins-1}")
+        plt.plot(kappas[i][1][0], kappas[i][1][1], label=f"{num_bins-1}")
+    plt.legend(frameon=0)
+    plt.xlabel('$\kappa$')
+    # plt.xlim([1, 20])
+    plt.ylabel('Count')
+    # plt.gca().invert_yaxis()
+    plt.show()
+
+    exit()
 
 
 if __name__ == "__main__":
@@ -664,12 +683,12 @@ if __name__ == "__main__":
     big_cone_radius = round(min(max(alldata['RA']) - big_cone_centre[0], big_cone_centre[0] - min(alldata['RA']),
                                 max(alldata['DEC']) - big_cone_centre[1], big_cone_centre[1] - min(alldata['DEC'])), 2)
     big_cone = make_big_cone(alldata, redo=False)
-    bin_test(alldata, big_cone, big_cone_radius)
-    exit()
+    # bin_test(alldata, big_cone, big_cone_radius)
+    # exit()
     exp_data = find_expected(big_cone, big_cone_radius, 111, redo=False, plot=False)
     get_random(alldata, redo=False)
     # plot_cones(alldata, plot_hist=True, cone_radius=6.0)
-    # plot_Hubble()
+    plot_Hubble()
 
     kappa = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=use_weighted)
     use_weighted = not use_weighted
