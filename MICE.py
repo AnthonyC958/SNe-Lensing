@@ -321,7 +321,7 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
             pickle_in = open("random_cones_new.pickle", "rb")
         lens_data = pickle.load(pickle_in)
 
-        for cone_radius in [3.5, 9.0]:
+        for cone_radius in RADII:
             if fis:
                 SN_zs = SN_data[f"Radius{cone_radius}"]["SNZ"]
             else:

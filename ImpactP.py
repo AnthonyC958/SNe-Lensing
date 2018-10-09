@@ -141,7 +141,7 @@ def find_expected_weights(cut_data, bins, redo=False, plot=False):
                 for num2, (key, item) in enumerate(lens.items()):
                     # IPs[key] = np.zeros(51 - 2)
                     thetas = (((item['RAs'] - item["SNRA"]) ** 2 + (
-                            item['DECs'] - item["SNDEC"]) ** 2) ** 0.5 * np.pi / 180)
+                               item['DECs'] - item["SNDEC"]) ** 2) ** 0.5 * np.pi / 180)
                     Dparas = thetas * np.interp(item['Zs'], fine_z, Dpara_fine) * 1000.0 / (1 + np.array(item['Zs']))
                     all_IPs = 1 / Dparas
                     cumul_tot[num1][num2] = np.sum(all_IPs[item['Zs'] < lim])
@@ -177,13 +177,6 @@ def find_expected_weights(cut_data, bins, redo=False, plot=False):
 
     return [limits, expected, chi_bin_widths, chi_bins, z_bins]
 
-# with open(f"random_cones_new.pickle", "rb") as pickle_in:
-#     lenses = pickle.load(pickle_in)
-with open("MICE_SN_data.pickle", "rb") as pickle_in:
-    SN_data = pickle.load(pickle_in)
-print(SN_data.keys())
-# SN_data_fis = {}
-
 # for key, item in lenses.items():
 #     print(key)
 #     FIS_indices = np.where(item["WEIGHT"] == 1.0)
@@ -216,7 +209,7 @@ Dpara_fine = Convergence.comoving(fine_z)
 data, _ = cones.get_data(new_data=False)
 lenses = cones.sort_SN_gals(data, redo=False, weighted=True)
 exp = cones.find_expected_counts(_, 51)
-exp_data = find_expected_weights(data, 51, redo=False)
+exp_data = find_expected_weights(data, 51, redo=False, plot=False)
 
 # average_counts = find_avg_counts(data, exp)
 with open(f"avgs_per_bin.pickle", "rb") as pickle_in:
@@ -288,10 +281,13 @@ else:
     pickle_in = open("lenses_IP3.pickle", "rb")
     lenses_IP = pickle.load(pickle_in)
 
-kappa_impact = cones.find_convergence(lenses_IP, exp_data, redo=False, plot_scatter=False, impact=True)
+kappa_impact = cones.find_convergence(lenses_IP, exp_data, redo=False, plot_scatter=True, impact=True)
 conv_total_impact = []
 for cone_radius in RADII:
     conv_total_impact.append(kappa_impact[f"Radius{str(cone_radius)}"]["Total"])
 plt.plot(RADII, conv_total_impact, marker='o', markersize=2, color=colours[3])
+plt.plot(RADII, np.zeros(len(RADII)), color=[0.75, 0.75, 0.75], linestyle='--')
+plt.xlabel("Cone Radius (arcmin)")
+plt.ylabel("Total $\kappa$")
 plt.show()
 impact = cones.find_correlation(kappa_impact, lenses_IP, plot_radii=True, impact=True)

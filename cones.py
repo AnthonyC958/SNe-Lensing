@@ -502,7 +502,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
             pickle_in = open("kappa.pickle", "rb")
         kappa = pickle.load(pickle_in)
 
-    for cone_radius in [1.0, 3.0, 4.0, 8.0, 12.0, 15.0, 18.0, 21.0, 25.0, 30.0]:
+    for cone_radius in [12.0, 15.0, 18.0, 21.0, 25.0, 30.0]:
         SNe_data_radius = find_mu_diff(lens_data, cone_radius=cone_radius, impact=impact)
         # lenses = lens_data[f"Radius{str(cone_radius)}"]
         bins = np.linspace(0.025, max_z - 0.025, 12)
@@ -552,7 +552,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
             ax.plot([0, max_z], [0, 0], color=grey, linestyle='--')
             ax.axis([0, max_z, -0.01, 0.01])
             ax2.axis([0, 180, -0.01, 0.01])
-            # ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
+            ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
             ax.set_xticklabels([0, 0.2, 0.4, 0])
             ax.plot(SNe_data_radius['z'], conv, linestyle='', marker='o', markersize=2, color=colours[0])
             ax2.hist(conv, bins=np.arange(-0.015, 0.02 + 0.001, 0.001), orientation='horizontal',
