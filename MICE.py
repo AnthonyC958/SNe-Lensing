@@ -293,7 +293,8 @@ def plot_cones(data, plot_hist=False, cone_radius=12.0):
         plt.show()
 
 
-def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_total=False, weighted=False, fis=False):
+def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_total=False, weighted=False, fis=False,
+                     impact=False):
     """Finds the convergence along each line of sight to a SN for a variety of cone_widths.
 
     Inputs:
@@ -305,13 +306,17 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
      plot_total -- boolean that determines whether total convergence per cone radius is plotted. Default false.
     """
     all_zs = gal_data['z']
+    all_RAs = gal_data['RA']
+    all_DECs = gal_data['DEC']
     limits = exp_data[0]
     chi_widths = exp_data[2]
     chi_bis = exp_data[3]
     z_bins = exp_data[4]
+    fine_z = np.linspace(0, 1.5, 1001)
+    Dpara_fine = Convergence.comoving(fine_z)
     if redo:
         kappa = {}
-        if fis:
+        if fis or impact:
             pickle_in = open("MICE_SN_data_fis.pickle", "rb")
             SN_data = pickle.load(pickle_in)
             pickle_in = open("random_cones_new_fis.pickle", "rb")
@@ -327,6 +332,8 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
             else:
                 SN_zs = SN_data["SNZ"]
             cone_zs = {}
+            cone_RAs = {}
+            cone_DECs = {}
             if weighted:
                 SN_weights = lens_data[f"Radius{cone_radius}"]["WEIGHT"]
             # Go through all SNe
@@ -338,7 +345,14 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
                         cone_indices = np.append(cone_indices, lens_data[f"Radius{r}"][key])
                     # Get redshifts of all galaxies in each SN cone
                     cone_zs[key] = all_zs[cone_indices]
-            expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]
+                    cone_RAs[key] = all_RAs[cone_indices]
+                    cone_DECs[key] = all_DECs[cone_indices]
+            if impact:
+                pickle_in = open("MICElenses_IP.pickle", "rb")
+                expected_data = pickle.load(pickle_in)
+                expected_counts = expected_data[f"Radius{cone_radius}"]
+            else:
+                expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]
             kappa[f"Radius{str(cone_radius)}"] = {"SNkappa": [], "Total": 0, "SNallkappas": {}}
             d_arr = {}
             counts = {}
@@ -349,6 +363,17 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
                     tmp = [np.logical_and(limits[num2] < zs, zs <= limits[num2 + 1])]
                     if weighted:
                         counts[key][num2] = np.count_nonzero(tmp) / SN_weights[num]
+                    elif impact:
+                        thetas = (((cone_RAs[key] - SN_data[f"Radius{cone_radius}"]["SNRA"][num]) ** 2 +
+                                  (cone_DECs[key] - SN_data[f"Radius{cone_radius}"]["SNDEC"][num]) ** 2) ** 0.5 *
+                                 np.pi / 180)
+                        Dparas = np.interp(cone_zs[key], fine_z, Dpara_fine) * 1000.0
+                        IPs = thetas * Dparas / (1 + cone_zs[key])
+                        if len(IPs) == 0:
+                            counts[key][num2] = 0.0
+                        else:
+                            # print(cone_radius, key, num2, sum(IPs))
+                            counts[key][num2] = sum(IPs)
                     else:
                         counts[key][num2] = np.count_nonzero(tmp)
 
@@ -374,21 +399,25 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
 
             kappa[f"Radius{str(cone_radius)}"]["Total"] = np.sum(kappa[f"Radius{str(cone_radius)}"]["SNkappa"])
             print(f"Finished radius {str(cone_radius)}'")
-        # if not fis:
-        #     if weighted:
-        #         pickle_out = open("MICEkappa_weighted.pickle", "wb")
-        #     else:
-        #         pickle_out = open("MICEkappa.pickle", "wb")
-        # else:
-        #     pickle_out = open("MICEkappa_fis.pickle", "wb")
-        # pickle.dump(kappa, pickle_out)
-        # pickle_out.close()
+        if not fis:
+            if weighted:
+                pickle_out = open("MICEkappa_weighted.pickle", "wb")
+            elif impact:
+                pickle_out = open("MICEkappa_impact.pickle", "wb")
+            else:
+                pickle_out = open("MICEkappa.pickle", "wb")
+        else:
+            pickle_out = open("MICEkappa_fis.pickle", "wb")
+        pickle.dump(kappa, pickle_out)
+        pickle_out.close()
     else:
         if not fis:
             pickle_in = open("MICE_SN_data.pickle", "rb")
             SN_data = pickle.load(pickle_in)
             if weighted:
                 pickle_in = open("MICEkappa_weighted.pickle", "rb")
+            elif impact:
+                pickle_in = open("MICEkappa_impact.pickle", "wb")
             else:
                 pickle_in = open("MICEkappa.pickle", "rb")
         else:

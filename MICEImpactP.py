@@ -17,7 +17,8 @@ RADII = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,
          15.0, 15.5, 16.0, 16.5, 17.0, 17.5, 18.0,
          18.5, 19.0, 19.5, 20.0, 21.0, 22.0, 23.0,
          24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0]
-colours = [[0, 150/255, 100/255], [225/255, 149/255, 0], [207/255, 0, 48/255], [30/255, 10/255, 171/255],
+colours = [[0, 150 / 255, 100 / 255], [225 / 255, 149 / 255, 0], [207 / 255, 0, 48 / 255],
+           [30 / 255, 10 / 255, 171 / 255],
            'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
 
 
@@ -77,7 +78,7 @@ def find_expected_weights(data, bins, redo=False, plot=False):
     if plot:
         for cone_radius in RADII:
             plt.plot([0, 0.6], [0, 0], color=[0.75, 0.75, 0.75], linestyle='--')
-            plt.plot((limits[1:]+limits[:-1])/2.0, expected[f"Radius{str(cone_radius)}"], marker='o',
+            plt.plot((limits[1:] + limits[:-1]) / 2.0, expected[f"Radius{str(cone_radius)}"], marker='o',
                      markersize=2.5, color=colours[0])
             plt.xlabel('$z$')
             plt.ylabel('Expected Count')
@@ -93,7 +94,7 @@ data = MICE.get_data()
 all_zs = data['z']
 all_RAs = data['RA']
 all_DECs = data['DEC']
-exp_data = find_expected_weights(data, 51, redo=True)
+exp_data = find_expected_weights(data, 51, redo=False)
 pickle_in = open("random_cones_new_fis.pickle", "rb")
 lenses = pickle.load(pickle_in)
 pickle_in = open("MICE_SN_data_fis.pickle", "rb")
@@ -122,13 +123,14 @@ if redo_IP:
         lenses_IP[f'Radius{radius}'] = {}
         average_per_bin = []
         for num, (key, _) in enumerate(cone_zs.items()):
-            lenses_IP[f'Radius{radius}'][key]["IPWEIGHT"] = []
+            lenses_IP[f'Radius{radius}'][key] = []
             for z, ra, dec in zip(cone_zs[key], cone_RAs[key], cone_DECs[key]):
-                theta = (((ra - SN_data["Radius"]["SNRA"])**2 + (dec - SN_data["Radius"]["SNDEC"])**2)**0.5*np.pi/180)
+                theta = (((ra - SN_data[f"Radius{radius}"]["SNRA"][num]) ** 2 + (dec -
+                                                                                 SN_data[f"Radius{radius}"]["SNDEC"][
+                                                                                     num]) ** 2) ** 0.5 * np.pi / 180)
                 Dpara = np.interp(z, fine_z, Dpara_fine) * 1000.0
                 Dperp = theta * Dpara / (1 + z)
-                lenses_IP[f'Radius{radius}'][key]['IPWEIGHT'].append(1.0 / Dperp)
-        print(len(lenses_IP[f'Radius{radius}']))
+                lenses_IP[f'Radius{radius}'][key].append(1.0 / Dperp)
 
     pickle_out = open(f"MICElenses_IP.pickle", "wb")
     pickle.dump(lenses_IP, pickle_out)

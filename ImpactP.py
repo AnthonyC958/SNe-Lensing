@@ -281,7 +281,7 @@ else:
     pickle_in = open("lenses_IP3.pickle", "rb")
     lenses_IP = pickle.load(pickle_in)
 
-kappa_impact = cones.find_convergence(lenses_IP, exp_data, redo=False, plot_scatter=True, impact=True)
+kappa_impact = cones.find_convergence(lenses_IP, exp_data, redo=False, plot_scatter=False, impact=True)
 conv_total_impact = []
 for cone_radius in RADII:
     conv_total_impact.append(kappa_impact[f"Radius{str(cone_radius)}"]["Total"])
