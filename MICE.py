@@ -327,7 +327,7 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
         lens_data = pickle.load(pickle_in)
 
         for cone_radius in RADII:
-            if fis:
+            if fis or impact:
                 SN_zs = SN_data[f"Radius{cone_radius}"]["SNZ"]
             else:
                 SN_zs = SN_data["SNZ"]
@@ -348,7 +348,7 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
                     cone_RAs[key] = all_RAs[cone_indices]
                     cone_DECs[key] = all_DECs[cone_indices]
             if impact:
-                pickle_in = open("MICElenses_IP.pickle", "rb")
+                pickle_in = open("MICEexpected_IPs.pickle", "rb")
                 expected_data = pickle.load(pickle_in)
                 expected_counts = expected_data[f"Radius{cone_radius}"]
             else:
@@ -367,8 +367,11 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
                         thetas = (((cone_RAs[key] - SN_data[f"Radius{cone_radius}"]["SNRA"][num]) ** 2 +
                                   (cone_DECs[key] - SN_data[f"Radius{cone_radius}"]["SNDEC"][num]) ** 2) ** 0.5 *
                                  np.pi / 180)
-                        Dparas = np.interp(cone_zs[key], fine_z, Dpara_fine) * 1000.0
-                        IPs = thetas * Dparas / (1 + cone_zs[key])
+                        if len(thetas >= 0):
+                            Dperps = thetas[np.array(thetas) != 0] * np.interp(cone_zs[key][np.array(thetas) != 0],
+                                                                               fine_z, Dpara_fine) * 1000.0 / (
+                                             1 + np.array(cone_zs[key][np.array(thetas) != 0]))
+                            IPs = 1 / Dperps
                         if len(IPs) == 0:
                             counts[key][num2] = 0.0
                         else:
@@ -497,7 +500,8 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
     return kappa
 
 
-def find_correlation(convergence_data, radii, plot_correlation=False, plot_radii=False, fis=False, mu_diff=None):
+def find_correlation(convergence_data, radii, plot_correlation=False, plot_radii=False, fis=False, mu_diff=None,
+                     impact=False):
     """Finds the value of the slope for plotting residuals against convergence. Magnitude of slope and error
     quantify correlation between the two.
 
@@ -508,7 +512,7 @@ def find_correlation(convergence_data, radii, plot_correlation=False, plot_radii
     correlations = []
     correlation_errs = []
     for cone_radius in radii:
-        if fis:
+        if fis or impact:
             pickle_in = open("MICE_SN_data_fis.pickle", "rb")
             SN_data = pickle.load(pickle_in)
             mu_diff = SN_data[f"Radius{str(cone_radius)}"]["mu_diff"]
@@ -692,21 +696,21 @@ def bin_test(alldata, big_cone, big_cone_radius):
 if __name__ == "__main__":
     use_weighted = False
     alldata = get_data()
-    fig = plt.figure()
-    ax = fig.add_subplot(111, polar=True)
-    c = ax.plot(np.deg2rad(np.array(alldata['RA'])[np.logical_and(np.array(alldata['z']) < 0.2, np.array(alldata['DEC']) > 0)]),
-                np.array(alldata['z'])[np.logical_and(np.array(alldata['z']) < 0.2, np.array(alldata['DEC']) > 0)],
-                color=colours[0], marker='.', markersize=2, linestyle='', alpha=0.3)
-    ax.set_thetamin(0)
-    ax.set_thetamax(18)
-    ax.set_rlim(0, 0.2)
-    label_position = ax.get_rlabel_position()
-    ax.text(np.radians(label_position) - 0.6, ax.get_rmax() / 1.7, '$z$', ha='center', va='center', fontsize=38)
-    ax.text(np.radians(label_position) - 0.23, ax.get_rmax() / 0.94, '$\\alpha$', ha='center', va='center', fontsize=38)
-    ax.set_rticks([0.0, 0.05, 0.1, 0.15, 0.2])
-    ax.set_thetagrids([0.0, 6.0, 12.0, 18.0])
-    ax.set_theta_offset(81*np.pi/180)
-    plt.show()
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, polar=True)
+    # c = ax.plot(np.deg2rad(np.array(alldata['RA'])[np.logical_and(np.array(alldata['z']) < 0.2, np.array(alldata['DEC']) > 0)]),
+    #             np.array(alldata['z'])[np.logical_and(np.array(alldata['z']) < 0.2, np.array(alldata['DEC']) > 0)],
+    #             color=colours[0], marker='.', markersize=2, linestyle='', alpha=0.3)
+    # ax.set_thetamin(0)
+    # ax.set_thetamax(18)
+    # ax.set_rlim(0, 0.2)
+    # label_position = ax.get_rlabel_position()
+    # ax.text(np.radians(label_position) - 0.6, ax.get_rmax() / 1.7, '$z$', ha='center', va='center', fontsize=38)
+    # ax.text(np.radians(label_position) - 0.23, ax.get_rmax() / 0.94, '$\\alpha$', ha='center', va='center', fontsize=38)
+    # ax.set_rticks([0.0, 0.05, 0.1, 0.15, 0.2])
+    # ax.set_thetagrids([0.0, 6.0, 12.0, 18.0])
+    # ax.set_theta_offset(81*np.pi/180)
+    # plt.show()
 
     big_cone_centre = [(min(alldata['RA']) + max(alldata['RA'])) / 2, (min(alldata['DEC']) + max(alldata['DEC'])) / 2]
     big_cone_radius = round(min(max(alldata['RA']) - big_cone_centre[0], big_cone_centre[0] - min(alldata['RA']),
@@ -717,7 +721,7 @@ if __name__ == "__main__":
     exp_data = find_expected(big_cone, big_cone_radius, 111, redo=False, plot=False)
     get_random(alldata, redo=False)
     # plot_cones(alldata, plot_hist=True, cone_radius=6.0)
-    plot_Hubble()
+    # plot_Hubble()
 
     kappa = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=use_weighted)
     use_weighted = not use_weighted
@@ -811,23 +815,25 @@ if __name__ == "__main__":
     # ax2.set_ylim([0.535, 0.62])
     plt.show()
 
-    conv_total = []
-    conv_total_weighted = []
-    conv_total_fis = []
-    conv_total_MICE = sum(SN_kappa)
-    for cone_radius in RADII:
-        conv_total.append(kappa[f"Radius{str(cone_radius)}"]["Total"])
-        conv_total_weighted.append(kappa_weighted[f"Radius{str(cone_radius)}"]["Total"])
-        conv_total_fis.append(kappa_fis[f"Radius{str(cone_radius)}"]["Total"])
-    plt.ylabel("Total Convergence")
-    plt.xlabel("Cone Radius (arcmin)")
-    plt.tick_params(labelsize=12)
-    plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
-    plt.xlim([0, 30])
-    plt.plot(RADII, conv_total, marker='o', markersize=2, color=colours[0], label='Unweighted')
-    plt.plot(RADII, conv_total_weighted, marker='o', markersize=2, color=colours[1], label='Weighted')
-    plt.plot(RADII, conv_total_fis, marker='o', markersize=2, color=colours[2], label='Fully in sample')
-    plt.plot(RADII, [conv_total_MICE for i in range(84)], marker='o', markersize=2, color=colours[3], label='MICECAT')
-    plt.legend(frameon=0)
-    plt.show()
+    # conv_total = []
+    # conv_total_weighted = []
+    # conv_total_fis = []
+    # conv_total_MICE = sum(SN_kappa)
+    # for cone_radius in RADII:
+    #     conv_total.append(kappa[f"Radius{str(cone_radius)}"]["Total"])
+    #     conv_total_weighted.append(kappa_weighted[f"Radius{str(cone_radius)}"]["Total"])
+    #     conv_total_fis.append(kappa_fis[f"Radius{str(cone_radius)}"]["Total"])
+    # plt.ylabel("Total Convergence")
+    # plt.xlabel("Cone Radius (arcmin)")
+    # plt.tick_params(labelsize=12)
+    # plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
+    # plt.xlim([0, 30])
+    # plt.plot(RADII, conv_total, marker='o', markersize=2, color=colours[0], label='Unweighted')
+    # plt.plot(RADII, conv_total_weighted, marker='o', markersize=2, color=colours[1], label='Weighted')
+    # plt.plot(RADII, conv_total_fis, marker='o', markersize=2, color=colours[2], label='Fully in sample')
+    # plt.plot(RADII, [conv_total_MICE for i in range(84)], marker='o', markersize=2, color=colours[3], label='MICECAT')
+    # plt.legend(frameon=0)
+    # plt.show()
 
+    kappa_impact = find_convergence(alldata, exp_data, redo=True, plot_total=False, plot_scatter=False, impact=True)
+    fully_in_sample = find_correlation(kappa_impact, RADII, plot_correlation=False, plot_radii=True, impact=True)

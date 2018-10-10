@@ -61,11 +61,15 @@ def find_expected_weights(data, bins, redo=False, plot=False):
                     thetas = (((cone_RAs[key2] - SN_data[f"Radius{cone_radius}"]["SNRA"][num2]) ** 2 +
                                (cone_DECs[key2] - SN_data[f"Radius{cone_radius}"]["SNDEC"][num2]) **
                                2) ** 0.5 * np.pi / 180)
-                    Dparas = thetas * np.interp(cone_zs[key2], fine_z, Dpara_fine) * 1000.0 / (
-                            1 + np.array(cone_zs[key2]))
-                    all_IPs = 1 / Dparas
-                    cumul_tot[num1][num2] = np.sum(all_IPs[cone_zs[key2] < lim])
+                    if len(thetas >= 0):
+                        Dperps = thetas[np.array(thetas)!=0] * np.interp(cone_zs[key2][np.array(thetas)!=0], fine_z, Dpara_fine) * 1000.0 / (
+                                1 + np.array(cone_zs[key2][np.array(thetas)!=0]))
+                        all_IPs = 1 / Dperps
+                        cumul_tot[num1][num2] = np.sum(all_IPs[cone_zs[key2][np.array(thetas)!=0] < lim])
+                        # print(np.sum([]))
             expected[f"Radius{str(cone_radius)}"] = np.diff(np.mean(cumul_tot, 1))
+            # print(np.mean(cumul_tot, 1))
+            # print(expected[f"Radius{str(cone_radius)}"])
 
             print(f"Finished radius {str(cone_radius)}'")
         pickle_out = open("MICEexpected_IPs.pickle", "wb")
@@ -94,7 +98,8 @@ data = MICE.get_data()
 all_zs = data['z']
 all_RAs = data['RA']
 all_DECs = data['DEC']
-exp_data = find_expected_weights(data, 51, redo=False)
+exp_data = find_expected_weights(data, 111, redo=True)
+exit()
 pickle_in = open("random_cones_new_fis.pickle", "rb")
 lenses = pickle.load(pickle_in)
 pickle_in = open("MICE_SN_data_fis.pickle", "rb")
