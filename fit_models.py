@@ -58,31 +58,30 @@ def dist_mod(zs, om, ol):
 
 
 # ---------- Uncomment to load SDSS data  -------------------------------------
-S_CID = []
-with open('Smithdata.csv', 'r') as f:
-    CSV = csv.reader(f, delimiter=',')
-    for line in CSV:
-        S_CID.append(int(float(line[0].strip())))
-
-with fits.open('boss_206+SDSS_213_all_cuts_new_mu_dmu1_new.fits')as hdul1:
-    zz = np.array([hdul1[1].data['Z_BOSS'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
-                   hdul1[1].data['CID'][i] in S_CID])
-    mu = np.array([hdul1[1].data['MU'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
-                   hdul1[1].data['CID'][i] in S_CID])
-    mu_error = np.array([hdul1[1].data['DMU1'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
-                         hdul1[1].data['CID'][i] in S_CID])
+# S_CID = []
+# with open('Smithdata.csv', 'r') as f:
+#     CSV = csv.reader(f, delimiter=',')
+#     for line in CSV:
+#         S_CID.append(int(float(line[0].strip())))
+#
+# with fits.open('boss_206+SDSS_213_all_cuts_new_mu_dmu1_new.fits')as hdul1:
+#     zz = np.array([hdul1[1].data['Z_BOSS'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
+#                    hdul1[1].data['CID'][i] in S_CID])
+#     mu = np.array([hdul1[1].data['MU'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
+#                    hdul1[1].data['CID'][i] in S_CID])
+#     mu_error = np.array([hdul1[1].data['DMU1'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
+#                          hdul1[1].data['CID'][i] in S_CID])
 
 # ---------- Uncomment to load MICECAT data  -------------------------------------
-# with open("MICE_SN_data_optimistic.pickle", "rb") as pickle_in:
-#     SN_data = pickle.load(pickle_in)
-# zz = SN_data['SNZ']
-# mu = SN_data['SNMU']
-#
-# mu_error = SN_data['SNMU_ERR']
+with open("MICE_SN_data.pickle", "rb") as pickle_in:
+    SN_data = pickle.load(pickle_in)
+zz = SN_data['SNZ']
+mu = SN_data['SNMU']
+mu_error = SN_data['SNMU_ERR']
 mu_error2 = mu_error ** 2  # squared for ease of use later
-pickle_in = open("kappa_weighted.pickle", "rb")
+pickle_in = open("MICEkappa_weighted.pickle", "rb")
 kappa_weighted = pickle.load(pickle_in)
-kappa_est = kappa_weighted["Radius12.75"]["SNkappa"]
+kappa_est = kappa_weighted["Radius6.25"]["SNkappa"]
 # kappa_est = SN_data["SNkappa"]
 # mu = mu + (5.0 / np.log(10) * np.array(kappa_est))
 # plt.errorbar(zz, mu, mu_error, marker='.', linestyle='')
@@ -110,7 +109,7 @@ mscr = np.linspace(mscr_guess - 0.5, mscr_guess + 0.5, n_marg)  # Array of mscr 
 mscr_used = np.zeros((n, n))  # Array to hold the best fit mscr value for each om, ol combination
 z_small = np.linspace(0, max(zz), 100)
 # ---------- Do the fit ---------------------------
-saved_output_filename = "saved_grid_%d_corr.txt" % n
+saved_output_filename = "saved_grid_%d_MICE.txt" % n
 
 if os.path.exists(saved_output_filename):  # Load the last run with n grid if we can find it
     print("Loading saved data. Delete %s if you want to regenerate the points\n" % saved_output_filename)
@@ -123,8 +122,8 @@ else:
             # mu_model_norm = np.array(np.repeat(mu_model, len(mscr)), dtype=object)
             for k, m in enumerate(mscr):
                 mu_model_norm = mu_model + m
-                chi2_test = np.sum((mu_model_norm - mu) ** 2 / mu_error2) + ((om - 0.29) / 0.03) ** 2 + (
-                        (ol - 0.71) / 0.03) ** 2
+                chi2_test = np.sum((mu_model_norm - mu) ** 2 / mu_error2) + ((om - 0.25) / 0.03) ** 2 + (
+                        (ol - 0.75) / 0.03) ** 2
                 if chi2_test < chi2[i, j]:
                     chi2[i, j] = chi2_test
                     mscr_used[i, j] = k
@@ -170,7 +169,7 @@ ax3.set_ylim([0.6, 0.8])
 ax3.set_xlim([0, 33])
 olbest = ols[np.where(ollikelihood == np.max(ollikelihood))]
 ombest = oms[np.where(omlikelihood == np.max(omlikelihood))]
-om1sig = oms[np.where(abs(-2 * np.log(omlikelihood) - np.amin(-2 * np.log(omlikelihood)) - 1.0) < 0.035)]
+om1sig = oms[np.where(abs(-2 * np.log(omlikelihood) - np.amin(-2 * np.log(omlikelihood)) - 1.0) < 0.060)]
 ol1sig = ols[np.where(abs(-2 * np.log(ollikelihood) - np.amin(-2 * np.log(ollikelihood)) - 1.0) < 0.035)]
 print(om1sig, ol1sig)
 ax1.plot(ombest, olbest, 'x', color=[225 / 255, 149 / 255, 0])

@@ -67,34 +67,35 @@ def load_m0dif(m0dif_file):
 
 
 # ---------- Uncomment to load SDSS data  -------------------------------------
-S_CID = []
-with open('Smithdata.csv', 'r') as f:
-    CSV = csv.reader(f, delimiter=',')
-    for line in CSV:
-        S_CID.append(int(float(line[0].strip())))
-
-with fits.open('boss_206+SDSS_213_all_cuts_new_mu_dmu1_new.fits')as hdul1:
-    zz = np.array([hdul1[1].data['Z_BOSS'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
-                   hdul1[1].data['CID'][i] in S_CID])
-    mu = np.array([hdul1[1].data['MU'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
-                   hdul1[1].data['CID'][i] in S_CID])
-    mu_error = np.array([hdul1[1].data['DMU1'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
-                         hdul1[1].data['CID'][i] in S_CID])
+# S_CID = []
+# with open('Smithdata.csv', 'r') as f:
+#     CSV = csv.reader(f, delimiter=',')
+#     for line in CSV:
+#         S_CID.append(int(float(line[0].strip())))
+#
+# with fits.open('boss_206+SDSS_213_all_cuts_new_mu_dmu1_new.fits')as hdul1:
+#     zz = np.array([hdul1[1].data['Z_BOSS'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
+#                    hdul1[1].data['CID'][i] in S_CID])
+#     mu = np.array([hdul1[1].data['MU'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
+#                    hdul1[1].data['CID'][i] in S_CID])
+#     mu_error = np.array([hdul1[1].data['DMU1'][i] for i in np.arange(len(hdul1[1].data['RA'])) if
+#                          hdul1[1].data['CID'][i] in S_CID])
 
 # ---------- Uncomment to load MICECAT data  -------------------------------------
-# with open("MICE_SN_data.pickle", "rb") as pickle_in:
-#     SN_data = pickle.load(pickle_in)
-# zz = SN_data['SNZ']
-# mu = SN_data['SNMU']
-# mu_error = SN_data['SNMU_ERR']
-# print(len(zz))
-pickle_in = open("kappa_weighted.pickle", "rb")
+with open("MICE_SN_data.pickle", "rb") as pickle_in:
+    SN_data = pickle.load(pickle_in)
+zz = SN_data['SNZ']
+mu = SN_data['SNMU']
+mu_error = SN_data['SNMU_ERR']
+print(len(zz))
+pickle_in = open("MICEkappa_weighted.pickle", "rb")
 kappa_weighted = pickle.load(pickle_in)
-kappa_est = kappa_weighted["Radius12.75"]["SNkappa"]
+# kappa_est = SN_data["SNkappa"]
+kappa_est = kappa_weighted["Radius6.25"]["SNkappa"]
 # mu = mu + (5.0 / np.log(10) * np.array(kappa_est))
-ombest = 0.294
-olbest = 0.701
-wbest  = -0.95
+ombest = 0.232
+olbest = 0.760
+wbest  = -1.0
 best = (ombest, olbest, wbest)
 test1 = (0.29, 0.71, -0.96)
 test2 = (0.25, 0.75, -0.85)
@@ -129,7 +130,7 @@ font = {'family': ' serif',
 matplotlib.rc('font', **font)
 from matplotlib import rcParams, rc
 
-rcParams['mathtext.fontset'] = 'dejavuserif'
+rcParams['mathtext.fontset'] = 'stix'
 
 fig, axs = plt.subplots(2, 1, sharex=True, figsize=(12, 7), gridspec_kw={'height_ratios': [1, 1]})
 # Remove horizontal space between axes
@@ -160,16 +161,16 @@ axs[0].errorbar(zz[subset], mu[subset], yerr=mu_error[subset], fmt='.',
 #     alpha=alphas,capsize=capsize,color=colours,label='binned',zorder=7)
 axs[0].legend(loc='upper left', frameon=False, fontsize=18)
 axs[0].set_ylabel('$\mu$')
-axs[0].set_ylim(33,45)
-# axs[0].set_ylim(36, 46)
+# axs[0].set_ylim(33,45) #SDSS only
+axs[0].set_ylim(36, 46)
 
 fonts = 16
 space = 0.15
 start = 1.5
 # plt.text(1.25, start, '($\Omega_M$, $\Omega_\Lambda$, $w$)', family='serif', color='black', rotation=0, fontsize=fonts,
 #          ha='right')
-plt.text(0.4, start - space, f'$\Omega_M$ = {best[0]}$\pm$0.028', color='k', rotation=0, fontsize=fonts, ha='left')
-plt.text(0.4, start - space * 2.3, '$\Omega_\Lambda$ = 'f'{best[1]}''$^{+0.029}_{-0.028}$', color='k', rotation=0, fontsize=fonts, ha='left')
+plt.text(1.05, start - space, f'$\Omega_M$ = {best[0]}''$^{+0.015}_{-0.016}$', color='k', rotation=0, fontsize=fonts, ha='left')
+plt.text(1.05, start - space * 2.3, '$\Omega_\Lambda$ = 'f'{best[1]}''$^{+0.028}_{-0.029}$', color='k', rotation=0, fontsize=fonts, ha='left')
 # plt.text(1.25, start - space * 3, f'{test1}', color=linecolours[2], rotation=0, fontsize=fonts, ha='right')
 # plt.text(0.55,start-space*4,f'{test3}', color=linecolours[3],rotation=0,fontsize=fonts,ha='right') #SDSS only
 
@@ -187,8 +188,8 @@ axs[1].errorbar(zz[subset], mu[subset] - mu_model_dataz[subset], yerr=mu_error[s
 # axs[1].set_xticks([0.01,0.1,1.0])
 axs[1].xaxis.set_major_formatter(ScalarFormatter())
 axs[1].ticklabel_format(style='plain')
-axs[1].set_xlim(0.009,0.6) #SDSS only
-# axs[1].set_xlim(0.009, 1.45)
+# axs[1].set_xlim(0.009,0.6) #SDSS only
+axs[1].set_xlim(0.009, 1.45)
 axs[1].set_ylim(-0.8, 0.8)
 axs[1].set_xlabel('$z$')
 axs[1].set_ylabel('$\Delta\mu$')
