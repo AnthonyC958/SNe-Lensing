@@ -38,7 +38,7 @@ def find_expected_weights(data, bins, redo=False, plot=False):
     lens_data = pickle.load(pickle_in)
 
     if redo:
-        for cone_radius in RADII:
+        for cone_radius in RADII[25:]:
             cone_zs = {}
             cone_RAs = {}
             cone_DECs = {}
@@ -57,7 +57,7 @@ def find_expected_weights(data, bins, redo=False, plot=False):
             cumul_tot = np.zeros((len(limits), len(lens_data[f"Radius{cone_radius}"])))
             for num1, lim in enumerate(limits):
                 for num2, (key2, cone) in enumerate(cone_zs.items()):
-                    # print(SN_num+1)
+                    # print(key2)
                     thetas = (((cone_RAs[key2] - SN_data[f"Radius{cone_radius}"]["SNRA"][num2]) ** 2 +
                                (cone_DECs[key2] - SN_data[f"Radius{cone_radius}"]["SNDEC"][num2]) **
                                2) ** 0.5 * np.pi / 180)
@@ -67,16 +67,19 @@ def find_expected_weights(data, bins, redo=False, plot=False):
                         all_IPs = 1 / Dperps
                         cumul_tot[num1][num2] = np.sum(all_IPs[cone_zs[key2][np.array(thetas)!=0] < lim])
                         # print(np.sum([]))
-            expected[f"Radius{str(cone_radius)}"] = np.diff(np.mean(cumul_tot, 1))
-            # print(np.mean(cumul_tot, 1))
+            expected[f"Radius{str(cone_radius)}"] = np.diff(np.sum(cumul_tot, 1)/np.count_nonzero(cumul_tot, 1))
+            for num1, _ in enumerate(limits):
+                print(num1, *[round(cumul_tot[num1][i], 2) for i in range(len(cumul_tot[num1])) if cumul_tot[num1][i]!=0], sep=', ')
+            print(*[np.sum(cumul_tot, 1)/np.count_nonzero(cumul_tot, 1)], sep=', ')
+            # print(cumul_tot[-3:])
             # print(expected[f"Radius{str(cone_radius)}"])
 
             print(f"Finished radius {str(cone_radius)}'")
-        pickle_out = open("MICEexpected_IPs.pickle", "wb")
+        pickle_out = open("MICEexpected_IPs_mean.pickle", "wb")
         pickle.dump(expected, pickle_out)
         pickle_out.close()
     else:
-        pickle_in = open("MICEexpected_IPs.pickle", "rb")
+        pickle_in = open("MICEexpected_IPs_mean.pickle", "rb")
         expected = pickle.load(pickle_in)
 
     if plot:
@@ -99,6 +102,7 @@ all_zs = data['z']
 all_RAs = data['RA']
 all_DECs = data['DEC']
 exp_data = find_expected_weights(data, 111, redo=True)
+# print(exp_data[1])
 exit()
 pickle_in = open("random_cones_new_fis.pickle", "rb")
 lenses = pickle.load(pickle_in)
@@ -108,7 +112,7 @@ zs = []
 perps = []
 ws = []
 lenses_IP = {}
-redo_IP = True
+redo_IP = False
 if redo_IP:
     for radius in RADII:
         print(radius)
@@ -137,11 +141,11 @@ if redo_IP:
                 Dperp = theta * Dpara / (1 + z)
                 lenses_IP[f'Radius{radius}'][key].append(1.0 / Dperp)
 
-    pickle_out = open(f"MICElenses_IP.pickle", "wb")
+    pickle_out = open(f"MICElenses_IP_mean.pickle", "wb")
     pickle.dump(lenses_IP, pickle_out)
     pickle_out.close()
 else:
-    pickle_in = open("MICElenses_IP.pickle", "rb")
+    pickle_in = open("MICElenses_IP_mean.pickle", "rb")
     lenses_IP = pickle.load(pickle_in)
 
 kappa_impact = cones.find_convergence(lenses_IP, exp_data, redo=False, plot_scatter=True, impact=True)

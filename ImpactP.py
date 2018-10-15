@@ -133,7 +133,7 @@ def find_expected_weights(cut_data, bins, redo=False, plot=False):
             print(f"Finished sorting radius {str(cone_radius)}'")
 
         expected = {}
-        for cone_radius in RADII:
+        for cone_radius in RADII[25:]:
             # IPs = {}
             lens = lens_data[f"Radius{str(cone_radius)}"]
             cumul_tot = np.zeros((len(limits), len(lens)))
@@ -145,7 +145,7 @@ def find_expected_weights(cut_data, bins, redo=False, plot=False):
                     Dparas = thetas * np.interp(item['Zs'], fine_z, Dpara_fine) * 1000.0 / (1 + np.array(item['Zs']))
                     all_IPs = 1 / Dparas
                     cumul_tot[num1][num2] = np.sum(all_IPs[item['Zs'] < lim])
-            expected[f"Radius{str(cone_radius)}"] = np.diff(np.mean(cumul_tot, 1))
+            expected[f"Radius{str(cone_radius)}"] = np.diff([np.mean(cumul_tot[i][cumul_tot[i] != 0]) for i in range(np.size(cumul_tot, 0))])
             # for index, count in enumerate(expected[f"Radius{str(cone_radius)}"]):
             #     if count == 0:
             #         try:
@@ -158,11 +158,11 @@ def find_expected_weights(cut_data, bins, redo=False, plot=False):
             #                                                                    f"Radius{str(cone_radius)}"][index - 1])
 
             print(f"Finished radius {str(cone_radius)}'")
-        pickle_out = open("expected_IPs.pickle", "wb")
+        pickle_out = open("expected_IPs_mean.pickle", "wb")
         pickle.dump(expected, pickle_out)
         pickle_out.close()
     else:
-        pickle_in = open("expected_IPs.pickle", "rb")
+        pickle_in = open("expected_IPs_mean.pickle", "rb")
         expected = pickle.load(pickle_in)
 
     if plot:
@@ -209,7 +209,7 @@ Dpara_fine = Convergence.comoving(fine_z)
 data, _ = cones.get_data(new_data=False)
 lenses = cones.sort_SN_gals(data, redo=False, weighted=True)
 exp = cones.find_expected_counts(_, 51)
-exp_data = find_expected_weights(data, 51, redo=False, plot=False)
+exp_data = find_expected_weights(data, 51, redo=True, plot=False)
 
 # average_counts = find_avg_counts(data, exp)
 with open(f"avgs_per_bin.pickle", "rb") as pickle_in:
@@ -225,7 +225,7 @@ perps = []
 ws = []
 lenses_IP = {}
 # lenses_IP[crit_dist] = {}
-redo_IP = False
+redo_IP = True
 if redo_IP:
     for radius in RADII:
         print(radius)
@@ -274,14 +274,14 @@ if redo_IP:
     # plt.xlim(0.00038, 15)
     # plt.show()
 
-    pickle_out = open(f"lenses_IP3.pickle", "wb")
+    pickle_out = open(f"lenses_IP_min.pickle", "wb")
     pickle.dump(lenses_IP, pickle_out)
     pickle_out.close()
 else:
-    pickle_in = open("lenses_IP3.pickle", "rb")
+    pickle_in = open("lenses_IP_min.pickle", "rb")
     lenses_IP = pickle.load(pickle_in)
 
-kappa_impact = cones.find_convergence(lenses_IP, exp_data, redo=False, plot_scatter=False, impact=True)
+kappa_impact = cones.find_convergence(lenses_IP, exp_data, redo=True, plot_scatter=False, impact=True)
 conv_total_impact = []
 for cone_radius in RADII:
     conv_total_impact.append(kappa_impact[f"Radius{str(cone_radius)}"]["Total"])

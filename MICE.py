@@ -126,13 +126,13 @@ def find_expected(big_cone, r_big, bins, redo=False, plot=False):
         # plt.ylabel('Cumulative Count')
         # plt.show()
 
-        for cone_radius in [3.5, 9.0]:
+        for cone_radius in RADII:
             expected[f"Radius{str(cone_radius)}"] = [expected_big[i] * (cone_radius / r_big / 60.0) ** 2
                                                      for i in range(len(expected_big))]
 
-        # pickle_out = open("MICEexpected.pickle", "wb")
-        # pickle.dump(expected, pickle_out)
-        # pickle_out.close()
+        pickle_out = open("MICEexpected.pickle", "wb")
+        pickle.dump(expected, pickle_out)
+        pickle_out.close()
     else:
         pickle_in = open("MICEexpected.pickle", "rb")
         expected = pickle.load(pickle_in)
@@ -326,7 +326,7 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
             pickle_in = open("random_cones_new.pickle", "rb")
         lens_data = pickle.load(pickle_in)
 
-        for cone_radius in RADII:
+        for cone_radius in [24.0, 27.0, 30.0]:
             if fis or impact:
                 SN_zs = SN_data[f"Radius{cone_radius}"]["SNZ"]
             else:
@@ -348,9 +348,10 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
                     cone_RAs[key] = all_RAs[cone_indices]
                     cone_DECs[key] = all_DECs[cone_indices]
             if impact:
-                pickle_in = open("MICEexpected_IPs.pickle", "rb")
+                pickle_in = open("MICEexpected_IPs_mean.pickle", "rb")
                 expected_data = pickle.load(pickle_in)
                 expected_counts = expected_data[f"Radius{cone_radius}"]
+                # print(expected_counts)
             else:
                 expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]
             kappa[f"Radius{str(cone_radius)}"] = {"SNkappa": [], "Total": 0, "SNallkappas": {}}
@@ -371,7 +372,7 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
                             Dperps = thetas[np.array(thetas) != 0] * np.interp(cone_zs[key][np.array(thetas) != 0],
                                                                                fine_z, Dpara_fine) * 1000.0 / (
                                              1 + np.array(cone_zs[key][np.array(thetas) != 0]))
-                            IPs = 1 / Dperps
+                            IPs = 1.0 / Dperps
                         if len(IPs) == 0:
                             counts[key][num2] = 0.0
                         else:
@@ -386,9 +387,11 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
                 chiSNs.append(chi[-1])
             # c_arr = []
             for num, (key, cs) in enumerate(counts.items()):
-                d_arr[key] = (cs - expected_counts[:len(cs)]) / expected_counts[:(len(cs))]
-                SNkappa, allkappas = Convergence.general_convergence(chi_widths[:len(cs)], chi_bis[:len(cs)],
-                                                             z_bins[:len(cs)], d_arr[key], chiSNs[num], OM=0.25, h=0.7)
+                print(cs)
+                d_arr[key] = (cs[2:] - expected_counts[2:len(cs)]) / expected_counts[2:(len(cs))]
+                print(d_arr[key])
+                SNkappa, allkappas = Convergence.general_convergence(chi_widths[2:len(cs)], chi_bis[2:len(cs)],
+                                                             z_bins[2:len(cs)], d_arr[key], chiSNs[num], OM=0.25, h=0.7)
                 kappa[f"Radius{str(cone_radius)}"]["SNkappa"].append(SNkappa)
                 kappa[f"Radius{str(cone_radius)}"]["SNallkappas"][key] = allkappas
                 # c_arr.append(cs)
@@ -420,7 +423,9 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
             if weighted:
                 pickle_in = open("MICEkappa_weighted.pickle", "rb")
             elif impact:
-                pickle_in = open("MICEkappa_impact.pickle", "wb")
+                pickle_in = open("MICE_SN_data_fis.pickle", "rb")
+                SN_data = pickle.load(pickle_in)
+                pickle_in = open("MICEkappa_impact.pickle", "rb")
             else:
                 pickle_in = open("MICEkappa.pickle", "rb")
         else:
@@ -429,8 +434,8 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
             pickle_in = open("MICEkappa_fis.pickle", "rb")
         kappa = pickle.load(pickle_in)
 
-        for cone_radius in [12.0]:
-            if fis:
+        for cone_radius in [24.0, 27.0, 30.0]:
+            if fis or impact:
                 SN_zs = SN_data[f"Radius{cone_radius}"]["SNZ"]
                 SN_kappas = SN_data[f"Radius{cone_radius}"]["SNkappa"]
             else:
@@ -457,44 +462,45 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
                 standard_error.append(np.std(ks) / np.sqrt(len(ks)))
                 standard_MICEerror.append(np.std(MICEks) / np.sqrt(len(MICEks)))
 
-        if plot_scatter:
-            conv = kappa[f"Radius{str(cone_radius)}"]["SNkappa"]
-            ax = plt.subplot2grid((1, 4), (0, 0), colspan=3)
-            # ax = plt.subplot2grid((1, 1), (0, 0))
-            ax2 = plt.subplot2grid((1, 4), (0, 3))
-            ax.set_ylabel("$\kappa$")
-            ax.set_xlabel("$z$")
-            ax2.set_xlabel("Count")
-            ax.tick_params(labelsize=12)
-            ax2.tick_params(labelsize=12)
-            ax2.set_yticklabels([])
-            plt.subplots_adjust(wspace=0, hspace=0)
-            ax.plot([0, 1.42], [0, 0], color=[0.25, 0.25, 0.25], linestyle='--', zorder=10)
-            ax.axis([0, 1.42, -0.05, 0.06])
-            ax2.axis([0, 500, -0.05, 0.06])
-            ax.set_xticklabels([0, 0.25, 0.50, 0.75, 1.00, 1.25])
-            # ax.set_xticklabels([0, 0.2, 0.4, 0])
-            ax.plot(SN_zs, conv, linestyle='', marker='o', markersize=2, color=colours[0], label='Cone Method')
-            ax.plot(SN_zs, SN_kappas, linestyle='', marker='o', markersize=2, color=colours[1], label='MICE value')
-            ax2.hist(conv, bins=np.arange(-0.05, 0.08 + 0.005, 0.005), orientation='horizontal',
-                     fc=green, edgecolor=colours[0])
-            ax2.hist(SN_kappas, bins=np.arange(-0.05, 0.08 + 0.005, 0.005), orientation='horizontal',
-                     fc=yellow, edgecolor=colours[1])
-            ax.errorbar(bins, mean_MICEkappa, standard_MICEerror, marker='d', color='b', markersize=3, capsize=3,
-                        zorder=20)
-            ax.errorbar(bins, mean_kappa, standard_error, marker='s', color='r', markersize=3, capsize=3, zorder=20)
-            plt.show()
+            if plot_scatter:
+                conv = kappa[f"Radius{str(cone_radius)}"]["SNkappa"]
+                print(conv)
+                ax = plt.subplot2grid((1, 4), (0, 0), colspan=3)
+                # ax = plt.subplot2grid((1, 1), (0, 0))
+                ax2 = plt.subplot2grid((1, 4), (0, 3))
+                ax.set_ylabel("$\kappa$")
+                ax.set_xlabel("$z$")
+                ax2.set_xlabel("Count")
+                ax.tick_params(labelsize=12)
+                ax2.tick_params(labelsize=12)
+                ax2.set_yticklabels([])
+                plt.subplots_adjust(wspace=0, hspace=0)
+                ax.plot([0, 1.42], [0, 0], color=[0.25, 0.25, 0.25], linestyle='--', zorder=10)
+                # ax.axis([0, 1.42, -0.05, 0.06])
+                # ax2.axis([0, 500, -0.05, 0.06])
+                ax.set_xticklabels([0, 0.25, 0.50, 0.75, 1.00, 1.25])
+                # ax.set_xticklabels([0, 0.2, 0.4, 0])
+                ax.plot(SN_zs, conv, linestyle='', marker='o', markersize=2, color=colours[0], label='Cone Method')
+                ax.plot(SN_zs, SN_kappas, linestyle='', marker='o', markersize=2, color=colours[1], label='MICE value')
+                ax2.hist(conv, bins=np.arange(-0.05, 0.08 + 0.005, 0.005), orientation='horizontal',
+                         fc=green, edgecolor=colours[0])
+                ax2.hist(SN_kappas, bins=np.arange(-0.05, 0.08 + 0.005, 0.005), orientation='horizontal',
+                         fc=yellow, edgecolor=colours[1])
+                ax.errorbar(bins, mean_MICEkappa, standard_MICEerror, marker='d', color='b', markersize=3, capsize=3,
+                            zorder=20)
+                ax.errorbar(bins, mean_kappa, standard_error, marker='s', color='r', markersize=3, capsize=3, zorder=20)
+                plt.show()
 
     if plot_total:
         conv_total = []
-        for cone_radius in RADII:
+        for cone_radius in [24.0, 27.0, 30.0]:
             conv_total.append(kappa[f"Radius{str(cone_radius)}"]["Total"])
         plt.ylabel("$\kappa$")
         plt.xlabel("Cone Radius (arcmin)")
         plt.tick_params(labelsize=12)
         plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
         plt.xlim([0, 30])
-        plt.plot(RADII, conv_total, marker='o', markersize=2, color=colours[0])
+        plt.plot([24.0, 27.0, 30.0], conv_total, marker='o', markersize=2, color=colours[0])
         plt.show()
 
     return kappa
@@ -528,6 +534,7 @@ def find_correlation(convergence_data, radii, plot_correlation=False, plot_radii
         conv_rank = rankdata(conv)
         mu_rank = rankdata(mu_diff)
         diff = np.abs(conv_rank - mu_rank)
+        # print(conv)
         rho = 1 - 6 / (len(conv) * (len(conv) ** 2 - 1)) * np.sum(diff ** 2)
         rho_err = np.sqrt((1 - rho ** 2) / (len(conv) - 1))
         correlations.append(rho)
@@ -565,8 +572,8 @@ def find_correlation(convergence_data, radii, plot_correlation=False, plot_radii
         smooth_u_err = savgol_filter(u_err, 11, 4)
         smooth_d_err = savgol_filter(d_err, 11, 4)
         plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
-        plt.plot(RADII, smooth_corr, color=colours[0])
-        plt.plot(RADII, [correlations[i] for i in range(len(correlations))], marker='x', color=colours[1],
+        plt.plot(radii, smooth_corr, color=colours[0])
+        plt.plot(radii, [correlations[i] for i in range(len(correlations))], marker='x', color=colours[1],
                  linestyle='')
         plt.fill_between(RADII, smooth_u_err, smooth_d_err, color=colours[0], alpha=0.4)
 
@@ -720,7 +727,7 @@ if __name__ == "__main__":
     # exit()
     exp_data = find_expected(big_cone, big_cone_radius, 111, redo=False, plot=False)
     get_random(alldata, redo=False)
-    # plot_cones(alldata, plot_hist=True, cone_radius=6.0)
+    # plot_cones(alldata, cone_radius=1.0)
     # plot_Hubble()
 
     kappa = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=use_weighted)
@@ -835,5 +842,5 @@ if __name__ == "__main__":
     # plt.legend(frameon=0)
     # plt.show()
 
-    kappa_impact = find_convergence(alldata, exp_data, redo=True, plot_total=False, plot_scatter=False, impact=True)
-    fully_in_sample = find_correlation(kappa_impact, RADII, plot_correlation=False, plot_radii=True, impact=True)
+    kappa_impact = find_convergence(alldata, exp_data, redo=True, plot_total=True, plot_scatter=True, impact=True)
+    fully_in_sample = find_correlation(kappa_impact, [24.0, 27.0, 30.0], plot_correlation=False, plot_radii=True, impact=True)
