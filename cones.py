@@ -17,7 +17,7 @@ green = [0, 150/255, 100/255, 0.75]
 yellow = [253/255, 170/255, 0, 0.75]
 grey = [0.75, 0.75, 0.75]
 NAMES = ['STRIPE82_SPECTROSCOPIC_CHAZ_NOTCLEANED_ms77.fit', 'boss_206+SDSS_213_all_cuts_new_mu_dmu1_new.fits',
-         'Smithdata.csv']
+         'Smithdata.csv', 'sparseMICE.fits']
 RADII = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75,
          4.0, 4.25, 4.5, 4.75, 5.0, 5.25, 5.5, 5.75, 6.0, 6.25, 6.5, 6.75, 7.0, 7.25, 7.5, 7.75, 8.0, 8.25, 8.5, 8.75,
          9.0, 9.25, 9.5, 9.75, 10.0, 10.25, 10.5, 10.75, 11.0, 11.25, 11.5, 11.75, 12.0, 12.25, 12.5, 12.75, 13.0,
@@ -259,17 +259,17 @@ def make_test_cones(cut_data, redo=False, plot=False):
      redo -- boolean that determines whether cones are created or loaded. Default false.
      plot -- boolean that determines whether a plot of the data field with test_cones overplotted. Default false.
     """
-    RA1 = cut_data['RA1']
-    DEC1 = cut_data['DEC1']
-    z1 = cut_data['z1']
+    RA1 = cut_data['RA']
+    DEC1 = cut_data['DEC']
+    z1 = cut_data['z']
     if redo:
         pickle_in = open("test_cones.pickle", "rb")
         test_cones = pickle.load(pickle_in)
-        x0 = -50.6 * 60.0  # Convert bounds in degrees to radians
-        x1 = 58.1 * 60.0
-        y0 = 1.25 * 60.0
-        y1 = -1.25 * 60.0
-        for cone_radius in [6.0]:
+        x0 = -0.0 * 60.0  # Convert bounds in degrees to radians
+        x1 = 90.0 * 60.0
+        y0 = 3.0 * 60.0
+        y1 = 0.0 * 60.0
+        for cone_radius in RADII[50:]:
             tests = []
             if cone_radius > 12.0:
                 for a in range(int((x1 - x0) / (2 * cone_radius))):
@@ -319,11 +319,11 @@ def make_test_cones(cut_data, redo=False, plot=False):
                 print(f'Finished {int(num)+1}/{len(tests)}')
             print(f"Finished radius {str(cone_radius)}'")
 
-        pickle_out = open("test_cones.pickle", "wb")
+        pickle_out = open("sparse_test_cones.pickle", "wb")
         pickle.dump(test_cones, pickle_out)
         pickle_out.close()
     else:
-        pickle_in = open("test_cones.pickle", "rb")
+        pickle_in = open("sparse_test_cones.pickle", "rb")
         test_cones = pickle.load(pickle_in)
 
     # plt.hist([test_cones[f'c{i+1}']['Total'] for i in range(len(test_cones))], density=1,
@@ -344,13 +344,14 @@ def find_expected_counts(test_cones, bins, redo=False, plot=False):
      redo -- boolean that determines whether expected counts are calculated or loaded. Default false.
      plot -- boolean that determines whether expected counts are plotted. Default false.
     """
-    max_z = 0.6
+    max_z = 1.4
     chi_bin_widths, chi_bins, z_bins, z_bin_widths = create_z_bins(0.01, max_z, bins)
     limits = np.cumsum(z_bin_widths)
     if redo:
-        pickle_in = open("expected.pickle", "rb")
-        expected = pickle.load(pickle_in)
-        for cone_radius in [13.25, 25.0]:
+        # pickle_in = open("expected.pickle", "rb")
+        # expected = pickle.load(pickle_in)
+        expected = {}
+        for cone_radius in RADII[29:]:
             test_cone = test_cones[f"Radius{str(cone_radius)}"]
             cumul_tot = np.zeros((len(limits), len(test_cone)))
             for num1, lim in enumerate(limits):
@@ -370,15 +371,15 @@ def find_expected_counts(test_cones, bins, redo=False, plot=False):
 
             print(f"Finished radius {str(cone_radius)}'")
 
-        # pickle_out = open("expected.pickle", "wb")
-        # pickle.dump(expected, pickle_out)
-        # pickle_out.close()
+        pickle_out = open("sparse_expected.pickle", "wb")
+        pickle.dump(expected, pickle_out)
+        pickle_out.close()
     else:
-        pickle_in = open("expected.pickle", "rb")
+        pickle_in = open("sparse_expected.pickle", "rb")
         expected = pickle.load(pickle_in)
 
     if plot:
-        for cone_radius in RADII:
+        for cone_radius in RADII[29:]:
             plt.plot([0, 0.6], [0, 0], color=grey, linestyle='--')
             plt.plot((limits[1:]+limits[:-1])/2.0, expected[f"Radius{str(cone_radius)}"], marker='o',
                      markersize=2.5, color=colours[0])

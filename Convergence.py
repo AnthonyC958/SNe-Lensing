@@ -15,6 +15,7 @@ MSOL = 1.989E30
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['font.serif'] = 'Stixgeneral'
 plt.rcParams['mathtext.fontset'] = 'stix'
+plt.rc('text', usetex=True)
 
 plt.rcParams['axes.labelsize'] = 20
 plt.rcParams['axes.titlesize'] = 16
@@ -122,10 +123,10 @@ def create_chi_bins(z_lo, z_hi, num_bins, plot=False):
         plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.75, 0.75, 0.75], linestyle='-', linewidth=0.8)
         plt.plot(z_to_end, chi_to_end, color=colours[1])
         plt.plot(zs, chis, linestyle='', marker='o', markersize=3, color=colours[0])
-        plt.xlabel(' $z$')
+        plt.xlabel(r' $z$')
         
         plt.axis([0, z_hi, 0, chi_end])
-        plt.ylabel('$R_0\chi$ (Gpc)')
+        plt.ylabel(r'$R_0\chi$ (Gpc)')
         plt.savefig("figure_67.eps", format="pdf")
         plt.show()
 
@@ -161,9 +162,9 @@ def create_z_bins(z_lo, z_hi, num_bins, plot=False, OM=0.27, OL=0.73, h=0.738):
         plt.plot([z_lo, z_hi], [chi_bin_edges, chi_bin_edges], color=[0.75, 0.75, 0.75], linestyle='-', linewidth=0.8)
         plt.plot(np.linspace(z_lo, z_hi, 1001), b_comoving(z_lo, z_hi, OM=OM, OL=OL, h=h), color=colours[1])
         plt.plot(zs, chis, linestyle='', marker='o', markersize=3, color=colours[0])
-        plt.xlabel(' $z$')
+        plt.xlabel(r' $z$')
         
-        plt.ylabel('$R_0\chi$ (Gpc)')
+        plt.ylabel(r'$R_0\chi$ (Gpc)')
         plt.axis([0, z_hi, 0, chis[-1] + chi_widths[-1]/2])
         plt.show()
 
@@ -494,8 +495,8 @@ def distance_ratio(z_source):
     plt.text(z_peak_D, D_S / 5, f'$\chi$ = {round(z_peak_D, 4)} Gpc', fontsize=16, ha='center', color=colours[2])
     # plt.plot(chi_peak2, max(chi_ratio), marker='x', color=colours[4])
     # plt.text(chi_peak2, chi_S / 2.5, f'$\chi$ = {round(chi_peak2, 2)} Gpc', fontsize=16, ha='center', color=colours[4])
-    plt.xlabel('$z$')
-    plt.ylabel('$D_A$ (Gpc)')
+    plt.xlabel(r'$z$')
+    plt.ylabel(r'$D_A$ (Gpc)')
     plt.show()
 
 
@@ -518,7 +519,7 @@ if __name__ == "__main__":
 
     num_test = 800
     # smoothed_m_convergence(num_test, SN_chi, SN_redshift)
-    # distance_ratio(SN_redshift)
+    distance_ratio(SN_redshift)
 
     scalefactor = np.linspace(1, 0.5, 101)
     rho_crit = scalefactor ** (-3)

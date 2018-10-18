@@ -21,74 +21,6 @@ colours = [[0, 150/255, 100/255], [225/255, 149/255, 0], [207/255, 0, 48/255], [
            'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
 
 
-def find_avg_counts(cut_data, exp_data):
-    RA1 = np.array(cut_data['RA1'])
-    DEC1 = np.array(cut_data['DEC1'])
-    RA2 = cut_data['RA2']
-    DEC2 = np.array(cut_data['DEC2'])
-    z1 = np.array(cut_data['z1'])
-    z2 = cut_data['z2']
-    lens_data = {}
-    for cone_radius in RADII:
-        lens_data[f"Radius{str(cone_radius)}"] = {}
-        for num, (SRA, SDE, SZ) in enumerate(zip(RA2, DEC2, z2)):
-            lens_data[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}'] = {'Zs': [], 'SNZ': SZ, 'SNRA': SRA,
-                                                                         'SNDEC': SDE, 'RAs': [], 'DECs': []}
-            if SDE > 1.28 - cone_radius / 60.0:
-                h = SDE - (1.28 - cone_radius / 60.0)
-            elif SDE < -(1.28 - cone_radius / 60.0):
-                h = -(1.28 - cone_radius / 60.0) - SDE
-            else:
-                h = 0
-            theta = 2 * np.arccos(1 - h / (cone_radius / 60.0))
-            fraction_outside = 1 / (2 * np.pi) * (theta - np.sin(theta))
-            lens_data[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['WEIGHT'] = 1.0 - fraction_outside
-            indices = [(RA1 - SRA) ** 2 + (DEC1 - SDE) ** 2 <= (cone_radius / 60.0) ** 2]
-            lens_data[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['Zs'] = z1[indices]
-            lens_data[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['RAs'] = RA1[indices]
-            lens_data[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['DECs'] = DEC1[indices]
-        print(f"Finished sorting radius {str(cone_radius)}'")
-    # with open(f"lenses_weighted.pickle", "rb") as pickle_in:
-    #     lens_data = pickle.load(pickle_in)
-    limits = exp_data[0]
-    avg_counts = {}
-    avg_IPs = {}
-    for cone_radius in RADII:
-        avg_counts[f"Radius{cone_radius}"] = []
-        avg_IPs[f"Radius{cone_radius}"] = []
-        lenses = lens_data[f"Radius{cone_radius}"]
-        print(cone_radius)
-        counts = {}
-        IPs = {}
-        for key, lens in lenses.items():
-            counts[key] = np.zeros(51-2)
-            IPs[key] = np.zeros(51-2)
-            thetas = (((lens['RAs'] - lens["SNRA"]) ** 2 + (lens['DECs'] - lens["SNDEC"]) ** 2) ** 0.5 * np.pi / 180)
-            Dparas = thetas * np.interp(lens['Zs'], fine_z, Dpara_fine) * 1000.0 / lens['Zs']
-            all_IPs = 1 / Dparas
-            for num2 in range(51-2):
-                indices2 = [np.logical_and(limits[num2] < lens['Zs'], (lens['Zs'] <= limits[num2 + 1]))]
-                counts[key][num2] = np.count_nonzero(indices2)
-                IPs[key][num2] = np.sum(all_IPs[indices2])
-        for bin in range(51-2):
-            total_per_bin = []
-            total_IPs = []
-            for key in lenses.keys():
-                total_per_bin.append(counts[key][bin])
-                total_IPs.append(IPs[key][bin])
-            avg_counts[f"Radius{cone_radius}"].append(np.mean(total_per_bin))
-            avg_IPs[f"Radius{cone_radius}"].append(np.mean(total_IPs))
-            for num, _ in enumerate(avg_counts[f"Radius{cone_radius}"]):
-                if avg_counts[f"Radius{cone_radius}"][num] == 0:
-                    avg_counts[f"Radius{cone_radius}"][num] = np.max(avg_counts[f"Radius{cone_radius}"]) / 100.0
-        print(avg_IPs[f"Radius{cone_radius}"])
-
-    pickle_out = open(f"avgs_per_bin.pickle", "wb")
-    pickle.dump([avg_counts, avg_IPs], pickle_out)
-    pickle_out.close()
-    return avg_counts, avg_IPs
-
-
 def find_expected_weights(cut_data, bins, redo=False, plot=False):
     """Uses the test cones to find the expected number of galaxies per bin, for bins of even redshift.
 
@@ -177,30 +109,6 @@ def find_expected_weights(cut_data, bins, redo=False, plot=False):
 
     return [limits, expected, chi_bin_widths, chi_bins, z_bins]
 
-# for key, item in lenses.items():
-#     print(key)
-#     FIS_indices = np.where(item["WEIGHT"] == 1.0)
-#     print(len(FIS_indices[0]))
-#     for num, w in enumerate(item["WEIGHT"]):
-#         if w != 1.0:
-#             lenses[key].pop(f"Shell{num+1}")
-#     SN_data_fis[key] = {"mu_diff": SN_data["mu_diff"][FIS_indices],
-#                         "SNZ": SN_data["SNZ"][FIS_indices],
-#                         "SNkappa": SN_data["SNkappa"][FIS_indices],
-#                         "SNRA": SN_data["SNRA"][FIS_indices],
-#                         "SNDEC": SN_data["SNDEC"][FIS_indices],
-#                         "SNMU": SN_data["SNMU"][FIS_indices],
-#                         "SNMU_ERR": SN_data["SNMU_ERR"][FIS_indices]}
-#
-# pickle_out = open(f"random_cones_new_fis.pickle", "wb")
-# pickle.dump(lenses, pickle_out)
-# pickle_out.close()
-#
-# print(SN_data_fis["Radius20.0"]['mu_diff'])
-# pickle_out = open(f"MICE_SN_data_fis.pickle", "wb")
-# pickle.dump(SN_data_fis, pickle_out)
-# pickle_out.close()
-
 crit_weight = 0.1
 crit_angles = [3.0, 6.0, 12.0, 24.0]
 crit_dists = [2.5, 5.0, 7.5, 10.0]
@@ -211,12 +119,6 @@ lenses = cones.sort_SN_gals(data, redo=False, weighted=True)
 exp = cones.find_expected_counts(_, 51)
 exp_data = find_expected_weights(data, 51, redo=False, plot=False)
 
-# average_counts = find_avg_counts(data, exp)
-with open(f"avgs_per_bin.pickle", "rb") as pickle_in:
-    average_counts = pickle.load(pickle_in)
-# for r in [30.0]:
-#     plt.plot((exp[0][1:] + exp[0][:-1])/2.0, average_counts[1][f"Radius{r}"])
-#     plt.show()
 with open(f"kappa_weighted.pickle", "rb") as pickle_in:
     kappa = pickle.load(pickle_in)
 # print(kappa["Radius30.0"]['Counts'])
