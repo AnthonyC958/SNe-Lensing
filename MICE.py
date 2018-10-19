@@ -58,19 +58,21 @@ def deep_update(old_dict, update_to_dict):
 
 
 def get_data():
-    with fits.open('MICEsim5.fits') as hdul1:
+    with fits.open('sparseMICE.fits') as hdul1:
         RA = hdul1[1].data['ra']
         DEC = hdul1[1].data['dec']
         kap = hdul1[1].data['kappa']
         z = hdul1[1].data['z_v']
         ID = hdul1[1].data['id']
+        Comoving = hdul1[1].data['d_c_v']
 
-    RA = np.array(RA)[[z >= 0.01]][::50]
-    DEC = np.array(DEC)[[z >= 0.01]][::50]
-    kap = np.array(kap)[[z >= 0.01]][::50]
-    ID = np.array(ID)[[z >= 0.01]][::50]
-    z = np.array(z)[[z >= 0.01]][::50]
-    cut_data = {'RA': RA, 'DEC': DEC, 'z': z, 'kappa': kap, 'id': ID}
+    RA = np.array(RA)[[z >= 0.01]]
+    DEC = np.array(DEC)[[z >= 0.01]]
+    kap = np.array(kap)[[z >= 0.01]]
+    ID = np.array(ID)[[z >= 0.01]]
+    Comoving = np.array(Comoving)[[z >= 0.01]]
+    z = np.array(z)[[z >= 0.01]]
+    cut_data = {'RA': RA, 'DEC': DEC, 'z': z, 'kappa': kap, 'id': ID, 'd_c': Comoving}
 
     return cut_data
 
@@ -153,13 +155,15 @@ def find_expected(big_cone, r_big, bins, redo=False, plot=False):
 def get_random(data, redo=False):
     RAs = np.array(data['RA'])
     DECs = np.array(data['DEC'])
+    d_cs = np.array(data['d_c'])
     zs = np.array(data['z'])
     kappas = np.array(data['kappa'])
 
-    # Don't want to deal with up to 30' (0.5 degrees) cones that have any portion outside left and right bounds.
+    # Don't want to deal with up to 30' (0.5 degree) cones that have any portion outside left and right bounds.
     SN_DECs = DECs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
     SN_zs = zs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
     SN_kappas = kappas[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
+    SN_d_cs = d_cs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
     SN_RAs = RAs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
 
     # SN_RAs = SN_RAs[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
@@ -176,15 +180,16 @@ def get_random(data, redo=False):
         rand_RAs = SN_RAs[indices]
         rand_DECs = SN_DECs[indices]
         rand_kappas = SN_kappas[indices]
-        print(rand_RAs, rand_DECs)
+        dists = SN_d_cs[indices] * (1 + rand_zs)
+        # print(rand_RAs, rand_DECs)
 
         # Add scatter to distance moduli
-        dists = []
-        rand_chis = []
-        for z in rand_zs:
-            chi_to_z = Convergence.comoving(np.linspace(0, z, 1001), OM=0.25, OL=0.75, h=0.7)
-            dists.append(chi_to_z[-1] * (1 + z))
-            rand_chis.append(chi_to_z[-1])
+        # dists = []
+        # rand_chis = []
+        # for z in rand_zs:
+        #     chi_to_z = Convergence.comoving(np.linspace(0, z, 1001), OM=0.25, OL=0.75, h=0.7)
+        #     dists.append(chi_to_z[-1] * (1 + z))
+        #     rand_chis.append(chi_to_z[-1])
         mus = 5 * np.log10(np.array(dists) / 10 * 1E9)
         mu_diff = - (5.0 / np.log(10) * rand_kappas)
         for i in range(len(mu_diff)):
@@ -200,53 +205,58 @@ def get_random(data, redo=False):
         print("Finished SN_data")
         #
         lenses = {}
+        for cone_radius in RADII[29:]:
+            lenses[f"Radius{str(cone_radius)}"] = {}
+            for num, (SRA, SDE, SZ, Sk, SM, SE) in enumerate(zip(rand_RAs, rand_DECs, rand_zs, rand_kappas, rand_mus,
+                                                                rand_errs)):
+                lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [], 'SNZ': SZ,
+                                                                          'SNMU': SM, 'SNMU_ERR': SE, 'SNRA': SRA,
+                                                                          'SNkappa': Sk, 'SNDEC': SDE, 'WEIGHT': 1.0}
+                if SDE > 3.0 - cone_radius/60.0:
+                    h = SDE - (3.0 - cone_radius/60.0)
+                elif SDE < -(0.0 - cone_radius/60.0):
+                    h = -(0.0 - cone_radius/60.0) - SDE
+                else:
+                    h = 0.0
+                theta = 2 * np.arccos(1 - h / (cone_radius/60.0))
+                fraction_outside = 1 / (2 * np.pi) * (theta - np.sin(theta))
+                lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['WEIGHT'] = 1.0 - fraction_outside
+
+                cone_indices = [np.logical_and((RAs - SRA) ** 2 + (DECs - SDE) ** 2 <= (cone_radius / 60.0) ** 2, zs < SZ)]
+                lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['RAs'].append(RAs[cone_indices])
+                lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['DECs'].append(DECs[cone_indices])
+                lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['Zs'].append(zs[cone_indices])
+            print(f"Finished radius {str(cone_radius)}'")
+        pickle_out = open("sparse_lenses.pickle", "wb")
+        pickle.dump(lenses, pickle_out)
+
+        # prev_rad = 0.0
         # for cone_radius in RADII[10:]:
         #     lenses[f"Radius{str(cone_radius)}"] = {}
-        #     for num, (SRA, SDE, SZ, Sk, SM, SE) in enumerate(zip(rand_RAs, rand_DECs, rand_zs, rand_kappas, rand_mus,
-        #                                                         rand_errs)):
-        #         lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [], 'SNZ': SZ,
-        #                                                                   'SNMU': SM, 'SNMU_ERR': SE, 'SNRA': SRA,
-        #                                                                   'SNkappa': Sk, 'SNDEC': SDE, 'WEIGHT': 1.0}
-        #         if SDE > 3.0 - cone_radius/60.0:
-        #             h = SDE - (3.0 - cone_radius/60.0)
-        #         elif SDE < -(0.0 - cone_radius/60.0):
-        #             h = -(0.0 - cone_radius/60.0) - SDE
-        #         else:
-        #             h = 0.0
-        #         theta = 2 * np.arccos(1 - h / (cone_radius/60.0))
-        #         fraction_outside = 1 / (2 * np.pi) * (theta - np.sin(theta))
-        #         lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['WEIGHT'] = 1.0 - fraction_outside
-        #
-        #         cone_indices = [(RAs - SRA) ** 2 + (DECs - SDE) ** 2 >= (cone_radius / 60.0) ** 2]
-        #         lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['RAs'].append(RAs[cone_indices])
-        #         lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['DECs'].append(DECs[cone_indices])
-        #         lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}']['Zs'].append(zs[cone_indices])
-        #     print(f"Finished radius {str(cone_radius)}'")
-        # pickle_out = open("sparse_lenses.pickle", "wb")
-        # pickle.dump(lenses, pickle_out)
-
-        prev_rad = 0.0
-        for cone_radius in RADII[10:]:
-            lenses[f"Radius{str(cone_radius)}"] = {}
-            for num, (RA, DEC) in enumerate(zip(rand_RAs, rand_DECs)):
-                cone_indices = [np.logical_and((RAs - RA) ** 2 + (DECs - DEC) ** 2 >= (prev_rad / 60.0) ** 2,
-                                               (RAs - RA) ** 2 + (DECs - DEC) ** 2 <= (cone_radius / 60.0) ** 2)]
-                lenses[f"Radius{str(cone_radius)}"][f"Shell{str(num+1)}"] = np.where(cone_indices[0] == 1)
-                print(f"Sorted {num+1}/{rand_samp_size} for radius {cone_radius}'")
-            heights = np.zeros(rand_samp_size)
-            outsides_u = [rand_DECs > 3.6 - cone_radius / 60.0]
-            heights[outsides_u] = rand_DECs[outsides_u] - (3.6 - cone_radius / 60.0)
-            outsides_d = [rand_DECs < cone_radius / 60.0]
-            heights[outsides_d] = cone_radius / 60.0 - rand_DECs[outsides_d]
-            thetas = 2 * np.arccos(1 - heights / (cone_radius / 60.0))
-            fraction_outside = 1 / (2 * np.pi) * (thetas - np.sin(thetas))
-            weights = 1.0 - fraction_outside
-            lenses[f"Radius{str(cone_radius)}"]['WEIGHT'] = weights
-            print(f"Sorted radius {cone_radius}'")
-            prev_rad = cone_radius
+        #     for num, (RA, DEC) in enumerate(zip(rand_RAs, rand_DECs)):
+        #         cone_indices = [np.logical_and((RAs - RA) ** 2 + (DECs - DEC) ** 2 >= (prev_rad / 60.0) ** 2,
+        #                                        (RAs - RA) ** 2 + (DECs - DEC) ** 2 <= (cone_radius / 60.0) ** 2)]
+        #         lenses[f"Radius{str(cone_radius)}"][f"Shell{str(num+1)}"] = np.where(cone_indices[0] == 1)
+        #         print(f"Sorted {num+1}/{rand_samp_size} for radius {cone_radius}'")
+        #     heights = np.zeros(rand_samp_size)
+        #     outsides_u = [rand_DECs > 3.6 - cone_radius / 60.0]
+        #     heights[outsides_u] = rand_DECs[outsides_u] - (3.6 - cone_radius / 60.0)
+        #     outsides_d = [rand_DECs < cone_radius / 60.0]
+        #     heights[outsides_d] = cone_radius / 60.0 - rand_DECs[outsides_d]
+        #     thetas = 2 * np.arccos(1 - heights / (cone_radius / 60.0))
+        #     fraction_outside = 1 / (2 * np.pi) * (thetas - np.sin(thetas))
+        #     weights = 1.0 - fraction_outside
+        #     lenses[f"Radius{str(cone_radius)}"]['WEIGHT'] = weights
+        #     print(f"Sorted radius {cone_radius}'")
+        #     prev_rad = cone_radius
         pickle_out = open(f"sparse_random_cones.pickle", "wb")
         pickle.dump(lenses, pickle_out)
         pickle_out.close()
+    else:
+        pickle_in = open("sparse_lenses.pickle", "rb")
+        lenses = pickle.load(pickle_in)
+
+    return lenses
 
 
 def plot_cones(data, plot_hist=False, cone_radius=12.0):
@@ -352,7 +362,7 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
             pickle_in = open("random_cones_new.pickle", "rb")
         lens_data = pickle.load(pickle_in)
 
-        for cone_radius in RADII[10:]:
+        for cone_radius in RADII[29:]:
             if fis or impact:
                 SN_zs = SN_data[f"Radius{cone_radius}"]["SNZ"]
             else:
@@ -435,7 +445,7 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
             if weighted:
                 pickle_out = open("MICEkappa_weighted.pickle", "wb")
             elif impact:
-                pickle_out = open("MICEkappa_impact.pickle", "wb")
+                pickle_out = open("sparseMICEkappa_impact.pickle", "wb")
             else:
                 pickle_out = open("MICEkappa.pickle", "wb")
         else:
@@ -449,7 +459,9 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
             if weighted:
                 pickle_in = open("MICEkappa_weighted.pickle", "rb")
             elif impact:
-                pickle_in = open("MICEkappa_impact.pickle", "wb")
+                pickle_in = open("sparseMICE_SN_data_fis.pickle", "rb")
+                SN_data = pickle.load(pickle_in)
+                pickle_in = open("sparseMICEkappa_impact.pickle", "rb")
             else:
                 pickle_in = open("MICEkappa.pickle", "rb")
         else:
@@ -458,8 +470,8 @@ def find_convergence(gal_data, exp_data, redo=False, plot_scatter=False, plot_to
             pickle_in = open("sparseMICEkappa_fis.pickle", "rb")
         kappa = pickle.load(pickle_in)
 
-        for cone_radius in RADII[10:]:
-            if fis:
+        for cone_radius in RADII[29:]:
+            if fis or impact:
                 SN_zs = SN_data[f"Radius{cone_radius}"]["SNZ"]
                 SN_kappas = SN_data[f"Radius{cone_radius}"]["SNkappa"]
             else:
@@ -725,32 +737,48 @@ def bin_test(alldata, big_cone, big_cone_radius):
 if __name__ == "__main__":
 
     #### test sparse data ####
-    # use_weighted = True
-    # alldata = get_data()
-    # test_cones = cones.make_test_cones(alldata, redo=False, plot=True)
-    # print(len(alldata["RA"]))
-    # get_random(alldata, redo=False)
-    # # plot_cones(alldata)
-    # exp_data = cones.find_expected_counts(test_cones, 111, redo=False)
-    #
-    # find_convergence(alldata, exp_data, redo=False, plot_total=True, plot_scatter=True, fis=True)
-    # exit()
-
-    #### test sparse data ####
     use_weighted = True
     alldata = get_data()
-    big_cone_centre = [(min(alldata['RA']) + max(alldata['RA'])) / 2, (min(alldata['DEC']) + max(alldata['DEC'])) / 2]
-    big_cone_radius = round(min(max(alldata['RA']) - big_cone_centre[0], big_cone_centre[0] - min(alldata['RA']),
-                                max(alldata['DEC']) - big_cone_centre[1], big_cone_centre[1] - min(alldata['DEC'])), 2)
-    big_cone = make_big_cone(alldata, redo=False)
+    test_cones = cones.make_test_cones(alldata, redo=False, plot=False)
     print(len(alldata["RA"]))
-    get_random(alldata, redo=False)
+    lens_data = get_random(alldata, redo=False)
     # plot_cones(alldata)
-    exp_data = find_expected(big_cone, big_cone_radius, 101, redo=True, plot=False)
+    exp_data = cones.find_expected_counts(test_cones, 111, redo=False, plot=False)
 
-    sparse_kappa = find_convergence(alldata, exp_data, redo=True, plot_total=True, plot_scatter=False, fis=True)
-    sparse_FIS = find_correlation(sparse_kappa, RADII[10:], plot_radii=True, fis=True)
+    lensing_gals_fully_in_sample = {}
+    number_fis = np.zeros(len(RADII[29:]))
+    num = 0
+    not_fis_indices = np.zeros(1500)
+    for rad in RADII[29:]:
+        lensing_gals_fully_in_sample[f"Radius{rad}"] = {}
+        for num2, (key2, SN) in enumerate(lens_data[f"Radius{rad}"].items()):
+            if SN["WEIGHT"] == 1:
+                not_fis_indices[num2] = 1
+                lensing_gals_fully_in_sample[f"Radius{rad}"][key2] = SN
+                number_fis[num] += 1
+        num += 1
+    # plt.plot(RADII[29:], number_fis, '+')
+    # plt.show()
+    kappa_fis = cones.find_convergence(lensing_gals_fully_in_sample, exp_data, redo=False, plot_total=True,
+                                       plot_scatter=False, fis=True, max_z=1.42)
+    sparse_FIS = cones.find_correlation(kappa_fis, lensing_gals_fully_in_sample, plot_radii=True)
     exit()
+
+    #### test sparse data ####
+    # use_weighted = True
+    # alldata = get_data()
+    # big_cone_centre = [(min(alldata['RA']) + max(alldata['RA'])) / 2, (min(alldata['DEC']) + max(alldata['DEC'])) / 2]
+    # big_cone_radius = round(min(max(alldata['RA']) - big_cone_centre[0], big_cone_centre[0] - min(alldata['RA']),
+    #                             max(alldata['DEC']) - big_cone_centre[1], big_cone_centre[1] - min(alldata['DEC'])), 2)
+    # big_cone = make_big_cone(alldata, redo=False)
+    # print(len(alldata["RA"]))
+    # get_random(alldata, redo=True)
+    # # plot_cones(alldata)
+    # exp_data = find_expected(big_cone, big_cone_radius, 101, redo=False, plot=False)
+    #
+    # sparse_kappa = find_convergence(alldata, exp_data, redo=False, plot_total=True, plot_scatter=False, fis=True)
+    # sparse_FIS = find_correlation(sparse_kappa, RADII[10:], plot_radii=True, fis=True)
+    # exit()
 
     big_cone_centre = [(min(alldata['RA']) + max(alldata['RA'])) / 2, (min(alldata['DEC']) + max(alldata['DEC'])) / 2]
     big_cone_radius = round(min(max(alldata['RA']) - big_cone_centre[0], big_cone_centre[0] - min(alldata['RA']),

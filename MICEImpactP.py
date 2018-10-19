@@ -32,13 +32,13 @@ def find_expected_weights(data, bins, redo=False, plot=False):
     limits = np.cumsum(z_bin_widths) + z_bins[0]
     limits = np.insert(limits, 0, 0)
     expected = {}
-    pickle_in = open("MICE_SN_data_fis.pickle", "rb")
+    pickle_in = open("sparseMICE_SN_data_fis.pickle", "rb")
     SN_data = pickle.load(pickle_in)
-    pickle_in = open("random_cones_new_fis.pickle", "rb")
+    pickle_in = open("sparse_random_cones_fis.pickle", "rb")
     lens_data = pickle.load(pickle_in)
 
     if redo:
-        for cone_radius in RADII[25:]:
+        for cone_radius in RADII[29:]:
             cone_zs = {}
             cone_RAs = {}
             cone_DECs = {}
@@ -46,7 +46,7 @@ def find_expected_weights(data, bins, redo=False, plot=False):
                 if key != 'WEIGHT':
                     cone_indices = np.array([], dtype=np.int16)
                     # Get shells from all previous RADII
-                    for r in RADII[0:np.argmin(np.abs(RADII - np.array(cone_radius))) + 1]:
+                    for r in RADII[29:np.argmin(np.abs(RADII - np.array(cone_radius))) + 1]:
                         cone_indices = np.append(cone_indices, lens_data[f"Radius{r}"][key])
                     # Get redshifts, RAs and DECs of all galaxies in each SN cone
                     cone_zs[key] = all_zs[cone_indices]
@@ -67,19 +67,20 @@ def find_expected_weights(data, bins, redo=False, plot=False):
                         all_IPs = 1 / Dperps
                         cumul_tot[num1][num2] = np.sum(all_IPs[cone_zs[key2][np.array(thetas)!=0] < lim])
                         # print(np.sum([]))
-            expected[f"Radius{str(cone_radius)}"] = np.diff(np.sum(cumul_tot, 1)/np.count_nonzero(cumul_tot, 1))
-            for num1, _ in enumerate(limits):
-                print(num1, *[round(cumul_tot[num1][i], 2) for i in range(len(cumul_tot[num1])) if cumul_tot[num1][i]!=0], sep=', ')
-            print(*[np.sum(cumul_tot, 1)/np.count_nonzero(cumul_tot, 1)], sep=', ')
+            # expected[f"Radius{str(cone_radius)}"] = np.diff(np.sum(cumul_tot, 1)/np.count_nonzero(cumul_tot, 1))
+            expected[f"Radius{str(cone_radius)}"] = np.diff(np.mean(cumul_tot, 1))
+            # for num1, _ in enumerate(limits):
+            #     print(num1, *[round(cumul_tot[num1][i], 2) for i in range(len(cumul_tot[num1])) if cumul_tot[num1][i]!=0], sep=', ')
+            # print(*[np.sum(cumul_tot, 1)/np.count_nonzero(cumul_tot, 1)], sep=', ')
             # print(cumul_tot[-3:])
             # print(expected[f"Radius{str(cone_radius)}"])
 
             print(f"Finished radius {str(cone_radius)}'")
-        pickle_out = open("MICEexpected_IPs_mean.pickle", "wb")
+        pickle_out = open("sparseMICEexpected_IPs_mean.pickle", "wb")
         pickle.dump(expected, pickle_out)
         pickle_out.close()
     else:
-        pickle_in = open("MICEexpected_IPs_mean.pickle", "rb")
+        pickle_in = open("sparse_expected_IPs_mean.pickle", "rb")
         expected = pickle.load(pickle_in)
 
     if plot:
@@ -101,60 +102,60 @@ data = MICE.get_data()
 all_zs = data['z']
 all_RAs = data['RA']
 all_DECs = data['DEC']
-exp_data = find_expected_weights(data, 111, redo=True)
+exp_data = find_expected_weights(data, 111, redo=False)
 # print(exp_data[1])
-exit()
-pickle_in = open("random_cones_new_fis.pickle", "rb")
-lenses = pickle.load(pickle_in)
-pickle_in = open("MICE_SN_data_fis.pickle", "rb")
-SN_data = pickle.load(pickle_in)
-zs = []
-perps = []
-ws = []
-lenses_IP = {}
-redo_IP = False
-if redo_IP:
-    for radius in RADII:
-        print(radius)
-        cone_zs = {}
-        cone_RAs = {}
-        cone_DECs = {}
-        for SN_num, key in enumerate(lenses[f"Radius{radius}"].keys()):
-            if key != 'WEIGHT':
-                cone_indices = np.array([], dtype=np.int16)
-                # Get shells from all previous RADII
-                for r in RADII[0:np.argmin(np.abs(RADII - np.array(radius))) + 1]:
-                    cone_indices = np.append(cone_indices, lenses[f"Radius{r}"][key])
-                # Get redshifts, RAs and DECs of all galaxies in each SN cone
-                cone_zs[key] = all_zs[cone_indices]
-                cone_RAs[key] = all_RAs[cone_indices]
-                cone_DECs[key] = all_DECs[cone_indices]
-        lenses_IP[f'Radius{radius}'] = {}
-        average_per_bin = []
-        for num, (key, _) in enumerate(cone_zs.items()):
-            lenses_IP[f'Radius{radius}'][key] = []
-            for z, ra, dec in zip(cone_zs[key], cone_RAs[key], cone_DECs[key]):
-                theta = (((ra - SN_data[f"Radius{radius}"]["SNRA"][num]) ** 2 + (dec -
-                                                                                 SN_data[f"Radius{radius}"]["SNDEC"][
-                                                                                     num]) ** 2) ** 0.5 * np.pi / 180)
-                Dpara = np.interp(z, fine_z, Dpara_fine) * 1000.0
-                Dperp = theta * Dpara / (1 + z)
-                lenses_IP[f'Radius{radius}'][key].append(1.0 / Dperp)
+# exit()
+# pickle_in = open("sparse_random_cones_fis.pickle", "rb")
+# lenses = pickle.load(pickle_in)
+# pickle_in = open("sparseMICE_SN_data_fis.pickle", "rb")
+# SN_data = pickle.load(pickle_in)
+# zs = []
+# perps = []
+# ws = []
+# lenses_IP = {}
+# redo_IP = False
+# if redo_IP:
+#     for radius in RADII:
+#         print(radius)
+#         cone_zs = {}
+#         cone_RAs = {}
+#         cone_DECs = {}
+#         for SN_num, key in enumerate(lenses[f"Radius{radius}"].keys()):
+#             if key != 'WEIGHT':
+#                 cone_indices = np.array([], dtype=np.int16)
+#                 # Get shells from all previous RADII
+#                 for r in RADII[0:np.argmin(np.abs(RADII - np.array(radius))) + 1]:
+#                     cone_indices = np.append(cone_indices, lenses[f"Radius{r}"][key])
+#                 # Get redshifts, RAs and DECs of all galaxies in each SN cone
+#                 cone_zs[key] = all_zs[cone_indices]
+#                 cone_RAs[key] = all_RAs[cone_indices]
+#                 cone_DECs[key] = all_DECs[cone_indices]
+#         lenses_IP[f'Radius{radius}'] = {}
+#         average_per_bin = []
+#         for num, (key, _) in enumerate(cone_zs.items()):
+#             lenses_IP[f'Radius{radius}'][key] = []
+#             for z, ra, dec in zip(cone_zs[key], cone_RAs[key], cone_DECs[key]):
+#                 theta = (((ra - SN_data[f"Radius{radius}"]["SNRA"][num]) ** 2 + (dec -
+#                                                                                  SN_data[f"Radius{radius}"]["SNDEC"][
+#                                                                                      num]) ** 2) ** 0.5 * np.pi / 180)
+#                 Dpara = np.interp(z, fine_z, Dpara_fine) * 1000.0
+#                 Dperp = theta * Dpara / (1 + z)
+#                 lenses_IP[f'Radius{radius}'][key].append(1.0 / Dperp)
+#
+#     pickle_out = open(f"MICElenses_IP_mean.pickle", "wb")
+#     pickle.dump(lenses_IP, pickle_out)
+#     pickle_out.close()
+# else:
+#     pickle_in = open("MICElenses_IP_mean.pickle", "rb")
+#     lenses_IP = pickle.load(pickle_in)
 
-    pickle_out = open(f"MICElenses_IP_mean.pickle", "wb")
-    pickle.dump(lenses_IP, pickle_out)
-    pickle_out.close()
-else:
-    pickle_in = open("MICElenses_IP_mean.pickle", "rb")
-    lenses_IP = pickle.load(pickle_in)
-
-kappa_impact = cones.find_convergence(lenses_IP, exp_data, redo=False, plot_scatter=True, impact=True)
+kappa_impact = MICE.find_convergence(data, exp_data, redo=True, plot_scatter=False, impact=True)
 conv_total_impact = []
-for cone_radius in RADII:
+for cone_radius in RADII[29:]:
     conv_total_impact.append(kappa_impact[f"Radius{str(cone_radius)}"]["Total"])
-plt.plot(RADII, conv_total_impact, marker='o', markersize=2, color=colours[3])
-plt.plot(RADII, np.zeros(len(RADII)), color=[0.75, 0.75, 0.75], linestyle='--')
+plt.plot(RADII[29:], conv_total_impact, marker='o', markersize=2, color=colours[3])
+plt.plot(RADII[29:], np.zeros(len(RADII[29:])), color=[0.75, 0.75, 0.75], linestyle='--')
 plt.xlabel("Cone Radius (arcmin)")
 plt.ylabel("Total $\kappa$")
 plt.show()
-impact = cones.find_correlation(kappa_impact, lenses_IP, plot_radii=True, impact=True)
+impact = MICE.find_correlation(kappa_impact, RADII[29:], plot_radii=True, impact=True)

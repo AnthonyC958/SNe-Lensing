@@ -131,6 +131,7 @@ def sort_SN_gals(cut_data, redo=False, weighted=False):
     RA1 = cut_data['RA1']
     DEC1 = cut_data['DEC1']
     RA2 = cut_data['RA2']
+    print(len(RA1), len(RA2))
     DEC2 = cut_data['DEC2']
     z1 = cut_data['z1']
     z2 = cut_data['z2']
@@ -263,13 +264,14 @@ def make_test_cones(cut_data, redo=False, plot=False):
     DEC1 = cut_data['DEC']
     z1 = cut_data['z']
     if redo:
-        pickle_in = open("test_cones.pickle", "rb")
-        test_cones = pickle.load(pickle_in)
+        # pickle_in = open("test_cones.pickle", "rb")
+        # test_cones = pickle.load(pickle_in)
+        test_cones = {}
         x0 = -0.0 * 60.0  # Convert bounds in degrees to radians
         x1 = 90.0 * 60.0
         y0 = 3.0 * 60.0
         y1 = 0.0 * 60.0
-        for cone_radius in RADII[50:]:
+        for cone_radius in RADII[29:]:
             tests = []
             if cone_radius > 12.0:
                 for a in range(int((x1 - x0) / (2 * cone_radius))):
@@ -380,12 +382,12 @@ def find_expected_counts(test_cones, bins, redo=False, plot=False):
 
     if plot:
         for cone_radius in RADII[29:]:
-            plt.plot([0, 0.6], [0, 0], color=grey, linestyle='--')
+            plt.plot([0, 1.42], [0, 0], color=grey, linestyle='--')
             plt.plot((limits[1:]+limits[:-1])/2.0, expected[f"Radius{str(cone_radius)}"], marker='o',
                      markersize=2.5, color=colours[0])
             plt.xlabel('$z$')
             plt.ylabel('Expected Count')
-            plt.xlim([0, 0.6])
+            plt.xlim([0, 1.42])
             plt.show()
 
     return [limits, expected, chi_bin_widths, chi_bins, z_bins]
@@ -413,8 +415,9 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
             pickle_in = open("kappa_weighted.pickle", "rb")
             kappa = pickle.load(pickle_in)
         elif fis:
-            pickle_in = open("kappa_fis.pickle", "rb")
-            kappa = pickle.load(pickle_in)
+            # pickle_in = open("kappa_fis.pickle", "rb")
+            # kappa = pickle.load(pickle_in)
+            kappa = {}
         elif impact:
             # pickle_in = open("kappa_impact1.pickle", "rb")
             # kappa = pickle.load(pickle_in)
@@ -422,7 +425,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
         else:
             pickle_in = open("kappa.pickle", "rb")
             kappa = pickle.load(pickle_in)
-        for cone_radius in RADII:
+        for cone_radius in RADII[29:]:
             expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]
             lenses = lens_data[f"Radius{str(cone_radius)}"]
 
@@ -480,7 +483,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
             # plt.ylabel('$\kappa$')
             # plt.show()
             print(f"Finished radius {str(cone_radius)}'")
-        pickle_out = open("kappa_impact3.pickle", "wb")
+        pickle_out = open("sparse_kappa_fis.pickle", "wb")
         pickle.dump(kappa, pickle_out)
         pickle_out.close()
         # if weighted:
@@ -498,7 +501,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
         if weighted:
             pickle_in = open("kappa_weighted.pickle", "rb")
         elif fis:
-            pickle_in = open("kappa_fis.pickle", "rb")
+            pickle_in = open("sparse_kappa_fis.pickle", "rb")
         elif impact:
             pickle_in = open("kappa_impact3.pickle", "rb")
         else:
@@ -506,7 +509,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
         kappa = pickle.load(pickle_in)
 
     if plot_scatter or plot_total:
-        for cone_radius in [29.0]:
+        for cone_radius in RADII[29:]:
             SNe_data_radius = find_mu_diff(lens_data, cone_radius=cone_radius, impact=impact)
             # lenses = lens_data[f"Radius{str(cone_radius)}"]
             bins = np.linspace(0.025, max_z - 0.025, 12)
@@ -555,26 +558,26 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
                 plt.tight_layout()
                 plt.subplots_adjust(wspace=0, hspace=0)
                 ax.plot([0, max_z], [0, 0], color=grey, linestyle='--')
-                ax.axis([0, max_z, -0.01, 0.01])
-                ax2.axis([0, 120, -0.01, 0.01])
+                ax.axis([0, max_z, -0.05, 0.06])
+                ax2.axis([0, 120, -0.05, 0.06])
                 ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
                 ax.set_xticklabels([0, 0.2, 0.4, 0])
                 ax.plot(SNe_data_radius['z'], conv, linestyle='', marker='o', markersize=2, color=colours[0])
-                ax2.hist(conv, bins=np.arange(-0.015, 0.02 + 0.0008, 0.0008), orientation='horizontal',
+                ax2.hist(conv, bins=np.arange(-0.05, 0.08 + 0.005, 0.005), orientation='horizontal',
                          fc=green, edgecolor=colours[0])
                 ax.errorbar(bins, mean_kappa, standard_error, marker='s', color='r', markersize=3, capsize=3)
                 plt.show()
 
         if plot_total:
             conv_total = []
-            for cone_radius in RADII:
+            for cone_radius in RADII[29:]:
                 conv_total.append(kappa[f"Radius{str(cone_radius)}"]["Total"])
             plt.ylabel("$\kappa$")
             plt.xlabel("Cone Radius (arcmin)")
             plt.tick_params(labelsize=12)
             plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
             plt.axis([0, 30, -0.5, 1.5])
-            plt.plot(RADII, conv_total, marker='o', markersize=2, color=colours[0])
+            plt.plot(RADII[29:], conv_total, marker='o', markersize=2, color=colours[0])
             plt.show()
 
     return kappa
@@ -634,9 +637,9 @@ def find_correlation(convergence_data, lens_data, plot_correlation=False, plot_r
     """
     correlations = []
     correlation_errs = []
-    for cone_radius in RADII:
+    for cone_radius in RADII[29:]:
         SNe_data = find_mu_diff(lens_data, cone_radius=cone_radius, impact=impact, key=key)
-        redshift_cut = np.logical_or(SNe_data['z'] > 0.2, SNe_data['z'] > 0.4)
+        redshift_cut = np.logical_or(SNe_data['z'] > 0.0, SNe_data['z'] > 0.4)
         mu_diff = SNe_data["mu_diff"][redshift_cut]
         if impact:
             if key is None:
@@ -687,11 +690,11 @@ def find_correlation(convergence_data, lens_data, plot_correlation=False, plot_r
     smooth_u_err = savgol_filter(u_err, 11, 4)
     smooth_d_err = savgol_filter(d_err, 11, 4)
     if plot_radii:
-        plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
-        plt.plot(RADII, smooth_corr, color=colours[0])
-        plt.plot(RADII, [correlations[i] for i in range(len(correlations))], marker='x', color=colours[1],
+        plt.plot([6, 30], [0, 0], color=grey, linestyle='--')
+        plt.plot(RADII[29:], smooth_corr, color=colours[0])
+        plt.plot(RADII[29:], [correlations[i] for i in range(len(correlations))], marker='x', color=colours[1],
                  linestyle='')
-        plt.fill_between(RADII, smooth_u_err, smooth_d_err, color=colours[0], alpha=0.4)
+        plt.fill_between(RADII[29:], smooth_u_err, smooth_d_err, color=colours[0], alpha=0.4)
 
         plt.xlabel('Cone Radius (arcmin)')
         plt.ylabel("Spearman's Rank Coefficient")
