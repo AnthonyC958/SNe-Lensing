@@ -15,7 +15,7 @@ MSOL = 1.989E30
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['font.serif'] = 'Stixgeneral'
 plt.rcParams['mathtext.fontset'] = 'stix'
-plt.rc('text', usetex=True)
+# plt.rc('text', usetex=True)
 
 plt.rcParams['axes.labelsize'] = 20
 plt.rcParams['axes.titlesize'] = 16
@@ -171,7 +171,7 @@ def create_z_bins(z_lo, z_hi, num_bins, plot=False, OM=0.27, OL=0.73, h=0.738):
     return chi_widths, chis, zs, z_widths
 
 
-def single_d_convergence(chi_widths, chis, zs, index, mass, SN_dist, OM=0.27, h=0.738):
+def single_d_convergence(chi_widths, chis, zs, index, d_m, SN_dist, OM=0.27, h=0.738):
     """Calculates convergence along the line of sight for a single overdensity in redshift bin i.
 
     Inputs:
@@ -190,13 +190,15 @@ def single_d_convergence(chi_widths, chis, zs, index, mass, SN_dist, OM=0.27, h=
     chi_widths[-1] = (SN_dist - chis[-2]) / 2
     chi_widths[1:-1] = (chis[2:] - chis[:-2]) / 2
     # print(chi_widths)
-    d_arr = np.linspace(0, 0, len(zs))
+    d_arr = np.zeros(len(zs))
     # rho_0 = 3 * OM * H0 ** 2 / (8 * np.pi * G)
     # rho_bar = 1 / (1 + zs[index]) ** 3 * rho_0
     # rho = 10E17
     # d_m = rho / rho_bar - 1
-    d_m = 1
+    # d_m = 1
     d_arr[index] = d_m
+    d_arr -= d_m / np.size(d_arr)
+    print(d_m/np.size(d_arr), d_arr, sum(d_arr))
     # print(d_arr[index])
     sf_arr = 1.0 / (1.0 + zs)
     k_i = coeff * chis * chi_widths * (SN_dist - chis) / SN_dist * d_arr / sf_arr
@@ -424,29 +426,35 @@ def smoothed_m_convergence(tests, SN_dist, z_SN, OM=0.27, h=0.738):
      OM -- matter density parameter. Defaults to 0.27.
     """
     H0 = 1000 * 100 * h  # km/s/Gpc
-    test_range = np.arange(3, tests, 2)
+    test_range = np.arange(3, tests, 4)
     conv = np.zeros(len(test_range))
     mass_mag = 15
     mass = MSOL * 10 ** mass_mag
     bin_lengths = np.zeros(len(test_range))
     for num, y in enumerate(test_range):
         (comoving_binwidths, comoving_bins, z_bins, z_widths) = create_chi_bins(0, z_SN, y + 1)
-        cone_rad = comoving_bins[len(z_bins) // 2] * (1 + z_bins[len(z_bins) // 2]) * 0.00349066
+        # cone_rad = comoving_bins[len(z_bins) // 2] * (1 + z_bins[len(z_bins) // 2]) * 0.00349066
+        mid_value = len(z_bins) // 2
+        print(y, mid_value)
+        theta = np.deg2rad(12.0 / 60.0)
         # distance * 12 arcmin = 0.00349066 rad
-        vol_bin = (comoving_binwidths[0] * (1 + z_bins[len(z_bins) // 2])) * np.pi * cone_rad ** 2
-        Hz = get_h_inv(z_bins[len(z_bins) // 2]) ** (-1) * H0
+        # vol_bin = (comoving_binwidths[0] * (1 + z_bins[len(z_bins) // 2])) * np.pi * cone_rad ** 2
+        vol_bin = 2.0/3.0 * np.pi * (1 - np.cos(theta)) * (comoving_binwidths[mid_value]) / (1 + z_bins[mid_value])
+        Hz = get_h_inv(z_bins[mid_value]) ** (-1) * H0
+        # rho = mass / vol_bin
         d_m = 8 * np.pi * G * mass / (3 * OM * vol_bin * Hz ** 2 * 3.086E31) - 1
-        conv[num] = single_d_convergence(comoving_binwidths, comoving_bins, z_bins, len(z_bins) // 2, mass, SN_dist)
+        conv[num] = single_d_convergence(comoving_binwidths, comoving_bins, z_bins, mid_value, d_m, SN_dist)
         bin_lengths[num] = round(1000 * comoving_binwidths[0], 1)
 
-    plt.plot(test_range[10::], conv[10::], label='$M_{{cluster}} = 10^{0} M_\odot$'.format({mass_mag}),
+    plt.plot(test_range, conv, label='$M_{{cluster}} = 10^{0} M_\odot$'.format({mass_mag}),
              color=colours[0])
-    plt.plot(test_range[10::], np.zeros(len(test_range[10::])), color=[0.75, 0.75, 0.75], linestyle='--')
-    plt.xticks(test_range[10::tests // 20], bin_lengths[10::tests // 20], rotation=45)
+    plt.plot(test_range, np.zeros(len(test_range)), color=[0.75, 0.75, 0.75], linestyle='--')
+    plt.xticks(test_range[2::tests // 20], bin_lengths[2::tests // 20], rotation=45)
     plt.xlabel("Bin length (Mpc)")
     plt.ylabel("$\kappa$")
     plt.legend(frameon=0)
-    plt.axis([15, 799, -0.002325, 0.0017])
+    plt.tight_layout()
+    # plt.axis([15, 799, -0.002325, 0.0017])
     plt.show()
 
 
@@ -511,14 +519,14 @@ if __name__ == "__main__":
     (comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc) = create_chi_bins(0, SN_redshift, num_bin)
     (comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz) = create_z_bins(0, SN_redshift, num_bin)
 
-    single_conv_c = calc_single_d(comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc, SN_redshift)
-    single_conv_z = calc_single_d(comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz, SN_redshift, use_chi=False)
-    plot_smoothed_d(comoving_binwidthsz, comoving_binsz, z_binsz, SN_redshift)
+    # single_conv_c = calc_single_d(comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc, SN_redshift)
+    # single_conv_z = calc_single_d(comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz, SN_redshift, use_chi=False)
+    # plot_smoothed_d(comoving_binwidthsz, comoving_binsz, z_binsz, SN_redshift)
+    #
+    # compare_z_chi(single_conv_c, single_conv_z, comoving_binsc, comoving_binsz, z_binsz, z_binsc, SN_chi, SN_redshift)
 
-    compare_z_chi(single_conv_c, single_conv_z, comoving_binsc, comoving_binsz, z_binsz, z_binsc, SN_chi, SN_redshift)
-
-    num_test = 800
-    # smoothed_m_convergence(num_test, SN_chi, SN_redshift)
+    num_test = 200
+    smoothed_m_convergence(num_test, SN_chi, SN_redshift)
     distance_ratio(SN_redshift)
 
     scalefactor = np.linspace(1, 0.5, 101)
