@@ -242,11 +242,13 @@ def plot_cones(cut_data, sorted_data, plot_hist=False, cone_radius=12.0):
     if plot_hist:
         labels = ['Galaxies', 'Supernovae']
         cols = [green, yellow]
-        for num, z in enumerate([cut_data['z1'], cut_data['z2']]):
-            plt.hist([i for i in z if i <= 0.6], bins=np.arange(0, 0.6 + 0.025, 0.025), normed='max', linewidth=1,
-                     fc=cols[num], label=f'{labels[num]}', edgecolor=colours[num])
+        for num, z in enumerate([np.array(cut_data['z1']), np.array(cut_data['z2'])]):
+            counts, bin_edges = np.histogram(z[z <= 0.6], bins=np.arange(0, 0.6 + 0.025, 0.025))
+            plt.bar(0.5*(bin_edges[1:]+bin_edges[:-1]), counts/max(counts), 0.025, linewidth=1, fc=cols[num],
+                    label=f'{labels[num]}', edgecolor=colours[num])
         plt.xlabel('$z$')
         plt.ylabel('Normalised Count')
+        plt.tight_layout()
         plt.legend(frameon=0)
 
         plt.show()
@@ -260,10 +262,10 @@ def make_test_cones(cut_data, redo=False, plot=False):
      redo -- boolean that determines whether cones are created or loaded. Default false.
      plot -- boolean that determines whether a plot of the data field with test_cones overplotted. Default false.
     """
-    RA1 = cut_data['RA']
-    DEC1 = cut_data['DEC']
-    z1 = cut_data['z']
     if redo:
+        RA1 = cut_data['RA']
+        DEC1 = cut_data['DEC']
+        z1 = cut_data['z']
         # pickle_in = open("test_cones.pickle", "rb")
         # test_cones = pickle.load(pickle_in)
         test_cones = {}
@@ -321,11 +323,11 @@ def make_test_cones(cut_data, redo=False, plot=False):
                 print(f'Finished {int(num)+1}/{len(tests)}')
             print(f"Finished radius {str(cone_radius)}'")
 
-        pickle_out = open("sparse_test_cones.pickle", "wb")
+        pickle_out = open("test_cones.pickle", "wb")
         pickle.dump(test_cones, pickle_out)
         pickle_out.close()
     else:
-        pickle_in = open("sparse_test_cones.pickle", "rb")
+        pickle_in = open("test_cones.pickle", "rb")
         test_cones = pickle.load(pickle_in)
 
     # plt.hist([test_cones[f'c{i+1}']['Total'] for i in range(len(test_cones))], density=1,
@@ -353,7 +355,7 @@ def find_expected_counts(test_cones, bins, redo=False, plot=False):
         # pickle_in = open("expected.pickle", "rb")
         # expected = pickle.load(pickle_in)
         expected = {}
-        for cone_radius in RADII[29:]:
+        for cone_radius in RADII:
             test_cone = test_cones[f"Radius{str(cone_radius)}"]
             cumul_tot = np.zeros((len(limits), len(test_cone)))
             for num1, lim in enumerate(limits):
@@ -373,15 +375,15 @@ def find_expected_counts(test_cones, bins, redo=False, plot=False):
 
             print(f"Finished radius {str(cone_radius)}'")
 
-        pickle_out = open("sparse_expected.pickle", "wb")
+        pickle_out = open("expected.pickle", "wb")
         pickle.dump(expected, pickle_out)
         pickle_out.close()
     else:
-        pickle_in = open("sparse_expected.pickle", "rb")
+        pickle_in = open("expected.pickle", "rb")
         expected = pickle.load(pickle_in)
 
     if plot:
-        for cone_radius in RADII[29:]:
+        for cone_radius in RADII:
             plt.plot([0, 1.42], [0, 0], color=grey, linestyle='--')
             plt.plot((limits[1:]+limits[:-1])/2.0, expected[f"Radius{str(cone_radius)}"], marker='o',
                      markersize=2.5, color=colours[0])
@@ -425,7 +427,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
         else:
             pickle_in = open("kappa.pickle", "rb")
             kappa = pickle.load(pickle_in)
-        for cone_radius in RADII[29:]:
+        for cone_radius in RADII:
             expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]
             lenses = lens_data[f"Radius{str(cone_radius)}"]
 
@@ -483,9 +485,9 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
             # plt.ylabel('$\kappa$')
             # plt.show()
             print(f"Finished radius {str(cone_radius)}'")
-        pickle_out = open("sparse_kappa_fis.pickle", "wb")
-        pickle.dump(kappa, pickle_out)
-        pickle_out.close()
+        # pickle_out = open("kappa_fis.pickle", "wb")
+        # pickle.dump(kappa, pickle_out)
+        # pickle_out.close()
         # if weighted:
         #     pickle_out = open("kappa_weighted.pickle", "wb")
         # elif fis:
@@ -501,7 +503,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
         if weighted:
             pickle_in = open("kappa_weighted.pickle", "rb")
         elif fis:
-            pickle_in = open("sparse_kappa_fis.pickle", "rb")
+            pickle_in = open("kappa_fis.pickle", "rb")
         elif impact:
             pickle_in = open("kappa_impact3.pickle", "rb")
         else:
@@ -639,7 +641,7 @@ def find_correlation(convergence_data, lens_data, plot_correlation=False, plot_r
     correlation_errs = []
     for cone_radius in RADII[29:]:
         SNe_data = find_mu_diff(lens_data, cone_radius=cone_radius, impact=impact, key=key)
-        redshift_cut = np.logical_or(SNe_data['z'] > 0.0, SNe_data['z'] > 0.4)
+        redshift_cut = np.logical_or(SNe_data['z'] > 0.2, SNe_data['z'] > 0.4)
         mu_diff = SNe_data["mu_diff"][redshift_cut]
         if impact:
             if key is None:
@@ -745,23 +747,23 @@ def bin_test(test_cones, lenses):
     for num_bins in bins:
         exp_data = find_expected_counts(test_cones, num_bins, redo=True, plot=False)
         kappa = find_convergence(lenses, exp_data, redo=True, plot_total=False, fis=True)
-        counts, bin_edges = np.histogram(kappa['Radius13.25']['SNkappa'], bins=np.arange(-0.01, 0.016 + 0.0005, 0.0005))
-        bin_centres = 0.5 * (bin_edges[1:] + bin_edges[:-1])
-        counts2, bin_edges2 = np.histogram(kappa['Radius25.0']['SNkappa'], bins=np.arange(-0.01, 0.016 + 0.0005, 0.0005))
-        bin_centres2 = 0.5 * (bin_edges2[1:] + bin_edges2[:-1])
-        kappas.append([[bin_centres, counts], [bin_centres2, counts2]])
-        # correlation = find_correlation(kappa, lenses, plot_correlation=False,
-        #                                    plot_radii=False)
-        # corrs.append(correlation[0])
+        # counts, bin_edges = np.histogram(kappa['Radius13.25']['SNkappa'], bins=np.arange(-0.01, 0.016 + 0.0005, 0.0005))
+        # bin_centres = 0.5 * (bin_edges[1:] + bin_edges[:-1])
+        # counts2, bin_edges2 = np.histogram(kappa['Radius25.0']['SNkappa'], bins=np.arange(-0.01, 0.016 + 0.0005, 0.0005))
+        # bin_centres2 = 0.5 * (bin_edges2[1:] + bin_edges2[:-1])
+        # kappas.append([[bin_centres, counts], [bin_centres2, counts2]])
+        correlation = find_correlation(kappa, lenses, plot_correlation=False,
+                                           plot_radii=False)
+        corrs.append(correlation[0])
 
     for i, num_bins in enumerate(bins):
-        # plt.plot(RADII, corrs[i], label=f"{num_bins-1}")
-        plt.plot(kappas[i][0][0], kappas[i][0][1], label=f"{num_bins-1}")
+        plt.plot(RADII, corrs[i], label=f"{num_bins-1}")
+        # plt.plot(kappas[i][0][0], kappas[i][0][1], label=f"{num_bins-1}")
     plt.legend(frameon=0)
-    # plt.xlim([5, 30])
+    plt.xlim([5, 30])
     plt.xlabel('$\kappa$')
     plt.ylabel('Count')
-    # plt.gca().invert_yaxis()
+    plt.gca().invert_yaxis()
     plt.show()
 
     for i, num_bins in enumerate(bins):
@@ -781,7 +783,7 @@ if __name__ == "__main__":
 
     lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
 
-    # plot_cones(data, lensing_gals, plot_hist=False, cone_radius=12.0)
+    # plot_cones(data, lensing_gals, plot_hist=True, cone_radius=12.0)
     cone_array = make_test_cones(data, redo=False, plot=False)
     exp_data = find_expected_counts(cone_array, 51, redo=False, plot=False)
     redo_conv = False
@@ -911,16 +913,16 @@ if __name__ == "__main__":
     # plt.legend(frameon=0)
     # plt.show()
 
-    pickle_in = open("kappa_impact2.pickle", "rb")
+    pickle_in = open("kappa_impact.pickle", "rb")
     kappa_impact = pickle.load(pickle_in)
     print(kappa_impact.keys())
-    key = 2.5
+    key = 3.0
     impact1 = find_correlation(kappa_impact, lensing_gals_impact, plot_radii=True, impact=True, key=key)
-    key = 5.0
+    key = 6.0
     impact2 = find_correlation(kappa_impact, lensing_gals_impact, plot_radii=True, impact=True, key=key)
-    key = 7.5
+    key = 12.0
     impact3 = find_correlation(kappa_impact, lensing_gals_impact, plot_radii=True, impact=True, key=key)
-    key = 10.0
+    key = 24.0
     impact4 = find_correlation(kappa_impact, lensing_gals_impact, plot_radii=True, impact=True, key=key)
     # plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
     # plt.plot(RADII, impact1[1], color=colours[0])
@@ -964,9 +966,9 @@ if __name__ == "__main__":
     plt.tick_params(labelsize=12)
     plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
     plt.xlim([0, 30])
-    plt.plot(RADII, conv_total_25, marker='o', markersize=2, color=colours[0], label="2.5")
-    plt.plot(RADII, conv_total_50, marker='o', markersize=2, color=colours[1], label="5.0")
-    plt.plot(RADII, conv_total_75, marker='o', markersize=2, color=colours[2], label="7.5")
-    plt.plot(RADII, conv_total_100, marker='o', markersize=2, color=colours[3], label="10.0")
+    plt.plot(RADII, conv_total_25, marker='o', markersize=2, color=colours[0], label= "3'")
+    plt.plot(RADII, conv_total_50, marker='o', markersize=2, color=colours[1], label= "6'")
+    plt.plot(RADII, conv_total_75, marker='o', markersize=2, color=colours[2], label= "12'")
+    plt.plot(RADII, conv_total_100, marker='o', markersize=2, color=colours[3], label="24'")
     plt.legend(frameon=0)
     plt.show()

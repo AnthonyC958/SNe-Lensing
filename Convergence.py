@@ -2,11 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.integrate as sp
 
-colours = [[0, 150/255, 100/255], [225/255, 149/255, 0], [207/255, 0, 48/255], 'C3', 'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
-blue = [23/255, 114/255, 183/255, 0.75]
-orange = [255/255, 119/255, 15/255, 0.75]
-green = [0, 150/255, 100/255, 0.25]
-yellow = [253/255, 170/255, 0, 0.75]
+colours = [[0, 150 / 255, 100 / 255], [225 / 255, 149 / 255, 0], [207 / 255, 0, 48 / 255], 'C3', 'C4', 'C9', 'C6', 'C7',
+           'C8', 'C5']
+blue = [23 / 255, 114 / 255, 183 / 255, 0.75]
+orange = [255 / 255, 119 / 255, 15 / 255, 0.75]
+green = [0, 150 / 255, 100 / 255, 0.25]
+yellow = [253 / 255, 170 / 255, 0, 0.75]
 grey = [0.75, 0.75, 0.75]
 c = 2.998E5  # km/s
 G = 6.67E-11
@@ -124,10 +125,11 @@ def create_chi_bins(z_lo, z_hi, num_bins, plot=False):
         plt.plot(z_to_end, chi_to_end, color=colours[1])
         plt.plot(zs, chis, linestyle='', marker='o', markersize=3, color=colours[0])
         plt.xlabel(r' $z$')
-        
+
         plt.axis([0, z_hi, 0, chi_end])
         plt.ylabel(r'$R_0\chi$ (Gpc)')
         plt.savefig("figure_67.eps", format="pdf")
+        plt.tight_layout()
         plt.show()
 
     return chi_widths, chis, zs, z_widths
@@ -163,9 +165,10 @@ def create_z_bins(z_lo, z_hi, num_bins, plot=False, OM=0.27, OL=0.73, h=0.738):
         plt.plot(np.linspace(z_lo, z_hi, 1001), b_comoving(z_lo, z_hi, OM=OM, OL=OL, h=h), color=colours[1])
         plt.plot(zs, chis, linestyle='', marker='o', markersize=3, color=colours[0])
         plt.xlabel(r' $z$')
-        
+
         plt.ylabel(r'$R_0\chi$ (Gpc)')
-        plt.axis([0, z_hi, 0, chis[-1] + chi_widths[-1]/2])
+        plt.axis([0, z_hi, 0, chis[-1] + chi_widths[-1] / 2])
+        plt.tight_layout()
         plt.show()
 
     return chi_widths, chis, zs, z_widths
@@ -197,8 +200,8 @@ def single_d_convergence(chi_widths, chis, zs, index, d_m, SN_dist, OM=0.27, h=0
     # d_m = rho / rho_bar - 1
     # d_m = 1
     d_arr[index] = d_m
-    d_arr -= d_m / np.size(d_arr)
-    print(d_m/np.size(d_arr), d_arr, sum(d_arr))
+    # d_arr -= d_m / np.size(d_arr)
+    print(d_m / np.size(d_arr), d_arr, sum(d_arr))
     # print(d_arr[index])
     sf_arr = 1.0 / (1.0 + zs)
     k_i = coeff * chis * chi_widths * (SN_dist - chis) / SN_dist * d_arr / sf_arr
@@ -285,9 +288,9 @@ def calc_single_d(chi_widths, chis, zs, z_widths, z_SN, use_chi=True):
     mass = MSOL * 10 ** 15
     for i in range(0, len(chis)):
         if use_chi:
-            convergence[i] = single_d_convergence(chi_widths, chis, zs, i, mass, chi_SN)
+            convergence[i] = single_d_convergence(chi_widths, chis, zs, i, 1, chi_SN)
         else:
-            convergence[i] = single_d_convergence_z(z_widths, chis, zs, i, mass, chi_SN)
+            convergence[i] = single_d_convergence_z(z_widths, chis, zs, i, 1, chi_SN)
 
     return convergence
 
@@ -305,7 +308,7 @@ def plot_smoothed_d(chi_widths, chis, zs, z_SN):
     comoving_to_SN = b_comoving(0, z_SN)
     chi_SN = comoving_to_SN[-1]
 
-    size = 2 * len(zs)//2 + 1
+    size = 2 * len(zs) // 2 + 1
     delta = np.zeros((size, len(zs)))
 
     delta1 = 1
@@ -313,15 +316,15 @@ def plot_smoothed_d(chi_widths, chis, zs, z_SN):
     delta[0][int(len(zs) // 2):int(len(zs) // 2) + 1] = delta1
     delta[-1][int(len(zs) // 2):int(len(zs) // 2) + 1] = -delta1
 
-    for i, s in enumerate(np.arange(1, len(zs)//2 + 1, 1)):
+    for i, s in enumerate(np.arange(1, len(zs) // 2 + 1, 1)):
         delta[s][int(len(zs) // 2) - s:int(len(zs) // 2) + s + 1] = delta1 / (2 * s + 1)
-        delta[-s-1][int(len(zs) // 2) - s:int(len(zs) // 2) + s + 1] = -delta1 / (2 * s + 1)
+        delta[-s - 1][int(len(zs) // 2) - s:int(len(zs) // 2) + s + 1] = -delta1 / (2 * s + 1)
     convergence = np.zeros(size)
     convergence_cor = np.zeros(size)
 
     delta_cor = np.zeros((size, len(zs)))
-    delta_cor[0:size//2] = delta[0:size//2]-correction
-    delta_cor[size//2:] = delta[size//2:]+correction
+    delta_cor[0:size // 2] = delta[0:size // 2] - correction
+    delta_cor[size // 2:] = delta[size // 2:] + correction
 
     for j in range(size):
         convergence[j], _ = general_convergence(chi_widths, chis, zs, delta[j], chi_SN)
@@ -330,7 +333,7 @@ def plot_smoothed_d(chi_widths, chis, zs, z_SN):
     # convergence = np.delete(convergence, size // 2, 0)
     convergence_cor = np.delete(convergence_cor, size // 2, 0)
 
-    plt.plot([size // 2 - 1, size // 2 - 1], [min(convergence)-0.0003, max(convergence)+0.0003],
+    plt.plot([size // 2 - 1, size // 2 - 1], [min(convergence) - 0.0003, max(convergence) + 0.0003],
              color=[0.75, 0.75, 0.75], linestyle='--')
     plt.plot([0, size - 1], [0, 0], color=[0.75, 0.75, 0.75], linestyle='--')
     plt.plot(range(size // 2), convergence[:size // 2], label=f'Total $|\delta|$ = 1', color=colours[0])
@@ -338,11 +341,13 @@ def plot_smoothed_d(chi_widths, chis, zs, z_SN):
     plt.plot(range(size - 1), convergence_cor, label=f'Total $|\delta|$ = 0', color=colours[1])
     plt.xlabel("Number of bins smoothed over")
     plt.ylabel(" $\kappa$")
-    
+
     # plt.title(f"Convergence as a function of central overdensity smoothing (z$_S$$_N$ = {z_SN})")
     plt.legend(frameon=0)
     plt.xticks([0, 12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100], [0, 25, 50, 75, 100, 75, 50, 25, 0])
-    plt.axis([0, size - 1, min(convergence)-0.0003, max(convergence)+0.0003])
+    plt.axis([0, size - 1, min(convergence) - 0.0003, max(convergence) + 0.0003])
+    plt.tight_layout()
+    plt.tight_layout()
     plt.show()
 
     # for array in delta_cor[:len(delta_cor) // 2]:
@@ -356,7 +361,7 @@ def plot_smoothed_d(chi_widths, chis, zs, z_SN):
     # fig = matplotlib.pyplot.gcf()
     # fig.tight_layout()
     # fig.set_size_inches(7, 5.5)
-    # plt.show()
+    # plt.tight_layout() plt.tight_layout() plt.show()
 
 
 def compare_z_chi(conv_c_arr, conv_z_arr, chi_bins_c, chi_bins_z, z_bins_z, z_bins_c, SN_dist, z_SN):
@@ -377,20 +382,21 @@ def compare_z_chi(conv_c_arr, conv_z_arr, chi_bins_c, chi_bins_z, z_bins_z, z_bi
     chi_peak_c = np.array(chi_bins_c)[np.argmin(np.abs(conv_c_arr - max(conv_c_arr)))]
     chi_peak_z = np.array(chi_bins_z)[np.argmin(np.abs(conv_z_arr - max(conv_z_arr)))]
 
-    plt.plot(chi_bins_c, 1000 * conv_c_arr, label='Even $\chi$', color=colours[0])
+    plt.plot(chi_bins_c, 1000 * conv_c_arr, label='Equal $\chi$', color=colours[0])
     plt.plot(chi_peak_c, 1000 * max(conv_c_arr), marker='x', color=colours[0])
-    plt.text((chi_peak_z + chi_peak_c) / 2, 1000 * max(conv_c_arr)*3.5/5, f'$\chi$ = {round(chi_peak_c, 2)} Gpc',
+    plt.text((chi_peak_z + chi_peak_c) / 2, 1000 * max(conv_c_arr) * 3.5 / 5, f'$\chi$ = {round(chi_peak_c, 2)} Gpc',
              fontsize=16, ha='center', color=colours[0])
 
-    plt.plot(chi_bins_z, 1000 * conv_z_arr, label='Even $z$', color=colours[1])
+    plt.plot(chi_bins_z, 1000 * conv_z_arr, label='Equal $z$', color=colours[1])
     plt.plot(chi_peak_z, 1000 * max(conv_z_arr), marker='x', color=colours[1])
-    plt.text((chi_peak_z + chi_peak_c) / 2, 1000 * max(conv_c_arr)*3/5, f'$\chi$ = {round(chi_peak_z, 2)} Gpc',
+    plt.text((chi_peak_z + chi_peak_c) / 2, 1000 * max(conv_c_arr) * 3 / 5, f'$\chi$ = {round(chi_peak_z, 2)} Gpc',
              fontsize=16, ha='center', color=colours[1])
     plt.xlabel("$\chi_L$ (Gpc)")
     plt.ylabel("$\kappa$ ($\\times 10^{-3}$)")
-    
+
     plt.legend(frameon=0, loc='upper left')
     # plt.axis([0, SN_dist, 0, 1.1 * max(conv_c_arr)])
+    plt.tight_layout()
     plt.show()
 
     plt.plot([z_SN / 2, z_SN / 2], [0, 1.1 * max(conv_c_arr)], linestyle='--',
@@ -398,12 +404,12 @@ def compare_z_chi(conv_c_arr, conv_z_arr, chi_bins_c, chi_bins_z, z_bins_z, z_bi
     z_peak_c = np.array(z_bins_c)[np.argmin(np.abs(conv_c_arr - max(conv_c_arr)))]
     z_peak_z = np.array(z_bins_z)[np.argmin(np.abs(conv_z_arr - max(conv_z_arr)))]
 
-    plt.plot(z_bins_c, 1000 * conv_c_arr, label='Even $\chi$', color=colours[0])
+    plt.plot(z_bins_c, 1000 * conv_c_arr, label='Equal $\chi$', color=colours[0])
     plt.plot(z_peak_c, 1000 * max(conv_c_arr), marker='x', color=colours[0])
     plt.text((z_peak_z + z_peak_c) / 2, 1000 * max(conv_z_arr) * 3.5 / 5, f'$z$ = {round(z_peak_c, 2)}',
              fontsize=16, ha='center', color=colours[0])
 
-    plt.plot(z_bins_z, 1000 * conv_z_arr, label='Even $z$', color=colours[1])
+    plt.plot(z_bins_z, 1000 * conv_z_arr, label='Equal $z$', color=colours[1])
     plt.plot(z_peak_z, 1000 * max(conv_z_arr), marker='x', color=colours[1])
     plt.text((z_peak_z + z_peak_c) / 2, 1000 * max(conv_z_arr) * 3 / 5, f'$z$ = {round(z_peak_z, 2)}',
              fontsize=16, ha='center', color=colours[1])
@@ -413,6 +419,7 @@ def compare_z_chi(conv_c_arr, conv_z_arr, chi_bins_c, chi_bins_z, z_bins_z, z_bi
     plt.legend(frameon=0, loc='upper right')
 
     # plt.axis([0, z_SN, 0, 1.1 * max(conv_c_arr)])
+    plt.tight_layout()
     plt.show()
 
 
@@ -433,22 +440,22 @@ def smoothed_m_convergence(tests, SN_dist, z_SN, OM=0.27, h=0.738):
     bin_lengths = np.zeros(len(test_range))
     for num, y in enumerate(test_range):
         (comoving_binwidths, comoving_bins, z_bins, z_widths) = create_chi_bins(0, z_SN, y + 1)
-        # cone_rad = comoving_bins[len(z_bins) // 2] * (1 + z_bins[len(z_bins) // 2]) * 0.00349066
+        cone_rad = comoving_bins[len(z_bins) // 2] / (1 + z_bins[len(z_bins) // 2]) * 0.00349066
         mid_value = len(z_bins) // 2
         print(y, mid_value)
         theta = np.deg2rad(12.0 / 60.0)
         # distance * 12 arcmin = 0.00349066 rad
-        # vol_bin = (comoving_binwidths[0] * (1 + z_bins[len(z_bins) // 2])) * np.pi * cone_rad ** 2
-        vol_bin = 2.0/3.0 * np.pi * (1 - np.cos(theta)) * (comoving_binwidths[mid_value]) / (1 + z_bins[mid_value])
+        vol_bin = (comoving_binwidths[0] * (1 + z_bins[len(z_bins) // 2])) * np.pi * cone_rad ** 2
+        # vol_bin = 2.0 / 3.0 * np.pi * (1 - np.cos(theta)) * (comoving_binwidths[mid_value]) / (1 + z_bins[mid_value])
         Hz = get_h_inv(z_bins[mid_value]) ** (-1) * H0
         # rho = mass / vol_bin
         d_m = 8 * np.pi * G * mass / (3 * OM * vol_bin * Hz ** 2 * 3.086E31) - 1
         conv[num] = single_d_convergence(comoving_binwidths, comoving_bins, z_bins, mid_value, d_m, SN_dist)
         bin_lengths[num] = round(1000 * comoving_binwidths[0], 1)
 
-    plt.plot(test_range, conv, label='$M_{{cluster}} = 10^{0} M_\odot$'.format({mass_mag}),
+    plt.plot(test_range[2::], conv[2::], label='$M_{{cluster}} = 10^{0} M_\odot$'.format({mass_mag}),
              color=colours[0])
-    plt.plot(test_range, np.zeros(len(test_range)), color=[0.75, 0.75, 0.75], linestyle='--')
+    plt.plot(test_range[2::], np.zeros(len(test_range))[2::], color=[0.75, 0.75, 0.75], linestyle='--')
     plt.xticks(test_range[2::tests // 20], bin_lengths[2::tests // 20], rotation=45)
     plt.xlabel("Bin length (Mpc)")
     plt.ylabel("$\kappa$")
@@ -467,11 +474,12 @@ def distance_ratio(z_source):
     _, chis, zs, _ = create_chi_bins(0, z_source, 1002)
     z_source = zs[-1]
     # z_arr = np.linspace(0, z_source, 1001)
-    D_S = b_comoving(0, z_source, 1, 0, 1001)[-1] / (1+z_source)
+    D_S = b_comoving(0, z_source, 1, 0, 1001)[-1] / (1 + z_source)
     chi_S = b_comoving(0, z_source, 1, 0, 1001)[-1]
-    D_L = np.array([(b_comoving(0, i, 1, 0, 1001)[-1] / (1+i)) for i in zs])
+    D_L = np.array([(b_comoving(0, i, 1, 0, 1001)[-1] / (1 + i)) for i in zs])
     chi_L = np.array([(b_comoving(0, i, 1, 0, 1001)[-1]) for i in zs])
-    D_LS = np.array([((b_comoving(0, z_source, 1, 0, 1001)[-1] - b_comoving(0, i, 1, 0, 1001)[-1]) / (1+z_source)) for i in zs])
+    D_LS = np.array(
+        [((b_comoving(0, z_source, 1, 0, 1001)[-1] - b_comoving(0, i, 1, 0, 1001)[-1]) / (1 + z_source)) for i in zs])
     D_ratio = D_L * D_LS / D_S
     chi_ratio = chi_L * (np.linspace(chi_S, chi_S, 1001) - chi_L) / np.linspace(chi_S, chi_S, 1001) * (1 + zs)
     D_A = comoving(zs) / (1 + zs)
@@ -489,6 +497,7 @@ def distance_ratio(z_source):
     plt.text(z_peak_chi, chi_S / 3.5, f'$z$ = {round(z_peak_chi, 4)}', fontsize=16, ha='center', color=colours[2])
     plt.xlabel('$z$')
     plt.ylabel('$D_A$ (Gpc)')
+    plt.tight_layout()
     plt.show()
 
     z_peak_D = np.array(zs)[np.argmin(np.abs(D_ratio - max(D_ratio)))]
@@ -505,12 +514,13 @@ def distance_ratio(z_source):
     # plt.text(chi_peak2, chi_S / 2.5, f'$\chi$ = {round(chi_peak2, 2)} Gpc', fontsize=16, ha='center', color=colours[4])
     plt.xlabel(r'$z$')
     plt.ylabel(r'$D_A$ (Gpc)')
+    plt.tight_layout()
     plt.show()
 
 
 if __name__ == "__main__":
     SN_redshift = 1.0
-    num_bin = 50
+    num_bin = 100
 
     chi_to_SN = b_comoving(0, SN_redshift)
     # chi_to_SN = b_comoving(0, SN_redshift)
@@ -519,13 +529,13 @@ if __name__ == "__main__":
     (comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc) = create_chi_bins(0, SN_redshift, num_bin)
     (comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz) = create_z_bins(0, SN_redshift, num_bin)
 
-    # single_conv_c = calc_single_d(comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc, SN_redshift)
-    # single_conv_z = calc_single_d(comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz, SN_redshift, use_chi=False)
-    # plot_smoothed_d(comoving_binwidthsz, comoving_binsz, z_binsz, SN_redshift)
+    single_conv_c = calc_single_d(comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc, SN_redshift)
+    single_conv_z = calc_single_d(comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz, SN_redshift, use_chi=False)
+    plot_smoothed_d(comoving_binwidthsz, comoving_binsz, z_binsz, SN_redshift)
     #
     # compare_z_chi(single_conv_c, single_conv_z, comoving_binsc, comoving_binsz, z_binsz, z_binsc, SN_chi, SN_redshift)
 
-    num_test = 200
+    num_test = 500
     smoothed_m_convergence(num_test, SN_chi, SN_redshift)
     distance_ratio(SN_redshift)
 
@@ -536,4 +546,5 @@ if __name__ == "__main__":
     plt.plot(scalefactor, 2 * rho_crit, color=colours[2])
     plt.ylim([-2, 20])
     plt.gca().invert_xaxis()
+    plt.tight_layout()
     plt.show()

@@ -95,11 +95,11 @@ def find_expected_weights(cut_data, bins, redo=False, plot=False):
             #                                                                    f"Radius{str(cone_radius)}"][index - 1])
 
             print(f"Finished radius {str(cone_radius)}'")
-        pickle_out = open("sparse_expected_IPs_mean.pickle", "wb")
+        pickle_out = open("expected_IPs_mean.pickle", "wb")
         pickle.dump(expected, pickle_out)
         pickle_out.close()
     else:
-        pickle_in = open("sparse_expected_IPs_mean.pickle", "rb")
+        pickle_in = open("expected_IPs_mean.pickle", "rb")
         expected = pickle.load(pickle_in)
 
     if plot:
@@ -122,13 +122,13 @@ Dpara_fine = Convergence.comoving(fine_z)
 data = MICE.get_data()
 lenses = MICE.get_random(data, redo=False)
 # exp = cones.find_expected_counts(_, 51)
-exp_data = find_expected_weights(data, 111, redo=True, plot=False)
+exp_data = find_expected_weights(data, 111, redo=False, plot=False)
 zs = []
 perps = []
 ws = []
 lenses_IP = {}
 # lenses_IP[crit_dist] = {}
-redo_IP = True
+redo_IP = False
 if redo_IP:
     for radius in RADII:
         print(radius)
@@ -177,11 +177,11 @@ if redo_IP:
     # plt.xlim(0.00038, 15)
     # plt.show()
 
-    pickle_out = open(f"sparse_lenses_IP_mean.pickle", "wb")
+    pickle_out = open(f"lenses_IP_mean.pickle", "wb")
     pickle.dump(lenses_IP, pickle_out)
     pickle_out.close()
 else:
-    pickle_in = open("sparse_lenses_IP_mean.pickle", "rb")
+    pickle_in = open("lenses_IP_mean.pickle", "rb")
     lenses_IP = pickle.load(pickle_in)
 
 kappa_impact = cones.find_convergence(lenses_IP, exp_data, redo=True, plot_scatter=False, impact=True)

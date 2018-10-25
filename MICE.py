@@ -319,11 +319,14 @@ def plot_cones(data, plot_hist=False, cone_radius=12.0):
     if plot_hist:
         labels = ['Galaxies', 'Supernovae']
         cols = [green, yellow]
-        for num, z in enumerate([z_gal, SNz]):
-            plt.hist([i for i in z if i <= 1.5], bins=np.arange(0, 1.5 + 0.025, 0.025), normed='max', linewidth=1,
-                     fc=cols[num], label=f'{labels[num]}', edgecolor=colours[num])
+        for num, z in enumerate([np.array(z_gal), np.array(SNz)]):
+            counts, bin_edges = np.histogram(z, bins=np.arange(0, 1.5 + 0.05, 0.05))
+            plt.bar(0.5 * (bin_edges[1:] + bin_edges[:-1]), counts / max(counts), 0.05, linewidth=1, fc=cols[num],
+                    label=f'{labels[num]}', edgecolor=colours[num])
         plt.xlabel('$z$')
         plt.ylabel('Normalised Count')
+        plt.xlim([0, 1.45])
+        plt.tight_layout()
         plt.legend(frameon=0)
 
         plt.show()
@@ -739,30 +742,30 @@ if __name__ == "__main__":
     #### test sparse data ####
     use_weighted = True
     alldata = get_data()
-    test_cones = cones.make_test_cones(alldata, redo=False, plot=False)
-    print(len(alldata["RA"]))
-    lens_data = get_random(alldata, redo=False)
-    # plot_cones(alldata)
-    exp_data = cones.find_expected_counts(test_cones, 111, redo=False, plot=False)
-
-    lensing_gals_fully_in_sample = {}
-    number_fis = np.zeros(len(RADII[29:]))
-    num = 0
-    not_fis_indices = np.zeros(1500)
-    for rad in RADII[29:]:
-        lensing_gals_fully_in_sample[f"Radius{rad}"] = {}
-        for num2, (key2, SN) in enumerate(lens_data[f"Radius{rad}"].items()):
-            if SN["WEIGHT"] == 1:
-                not_fis_indices[num2] = 1
-                lensing_gals_fully_in_sample[f"Radius{rad}"][key2] = SN
-                number_fis[num] += 1
-        num += 1
-    # plt.plot(RADII[29:], number_fis, '+')
-    # plt.show()
-    kappa_fis = cones.find_convergence(lensing_gals_fully_in_sample, exp_data, redo=False, plot_total=True,
-                                       plot_scatter=False, fis=True, max_z=1.42)
-    sparse_FIS = cones.find_correlation(kappa_fis, lensing_gals_fully_in_sample, plot_radii=True)
-    exit()
+    # test_cones = cones.make_test_cones(alldata, redo=False, plot=False)
+    # print(len(alldata["RA"]))
+    # lens_data = get_random(alldata, redo=False)
+    # # plot_cones(alldata)
+    # exp_data = cones.find_expected_counts(test_cones, 111, redo=False, plot=False)
+    #
+    # lensing_gals_fully_in_sample = {}
+    # number_fis = np.zeros(len(RADII[29:]))
+    # num = 0
+    # not_fis_indices = np.zeros(1500)
+    # for rad in RADII[29:]:
+    #     lensing_gals_fully_in_sample[f"Radius{rad}"] = {}
+    #     for num2, (key2, SN) in enumerate(lens_data[f"Radius{rad}"].items()):
+    #         if SN["WEIGHT"] == 1:
+    #             not_fis_indices[num2] = 1
+    #             lensing_gals_fully_in_sample[f"Radius{rad}"][key2] = SN
+    #             number_fis[num] += 1
+    #     num += 1
+    # # plt.plot(RADII[29:], number_fis, '+')
+    # # plt.show()
+    # kappa_fis = cones.find_convergence(lensing_gals_fully_in_sample, exp_data, redo=False, plot_total=True,
+    #                                    plot_scatter=False, fis=True, max_z=1.42)
+    # sparse_FIS = cones.find_correlation(kappa_fis, lensing_gals_fully_in_sample, plot_radii=True)
+    # exit()
 
     #### test sparse data ####
     # use_weighted = True
@@ -788,7 +791,7 @@ if __name__ == "__main__":
     # exit()
     exp_data = find_expected(big_cone, big_cone_radius, 111, redo=False, plot=False)
     get_random(alldata, redo=False)
-    # plot_cones(alldata, plot_hist=True, cone_radius=6.0)
+    plot_cones(alldata, plot_hist=True, cone_radius=6.0)
     # plot_Hubble()
 
     kappa = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=use_weighted)
