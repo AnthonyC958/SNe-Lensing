@@ -119,24 +119,31 @@ crit_angles = [3.0, 6.0, 12.0, 24.0]
 crit_dists = [2.5, 5.0, 7.5, 10.0]
 fine_z = np.linspace(0, 0.7, 1001)
 Dpara_fine = Convergence.comoving(fine_z)
-data = MICE.get_data()
-lenses = MICE.get_random(data, redo=False)
-# exp = cones.find_expected_counts(_, 51)
-exp_data = find_expected_weights(data, 111, redo=False, plot=False)
+# data = MICE.get_data()
+# lenses = MICE.get_random(data, redo=False)
+
+data, _ = cones.get_data(new_data=False)
+lenses = cones.sort_SN_gals(data, redo=False, weighted=True)
+exp_data = cones.find_expected_counts(_, 51)
+# exp_data = find_expected_weights(data, 111, redo=False, plot=False)
 zs = []
 perps = []
 ws = []
-lenses_IP = {}
+# lenses_IP = {}
 # lenses_IP[crit_dist] = {}
-redo_IP = False
+redo_IP = 0
+# pickle_in = open("lenses_IP2_gal.pickle", "rb")
+# lenses_IP = pickle.load(pickle_in)
+# print(lenses_IP.keys(), lenses_IP[0.05].keys())
+# lenses_IP[0.05] = {}
 if redo_IP:
     for radius in RADII:
         print(radius)
-        lenses_IP[f'Radius{radius}'] = {}
+        lenses_IP[0.05][f'Radius{radius}'] = {}
         average_per_bin = []
         for key, item in lenses[f'Radius{radius}'].items():
             if lenses[f'Radius{radius}'][key]["WEIGHT"] == 1.0:
-                lenses_IP[f'Radius{radius}'][key] = {"SNZ": lenses[f'Radius{radius}'][key]["SNZ"],
+                lenses_IP[0.05][f'Radius{radius}'][key] = {"SNZ": lenses[f'Radius{radius}'][key]["SNZ"],
                                                      "Zs": lenses[f'Radius{radius}'][key]["Zs"],
                                                      "SNMU": lenses[f'Radius{radius}'][key]["SNMU"],
                                                      "SNMU_ERR": lenses[f'Radius{radius}'][key]["SNMU_ERR"],
@@ -154,11 +161,11 @@ if redo_IP:
                     # lenses_IP[f'Radius{radius}'][key]['IPWEIGHT'].append(average_counts[0][f"Radius{radius}"][bin_num[0]]/
                     #                                                      average_counts[1][f"Radius{radius}"][bin_num[0]]/
                     #                                                      Dperp)
-                    lenses_IP[f'Radius{radius}'][key]['IPWEIGHT'].append(1.0 / Dperp)
+                    lenses_IP[0.05][f'Radius{radius}'][key]['IPWEIGHT'].append(0.1*0.05 / Dperp)
                     # zs.append(z)
                     # perps.append(Dperp)
                     # ws.append(crit_weight*limperp/Dperp)
-        print(len(lenses_IP[f'Radius{radius}']))
+        print(len(lenses_IP[0.05][f'Radius{radius}']))
     # print(lenses_IP.keys())
     # print(lenses_IP[3.0].keys())
     # print(lenses_IP[3.0]["Radius3.0"].keys())
@@ -177,12 +184,27 @@ if redo_IP:
     # plt.xlim(0.00038, 15)
     # plt.show()
 
-    pickle_out = open(f"lenses_IP_mean.pickle", "wb")
+    pickle_out = open(f"lenses_IP2_gal.pickle", "wb")
     pickle.dump(lenses_IP, pickle_out)
     pickle_out.close()
 else:
-    pickle_in = open("lenses_IP_mean.pickle", "rb")
+    pickle_in = open("lenses_IP2.pickle", "rb")
     lenses_IP = pickle.load(pickle_in)
+
+plt.plot([0, 0.6], [2.5, 2.5], c=colours[1], lw=2, ls='-')
+plt.plot([0, 0.6], [5.0, 5.0], c=colours[1], lw=2, ls='--')
+plt.plot([0, 0.6], [7.5, 7.5], c=colours[1], lw=2, ls='-.')
+plt.plot([0, 0.6], [10.0, 10.0], c=colours[1], lw=2, ls=':')
+plt.plot(np.linspace(0, 0.6, 101), 1000.0*np.deg2rad(3.0 /60.0)/(1+np.linspace(0, 0.6, 101))*Convergence.comoving(np.linspace(0, 0.6, 101)), c=colours[0], lw=2, ls='-')
+plt.plot(np.linspace(0, 0.6, 101), 1000.0*np.deg2rad(6.0 /60.0)/(1+np.linspace(0, 0.6, 101))*Convergence.comoving(np.linspace(0, 0.6, 101)), c=colours[0], lw=2, ls='--')
+plt.plot(np.linspace(0, 0.6, 101), 1000.0*np.deg2rad(12.0/60.0)/(1+np.linspace(0, 0.6, 101))*Convergence.comoving(np.linspace(0, 0.6, 101)), c=colours[0], lw=2, ls='-.')
+plt.plot(np.linspace(0, 0.6, 101), 1000.0*np.deg2rad(24.0/60.0)/(1+np.linspace(0, 0.6, 101))*Convergence.comoving(np.linspace(0, 0.6, 101)), c=colours[0], lw=2, ls=':')
+plt.xlabel('$z$')
+plt.ylabel('$\u03BE_0$ (Mpc)')
+plt.axis([0, 0.6, 0, 11])
+plt.tight_layout()
+plt.show()
+exit()
 
 kappa_impact = cones.find_convergence(lenses_IP, exp_data, redo=True, plot_scatter=False, impact=True)
 conv_total_impact = []

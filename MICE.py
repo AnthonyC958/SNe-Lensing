@@ -58,21 +58,21 @@ def deep_update(old_dict, update_to_dict):
 
 
 def get_data():
-    with fits.open('sparseMICE.fits') as hdul1:
+    with fits.open('MICEsim5.fits') as hdul1:
         RA = hdul1[1].data['ra']
         DEC = hdul1[1].data['dec']
         kap = hdul1[1].data['kappa']
         z = hdul1[1].data['z_v']
         ID = hdul1[1].data['id']
-        Comoving = hdul1[1].data['d_c_v']
+        # Comoving = hdul1[1].data['d_c_v']
 
     RA = np.array(RA)[[z >= 0.01]]
     DEC = np.array(DEC)[[z >= 0.01]]
     kap = np.array(kap)[[z >= 0.01]]
     ID = np.array(ID)[[z >= 0.01]]
-    Comoving = np.array(Comoving)[[z >= 0.01]]
+    # Comoving = np.array(Comoving)[[z >= 0.01]]
     z = np.array(z)[[z >= 0.01]]
-    cut_data = {'RA': RA, 'DEC': DEC, 'z': z, 'kappa': kap, 'id': ID, 'd_c': Comoving}
+    cut_data = {'RA': RA, 'DEC': DEC, 'z': z, 'kappa': kap, 'id': ID}#, 'd_c': Comoving}
 
     return cut_data
 
@@ -102,7 +102,7 @@ def make_big_cone(data, redo=False):
         pickle.dump(big_cone, pickle_out)
         pickle_out.close()
     else:
-        pickle_in = open(f"sparse_big_cone.pickle", "rb")
+        pickle_in = open(f"big_cone.pickle", "rb")
         big_cone = pickle.load(pickle_in)
         pass
 
@@ -136,7 +136,7 @@ def find_expected(big_cone, r_big, bins, redo=False, plot=False):
         pickle.dump(expected, pickle_out)
         pickle_out.close()
     else:
-        pickle_in = open("sparseMICEexpected.pickle", "rb")
+        pickle_in = open("MICEexpected.pickle", "rb")
         expected = pickle.load(pickle_in)
 
     if plot:
@@ -155,7 +155,7 @@ def find_expected(big_cone, r_big, bins, redo=False, plot=False):
 def get_random(data, redo=False):
     RAs = np.array(data['RA'])
     DECs = np.array(data['DEC'])
-    d_cs = np.array(data['d_c'])
+    # d_cs = np.array(data['d_c'])
     zs = np.array(data['z'])
     kappas = np.array(data['kappa'])
 
@@ -163,7 +163,7 @@ def get_random(data, redo=False):
     SN_DECs = DECs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
     SN_zs = zs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
     SN_kappas = kappas[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
-    SN_d_cs = d_cs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
+    # SN_d_cs = d_cs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
     SN_RAs = RAs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
 
     # SN_RAs = SN_RAs[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
@@ -172,28 +172,40 @@ def get_random(data, redo=False):
     # SN_DECs = SN_DECs[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
 
     if redo:
+        rhos = np.zeros(100)
         # Pick random sample
-        random.seed(1337)
-        rand_samp_size = 1500
-        indices = random.sample(range(len(SN_zs)), rand_samp_size)
-        rand_zs = SN_zs[indices]
-        rand_RAs = SN_RAs[indices]
-        rand_DECs = SN_DECs[indices]
-        rand_kappas = SN_kappas[indices]
-        dists = SN_d_cs[indices] * (1 + rand_zs)
-        # print(rand_RAs, rand_DECs)
+        for j in range(100):
+            random.seed(1337+j)
+            rand_samp_size = 1500
+            indices = random.sample(range(len(SN_zs)), rand_samp_size)
+            rand_zs = SN_zs[indices]
+            rand_RAs = SN_RAs[indices]
+            rand_DECs = SN_DECs[indices]
+            rand_kappas = SN_kappas[indices]
+            # dists = SN_d_cs[indices] * (1 + rand_zs)
+            # print(rand_RAs, rand_DECs)
 
-        # Add scatter to distance moduli
-        # dists = []
-        # rand_chis = []
-        # for z in rand_zs:
-        #     chi_to_z = Convergence.comoving(np.linspace(0, z, 1001), OM=0.25, OL=0.75, h=0.7)
-        #     dists.append(chi_to_z[-1] * (1 + z))
-        #     rand_chis.append(chi_to_z[-1])
-        mus = 5 * np.log10(np.array(dists) / 10 * 1E9)
-        mu_diff = - (5.0 / np.log(10) * rand_kappas)
-        for i in range(len(mu_diff)):
-            mu_diff[i] += random.gauss(0.0, rand_zs[i] * 0.1 / 1.5 + 0.15)  # Width is 0.15 at z=0, 0.25 at z=1.5
+            # Add scatter to distance moduli
+            dists = []
+            rand_chis = []
+            for z in rand_zs:
+                chi_to_z = Convergence.comoving(np.linspace(0, z, 1001), OM=0.25, OL=0.75, h=0.7)
+                dists.append(chi_to_z[-1] * (1 + z))
+                rand_chis.append(chi_to_z[-1])
+            mus = 5 * np.log10(np.array(dists) / 10 * 1E9)
+            mu_diff = np.zeros(len(mus))
+            mu_diff += - (5.0 / np.log(10) * rand_kappas)
+
+            conv_rank = rankdata(mu_diff)
+            for i in range(len(mu_diff)):
+                mu_diff[i] += random.gauss(0.0, rand_zs[i] * 0.1 / 1.5 + 0.15)  # Width is 0.15 at z=0, 0.25 at z=1.5
+
+            mu_rank = rankdata(mu_diff)
+            diff = np.abs(conv_rank - mu_rank)
+            rhos[j] = 1 - 6 / (len(rand_kappas) * (len(rand_kappas) ** 2 - 1)) * np.sum(diff ** 2)
+
+        print(np.mean(rhos), " +/- ", np.std(rhos))
+        exit()
         rand_mus = mus + mu_diff
         rand_errs = np.array([abs(random.uniform(0.05+0.1*rand_zs[i], 0.1+0.45*rand_zs[i]))
                               for i in range(rand_samp_size)])
@@ -557,9 +569,10 @@ def find_correlation(convergence_data, radii, plot_correlation=False, plot_radii
     correlation_errs = []
     for cone_radius in radii:
         if fis or impact:
-            pickle_in = open("sparseMICE_SN_data_fis.pickle", "rb")
+            pickle_in = open("MICE_SN_data_fis.pickle", "rb")
             SN_data = pickle.load(pickle_in)
-            mu_diff = SN_data[f"Radius{str(cone_radius)}"]["mu_diff"]
+            if mu_diff is None:
+                mu_diff = SN_data[f"Radius{str(cone_radius)}"]["mu_diff"]
             conv = np.array(convergence_data[f"Radius{str(cone_radius)}"]["SNkappa"])
         else:
             pickle_in = open("MICE_SN_data.pickle", "rb")
@@ -571,6 +584,7 @@ def find_correlation(convergence_data, radii, plot_correlation=False, plot_radii
 
         conv_rank = rankdata(conv)
         mu_rank = rankdata(mu_diff)
+        # print(mu_diff)
         diff = np.abs(conv_rank - mu_rank)
         rho = 1 - 6 / (len(conv) * (len(conv) ** 2 - 1)) * np.sum(diff ** 2)
         rho_err = np.sqrt((1 - rho ** 2) / (len(conv) - 1))
@@ -672,31 +686,37 @@ def plot_Hubble():
 def degradation(radii):
     pickle_in = open("MICE_SN_data.pickle", "rb")
     SN_data = pickle.load(pickle_in)
-    pickle_in = open("MICEkappa_fis.pickle", "rb")
+    pickle_in = open("MICEkappa_weighted.pickle", "rb")
     kappa = pickle.load(pickle_in)
     corrs = []
     errs = []
-    degreds = np.arange(0.05, 0.35, 0.01)
-    for gauss_width in degreds:
-        mu_diff = - (5.0 / np.log(10) * SN_data["SNkappa"])
+    degrads = [0.03, 0.05, 0.1, 0.12, 0.2, 0.35]
+    for gauss_width in degrads:
         corr = []
         err = []
-        for j in range(1000):
-            for i in range(len(mu_diff)):
-                mu_diff[i] += random.gauss(0.0, gauss_width)
+        for j in range(100):
+            mu_diff = - (5.0 / np.log(10) * SN_data["SNkappa"])
+            random.seed(1337+j)
+            for i in range(1500):
+                # mu_diff[i] += random.gauss(0.0, gauss_width)
+                mu_diff[i] += random.gauss(0.0, SN_data["SNZ"][i] * gauss_width / 1.5)
+            # print(mu_diff)
             c, e = find_correlation(kappa, radii, mu_diff=mu_diff)
             corr.append(c)
             err.append(e)
         print(gauss_width)
         corrs.append(np.mean(corr, 0))
         errs.append(np.mean(err, 0))
-    for num, rad in enumerate(radii):
-        plt.plot(degreds, [corrs[i][num] for i in range(len(degreds))], label=f"{rad}'")
+    for num, d in enumerate(degrads):
+        plt.plot(radii, corrs[num], label=f"$\sigma$ = {round(d, 2)}'")
     plt.legend(frameon=0)
-    plt.xlabel('$\sigma_{\kappa}$')
-    plt.ylabel('$r$')
+    plt.xlabel('Cone Radius (arcmin)')
+    plt.ylabel("Spearman's Rank Coefficient")
+    plt.axis([0, 30, -0.45, 0.0])
     plt.gca().invert_yaxis()
+    plt.tight_layout()
     plt.show()
+    exit()
 
 
 def bin_test(alldata, big_cone, big_cone_radius):
@@ -791,14 +811,14 @@ if __name__ == "__main__":
     # exit()
     exp_data = find_expected(big_cone, big_cone_radius, 111, redo=False, plot=False)
     get_random(alldata, redo=False)
-    plot_cones(alldata, plot_hist=True, cone_radius=6.0)
+    # plot_cones(alldata, plot_hist=True, cone_radius=6.0)
     # plot_Hubble()
 
     kappa = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False, weighted=use_weighted)
     use_weighted = not use_weighted
-    kappa_weighted = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=True,
+    kappa_weighted = find_convergence(alldata, exp_data, redo=False, plot_total=False, plot_scatter=False,
                                       weighted=use_weighted)
-    # degradation([5.0, 6.0, 7.0, 10.0, 12.0])
+    degradation(RADII)
     pickle_in = open("MICE_SN_data.pickle", "rb")
     SN_data = pickle.load(pickle_in)
     # pickle_in = open("random_cones_new.pickle", "rb")
