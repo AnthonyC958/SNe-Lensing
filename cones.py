@@ -224,8 +224,8 @@ def plot_cones(cut_data, sorted_data, plot_hist=False, cone_radius=12.0):
         indices1 = dict1['Zs'] <= dict1['SNZ']
         contRAs = np.append(contRAs, RAs[indices1])
         contDECs = np.append(contDECs, DECs[indices1])
-    ax.plot(contRAs, contDECs, marker='o', linestyle='', markersize=3, color=colours[0])
-    p = PatchCollection(patches, alpha=0.4, color=colours[0])
+    ax.plot(contRAs, contDECs, marker='o', linestyle='', markersize=3, color=colours[3])
+    p = PatchCollection(patches, alpha=0.4, color=colours[3])
     ax.add_collection(p)
     SNRA = []
     SNDEC = []
@@ -361,7 +361,7 @@ def find_expected_counts(test_cones, bins, redo=False, plot=False):
         # pickle_in = open("expected.pickle", "rb")
         # expected = pickle.load(pickle_in)
         expected = {}
-        for cone_radius in RADII:
+        for cone_radius in RADII[29:]:
             test_cone = test_cones[f"Radius{str(cone_radius)}"]
             cumul_tot = np.zeros((len(limits), len(test_cone)))
             for num1, lim in enumerate(limits):
@@ -385,7 +385,7 @@ def find_expected_counts(test_cones, bins, redo=False, plot=False):
         pickle.dump(expected, pickle_out)
         pickle_out.close()
     else:
-        pickle_in = open("expected.pickle", "rb")
+        pickle_in = open("sparse_exp_data.pickle", "rb")
         expected = pickle.load(pickle_in)
 
     if plot:
@@ -420,8 +420,9 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
     zs = exp_data[4]
     if redo:
         if weighted:
-            pickle_in = open("kappa_weighted.pickle", "rb")
-            kappa = pickle.load(pickle_in)
+            # pickle_in = open("kappa_weighted.pickle", "rb")
+            # kappa = pickle.load(pickle_in)
+            kappa = {}
         elif fis:
             # pickle_in = open("kappa_fis.pickle", "rb")
             # kappa = pickle.load(pickle_in)
@@ -434,7 +435,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
         else:
             pickle_in = open("kappa.pickle", "rb")
             kappa = pickle.load(pickle_in)
-        for cone_radius in RADII:
+        for cone_radius in RADII[29:]:
             expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]
             lenses = lens_data[f"Radius{str(cone_radius)}"]
 
@@ -495,22 +496,22 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
         # pickle_out = open("kappa_fis.pickle", "wb")
         # pickle.dump(kappa, pickle_out)
         # pickle_out.close()
-        # if weighted:
-        #     pickle_out = open("kappa_weighted.pickle", "wb")
-        # elif fis:
-        #     pickle_out = open("kappa_fis.pickle", "wb")
+        if weighted:
+            pickle_out = open("sparse_kappa_weighted.pickle", "wb")
+        elif fis:
+            pickle_out = open("sparse_kappa_fis.pickle", "wb")
         # elif impact:
         #     pickle_out = open("kappa_impact2.pickle", "wb")
         # else:
         #     pickle_out = open("kappa.pickle", "wb")
-        # pickle.dump(kappa, pickle_out)
-        # pickle_out.close()
+        pickle.dump(kappa, pickle_out)
+        pickle_out.close()
 
     else:
         if weighted:
-            pickle_in = open("kappa_weighted.pickle", "rb")
+            pickle_in = open("sparse_kappa_weighted.pickle", "rb")
         elif fis:
-            pickle_in = open("kappa_fis.pickle", "rb")
+            pickle_in = open("sparse_kappa_fis.pickle", "rb")
         elif impact:
             pickle_in = open("kappa_impact2.pickle", "rb")
         else:
@@ -582,7 +583,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
         if plot_total:
             conv_total = []
             for cone_radius in RADII[29:]:
-                conv_total.append(kappa[crit_key][f"Radius{str(cone_radius)}"]["Total"])
+                conv_total.append(kappa[f"Radius{str(cone_radius)}"]["Total"])
             plt.ylabel("$\kappa$")
             plt.xlabel("Cone Radius (arcmin)")
             plt.tick_params(labelsize=12)
@@ -788,20 +789,41 @@ def bin_test(test_cones, lenses):
 
 if __name__ == "__main__":
     use_weighted = False
-    data, S_data = get_data(new_data=False)
-
-    lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
-
+    # data, S_data = get_data(new_data=False)
+    # lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
+    pickle_in = open("sparse_cut_data.pickle", "rb")
+    data = pickle.load(pickle_in)
+    pickle_in = open("sparse_lenses.pickle", "rb")
+    lensing_gals = pickle.load(pickle_in)
+    pickle_in = open("sparse_test_cones.pickle", "rb")
+    cone_array = pickle.load(pickle_in)
     # plot_cones(data, lensing_gals, plot_hist=True, cone_radius=12.0)
-    cone_array = make_test_cones(data, redo=False, plot=False)
+    # cone_array = make_test_cones(data, redo=False, plot=False)
     exp_data = find_expected_counts(cone_array, 51, redo=False, plot=False)
     redo_conv = False
-    kappa = find_convergence(lensing_gals, exp_data, redo=redo_conv, plot_scatter=False,
-                             plot_total=False, weighted=use_weighted)
+    kappa = find_convergence(lensing_gals, exp_data, redo=redo_conv, plot_scatter=True,
+                             plot_total=True, weighted=True)
 
     # plot_Hubble(lensing_gals)
+    lensing_gals_fully_in_sample = {}
+    number_fis = np.zeros(len(RADII[29:]))
+    num = 0
+    not_fis_indices = np.zeros(1500)
+    for rad in RADII[29:]:
+        lensing_gals_fully_in_sample[f"Radius{rad}"] = {}
+        for num2, (key2, SN) in enumerate(lensing_gals[f"Radius{rad}"].items()):
+            if SN["WEIGHT"] == 1:
+                not_fis_indices[num2] = 1
+                lensing_gals_fully_in_sample[f"Radius{rad}"][key2] = SN
+                number_fis[num] += 1
+        num += 1
+    # plt.plot(RADII[29:], number_fis, '+')
+    # plt.show()
 
-    unweighted = find_correlation(kappa, lensing_gals, plot_correlation=False, plot_radii=True)
+    kappa_fis = find_convergence(lensing_gals_fully_in_sample, exp_data, redo=False, plot_scatter=True, plot_total=True, fis=True)
+    fully_in_sample = find_correlation(kappa_fis, lensing_gals_fully_in_sample, plot_correlation=False,
+                                       plot_radii=True)
+    exit()
     use_weighted = True
     lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
     kappa_weighted = find_convergence(lensing_gals, exp_data, redo=redo_conv, plot_scatter=False, plot_total=False,

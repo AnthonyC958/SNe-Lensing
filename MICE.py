@@ -58,21 +58,21 @@ def deep_update(old_dict, update_to_dict):
 
 
 def get_data():
-    with fits.open('MICEsim5.fits') as hdul1:
+    with fits.open('sparseMICE.fits') as hdul1:
         RA = hdul1[1].data['ra']
         DEC = hdul1[1].data['dec']
         kap = hdul1[1].data['kappa']
         z = hdul1[1].data['z_v']
         ID = hdul1[1].data['id']
-        # Comoving = hdul1[1].data['d_c_v']
+        Comoving = hdul1[1].data['d_c_v']
 
     RA = np.array(RA)[[z >= 0.01]]
     DEC = np.array(DEC)[[z >= 0.01]]
     kap = np.array(kap)[[z >= 0.01]]
     ID = np.array(ID)[[z >= 0.01]]
-    # Comoving = np.array(Comoving)[[z >= 0.01]]
+    Comoving = np.array(Comoving)[[z >= 0.01]]
     z = np.array(z)[[z >= 0.01]]
-    cut_data = {'RA': RA, 'DEC': DEC, 'z': z, 'kappa': kap, 'id': ID}#, 'd_c': Comoving}
+    cut_data = {'RA': RA, 'DEC': DEC, 'z': z, 'kappa': kap, 'id': ID, 'd_c': Comoving}
 
     return cut_data
 
@@ -155,7 +155,7 @@ def find_expected(big_cone, r_big, bins, redo=False, plot=False):
 def get_random(data, redo=False):
     RAs = np.array(data['RA'])
     DECs = np.array(data['DEC'])
-    # d_cs = np.array(data['d_c'])
+    d_cs = np.array(data['d_c'])
     zs = np.array(data['z'])
     kappas = np.array(data['kappa'])
 
@@ -163,7 +163,7 @@ def get_random(data, redo=False):
     SN_DECs = DECs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
     SN_zs = zs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
     SN_kappas = kappas[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
-    # SN_d_cs = d_cs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
+    SN_d_cs = d_cs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
     SN_RAs = RAs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
 
     # SN_RAs = SN_RAs[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
@@ -182,19 +182,21 @@ def get_random(data, redo=False):
             rand_RAs = SN_RAs[indices]
             rand_DECs = SN_DECs[indices]
             rand_kappas = SN_kappas[indices]
-            # dists = SN_d_cs[indices] * (1 + rand_zs)
+            dists = SN_d_cs[indices] * (1 + rand_zs)
             # print(rand_RAs, rand_DECs)
 
             # Add scatter to distance moduli
-            dists = []
-            rand_chis = []
-            for z in rand_zs:
-                chi_to_z = Convergence.comoving(np.linspace(0, z, 1001), OM=0.25, OL=0.75, h=0.7)
-                dists.append(chi_to_z[-1] * (1 + z))
-                rand_chis.append(chi_to_z[-1])
+            # dists = []
+            # rand_chis = []
+            # for z in rand_zs:
+            #     chi_to_z = Convergence.comoving(np.linspace(0, z, 1001), OM=0.25, OL=0.75, h=0.7)
+            #     dists.append(chi_to_z[-1] * (1 + z))
+            #     rand_chis.append(chi_to_z[-1])
             mus = 5 * np.log10(np.array(dists) / 10 * 1E9)
             mu_diff = np.zeros(len(mus))
             mu_diff += - (5.0 / np.log(10) * rand_kappas)
+            print(mu_diff)
+            exit()
 
             conv_rank = rankdata(mu_diff)
             for i in range(len(mu_diff)):

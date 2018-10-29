@@ -114,6 +114,21 @@ def find_expected_weights(cut_data, bins, redo=False, plot=False):
 
     return [limits, expected, chi_bin_widths, chi_bins, z_bins]
 
+pickle_in = open("sparse_lenses.pickle", "rb")
+lenses = pickle.load(pickle_in)
+Gal_data = MICE.get_data()
+pickle_in = open("sparseMICE_SN_data.pickle", "rb")
+SN_data = pickle.load(pickle_in)
+print(Gal_data.keys(), SN_data.keys())
+pickle_out = open("sparse_cut_data.pickle", "wb")
+cut_data = {"RA1": Gal_data["RA"], "DEC1": Gal_data["DEC"], "RA2": SN_data["SNRA"], "DEC2": SN_data["SNDEC"],
+            "z1": Gal_data["z"], "z2": SN_data["SNZ"], "mu": SN_data["SNMU"], "mu_err": SN_data["SNMU_ERR"],
+            "CD2": Gal_data["d_c"]}
+print(cut_data.keys())
+pickle.dump(cut_data, pickle_out)
+pickle_out.close()
+exit()
+
 crit_weight = 0.1
 crit_angles = [3.0, 6.0, 12.0, 24.0]
 crit_dists = [2.5, 5.0, 7.5, 10.0]
