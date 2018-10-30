@@ -353,13 +353,11 @@ def plot_smoothed_d(chi_widths, chis, zs, z_SN):
     plt.tight_layout()
     plt.show()
 
-    alphs = [0.4, 0.55, 0.55, 0.7, 0.85, 1.0, 1.0, 1.0, 1.0, 1.0, 1.00, 1.0, 1.0, 1.0]
-    for n, array in enumerate(delta[:len(delta)//1]):
-        print(alphs[n])
-        plt.bar(zs, array, width=chi_widths[0], alpha=alphs[n])
-        plt.tick_params(labelsize=16)
+    for array in delta[:len(delta_cor) // 2]:
+        plt.bar(zs, array, width=chi_widths[0], edgecolor='w', lw=1.5)
         plt.xlabel("$z$", fontsize=20)
         plt.ylabel("$\delta_i$", fontsize=20)
+        plt.tick_params(labelsize=16)
         # plt.plot([0, 0.6], [0, 0], color='k', linestyle='-')
         plt.xlim([0, 0.6])
         plt.ylim([0, 1])
@@ -494,28 +492,27 @@ def distance_ratio(z_source):
     D_A = comoving(zs) / (1 + zs)
     z_peak = np.array(zs)[np.argmin(np.abs(D_ratio - max(D_ratio)))]
     z_peak_chi = np.array(zs)[np.argmin(np.abs(chi_ratio - max(chi_ratio)))]
-    plt.plot(zs, np.linspace(chi_S, chi_S, 1001), color=[0.75, 0.75, 0.75], linestyle='--', label='$\chi_S$', lw=2)
+    plt.plot(zs, np.linspace(chi_S, chi_S, 1001), color=[0.75, 0.75, 0.75], linestyle='--', label='$\chi_{SN}$', lw=2)
     plt.plot(zs, chi_L, color=colours[0], label='$\chi_L$', lw=2)
     plt.plot(zs, (np.linspace(chi_S, chi_S, 1001) - chi_L), color=colours[1], label='$\chi_{LS}$', lw=2)
     # plt.plot(zs, D_ratio, color=colours[2], label='$D_LD_{LS}/D_S$')
-    plt.plot(zs, chi_ratio, color=colours[2], label='$\chi_L\chi_{LS}/\chi_Sa_L$', lw=2)
+    plt.plot(zs, chi_ratio, color=colours[2], label='$\chi_L\chi_{LS}/\chi_{SN}a_L$', lw=2)
     plt.legend(frameon=0)
     # plt.plot(z_peak, max(D_ratio), marker='x', color=colours[2])
     # plt.text(z_peak, D_S / 4, f'$z$ = {round(z_peak, 2)}', fontsize=16, ha='center', color=colours[2])
     plt.plot(z_peak_chi, max(chi_ratio), marker='x', color=colours[2], ms=8)
     plt.text(z_peak_chi, chi_S / 4.5, f'$z$ = {round(z_peak_chi, 2)}', fontsize=20, ha='center', color=colours[2])
     plt.xlabel('$z$')
-    plt.axis([0, 0.6, 0, 1.75])
-    plt.ylabel('$\chi$ (Gpc)')
+    plt.ylabel('$D_A$ (Gpc)')
     plt.tight_layout()
     plt.show()
 
     z_peak_D = np.array(zs)[np.argmin(np.abs(D_ratio - max(D_ratio)))]
     chi_peak2 = np.array(chis)[np.argmin(np.abs(chi_ratio - max(chi_ratio)))]
-    plt.plot(zs, np.linspace(D_S, D_S, 1001), color=[0.75, 0.75, 0.75], linestyle='--', label='$D_S$', lw=2)
+    plt.plot(zs, np.linspace(D_S, D_S, 1001), color=[0.75, 0.75, 0.75], linestyle='--', label='$D_{SN}$', lw=2)
     plt.plot(zs, D_L, color=colours[0], label='$D_L$', lw=2)
     plt.plot(zs, D_LS, color=colours[1], label='$D_{LS}$', lw=2)
-    plt.plot(zs, D_ratio, color=colours[2], label='$D_LD_{LS}/D_S$', lw=2)
+    plt.plot(zs, D_ratio, color=colours[2], label='$D_LD_{LS}/D_{SN}$', lw=2)
     # plt.plot(chis, chi_ratio, color=colours[4], label='$\chi_L\chi_{LS}/\chi_Sa_L$')
     plt.legend(frameon=0)
     plt.plot(z_peak_D, max(D_ratio), marker='x', color=colours[2], ms=8)
@@ -524,21 +521,20 @@ def distance_ratio(z_source):
     # plt.text(chi_peak2, chi_S / 2.5, f'$\chi$ = {round(chi_peak2, 2)} Gpc', fontsize=16, ha='center', color=colours[4])
     plt.xlabel(r'$z$')
     plt.ylabel(r'$D_A$ (Gpc)')
-    plt.axis([0, 0.6, 0, 1.1])
     plt.tight_layout()
     plt.show()
 
 
 if __name__ == "__main__":
-    SN_redshift = 1.4
-    num_bin = 110
+    SN_redshift = 0.6
+    num_bin = 10
 
     chi_to_SN = b_comoving(0, SN_redshift)
     # chi_to_SN = b_comoving(0, SN_redshift)
     SN_chi = chi_to_SN[-1]
     print("SN redshift", SN_redshift, "\nSN comoving distace", SN_chi)
     (comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc) = create_chi_bins(0, SN_redshift, num_bin, plot=False)
-    (comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz) = create_z_bins(0, SN_redshift, num_bin, plot=True)
+    (comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz) = create_z_bins(0, SN_redshift, num_bin, plot=False)
 
     single_conv_c = calc_single_d(comoving_binwidthsc, comoving_binsc, z_binsc, z_widthsc, SN_redshift)
     single_conv_z = calc_single_d(comoving_binwidthsz, comoving_binsz, z_binsz, z_widthsz, SN_redshift, use_chi=False)
@@ -546,8 +542,8 @@ if __name__ == "__main__":
     #
     # compare_z_chi(single_conv_c, single_conv_z, comoving_binsc, comoving_binsz, z_binsz, z_binsc, SN_chi, SN_redshift)
 
-    num_test = 300
-    smoothed_m_convergence(num_test, SN_chi, SN_redshift)
+    # num_test = 300
+    # smoothed_m_convergence(num_test, SN_chi, SN_redshift)
     distance_ratio(SN_redshift)
 
     scalefactor = np.linspace(1, 0.5, 101)
