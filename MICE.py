@@ -64,15 +64,15 @@ def get_data():
         kap = hdul1[1].data['kappa']
         z = hdul1[1].data['z_v']
         ID = hdul1[1].data['id']
-        Comoving = hdul1[1].data['d_c_v']
+        # Comoving = hdul1[1].data['d_c_v']
 
     RA = np.array(RA)[[z >= 0.01]]
     DEC = np.array(DEC)[[z >= 0.01]]
     kap = np.array(kap)[[z >= 0.01]]
     ID = np.array(ID)[[z >= 0.01]]
-    Comoving = np.array(Comoving)[[z >= 0.01]]
+    # Comoving = np.array(Comoving)[[z >= 0.01]]
     z = np.array(z)[[z >= 0.01]]
-    cut_data = {'RA': RA, 'DEC': DEC, 'z': z, 'kappa': kap, 'id': ID, 'd_c': Comoving}
+    cut_data = {'RA': RA, 'DEC': DEC, 'z': z, 'kappa': kap, 'id': ID}
 
     return cut_data
 
@@ -152,10 +152,10 @@ def find_expected(big_cone, r_big, bins, redo=False, plot=False):
     return [limits, expected, chi_bin_widths, chi_bins, z_bins]
 
 
-def get_random(data, redo=False):
+def get_random(data, redo=False, seed=1337):
     RAs = np.array(data['RA'])
     DECs = np.array(data['DEC'])
-    d_cs = np.array(data['d_c'])
+    # d_cs = np.array(data['d_c'])
     zs = np.array(data['z'])
     kappas = np.array(data['kappa'])
 
@@ -163,7 +163,7 @@ def get_random(data, redo=False):
     SN_DECs = DECs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
     SN_zs = zs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
     SN_kappas = kappas[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
-    SN_d_cs = d_cs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
+    # SN_d_cs = d_cs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
     SN_RAs = RAs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
 
     # SN_RAs = SN_RAs[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
@@ -172,42 +172,45 @@ def get_random(data, redo=False):
     # SN_DECs = SN_DECs[np.logical_and(SN_DECs < max(DECs) - 0.5, SN_DECs > min(DECs) + 0.5)]
 
     if redo:
-        rhos = np.zeros(100)
+        # rhos = np.zeros(100)
         # Pick random sample
-        for j in range(100):
-            random.seed(1337+j)
-            rand_samp_size = 1500
-            indices = random.sample(range(len(SN_zs)), rand_samp_size)
-            rand_zs = SN_zs[indices]
-            rand_RAs = SN_RAs[indices]
-            rand_DECs = SN_DECs[indices]
-            rand_kappas = SN_kappas[indices]
-            dists = SN_d_cs[indices] * (1 + rand_zs)
-            # print(rand_RAs, rand_DECs)
+        # for j in range(100):
+        random.seed(1337)
+        rand_samp_size = 1500
+        indices = random.sample(range(len(SN_zs)), rand_samp_size)
+        rand_zs = SN_zs[indices]
+        rand_RAs = SN_RAs[indices]
+        rand_DECs = SN_DECs[indices]
+        rand_kappas = SN_kappas[indices]
+        # dists = SN_d_cs[indices] * (1 + rand_zs)
+        # print(rand_RAs, rand_DECs)
 
-            # Add scatter to distance moduli
-            # dists = []
-            # rand_chis = []
-            # for z in rand_zs:
-            #     chi_to_z = Convergence.comoving(np.linspace(0, z, 1001), OM=0.25, OL=0.75, h=0.7)
-            #     dists.append(chi_to_z[-1] * (1 + z))
-            #     rand_chis.append(chi_to_z[-1])
-            mus = 5 * np.log10(np.array(dists) / 10 * 1E9)
-            mu_diff = np.zeros(len(mus))
-            mu_diff += - (5.0 / np.log(10) * rand_kappas)
-            print(mu_diff)
-            exit()
+        # Add scatter to distance moduli
+        dists = []
+        rand_chis = []
+        for z in rand_zs:
+            chi_to_z = Convergence.comoving(np.linspace(0, z, 1001), OM=0.25, OL=0.75, h=0.7)
+            dists.append(chi_to_z[-1] * (1 + z))
+            rand_chis.append(chi_to_z[-1])
+        mus = 5 * np.log10(np.array(dists) / 10 * 1E9)
+        mu_diff = np.zeros(len(mus))
+        mu_diff += - (5.0 / np.log(10) * rand_kappas)
+        # print(mu_diff)
+        # plt.plot(rand_zs, mus, ls='', marker='.')
+        # plt.show()
+        # exit()
 
-            conv_rank = rankdata(mu_diff)
-            for i in range(len(mu_diff)):
-                mu_diff[i] += random.gauss(0.0, rand_zs[i] * 0.1 / 1.5 + 0.15)  # Width is 0.15 at z=0, 0.25 at z=1.5
-
-            mu_rank = rankdata(mu_diff)
-            diff = np.abs(conv_rank - mu_rank)
-            rhos[j] = 1 - 6 / (len(rand_kappas) * (len(rand_kappas) ** 2 - 1)) * np.sum(diff ** 2)
-
-        print(np.mean(rhos), " +/- ", np.std(rhos))
-        exit()
+        #     conv_rank = rankdata(mu_diff)
+        random.seed(seed)
+        for i in range(len(mu_diff)):
+            mu_diff[i] += random.gauss(0.0, rand_zs[i] * 0.1 / 1.5 + 0.15)  # Width is 0.15 at z=0, 0.25 at z=1.5
+        #
+        #     mu_rank = rankdata(mu_diff)
+        #     diff = np.abs(conv_rank - mu_rank)
+        #     rhos[j] = 1 - 6 / (len(rand_kappas) * (len(rand_kappas) ** 2 - 1)) * np.sum(diff ** 2)
+        #
+        # print(np.mean(rhos), " +/- ", np.std(rhos))
+        # exit()
         rand_mus = mus + mu_diff
         rand_errs = np.array([abs(random.uniform(0.05+0.1*rand_zs[i], 0.1+0.45*rand_zs[i]))
                               for i in range(rand_samp_size)])
@@ -217,6 +220,7 @@ def get_random(data, redo=False):
         pickle.dump(SN_data, pickle_out)
         pickle_out.close()
         print("Finished SN_data")
+        exit()
         #
         lenses = {}
         for cone_radius in RADII[29:]:
@@ -759,8 +763,61 @@ def bin_test(alldata, big_cone, big_cone_radius):
     exit()
 
 
-if __name__ == "__main__":
+def redo_SN_data(data, seed=1337):
+    RAs = np.array(data['RA'])
+    DECs = np.array(data['DEC'])
+    zs = np.array(data['z'])
+    kappas = np.array(data['kappa'])
 
+    SN_DECs = DECs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
+    SN_zs = zs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
+    SN_kappas = kappas[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
+    SN_RAs = RAs[np.logical_and(RAs < max(RAs) - 0.5, RAs > min(RAs) + 0.5)]
+
+    random.seed(1337)
+    rand_samp_size = 1500
+    indices = random.sample(range(len(SN_zs)), rand_samp_size)
+    rand_zs = SN_zs[indices]
+    rand_RAs = SN_RAs[indices]
+    rand_DECs = SN_DECs[indices]
+    rand_kappas = SN_kappas[indices]
+
+    dists = []
+    rand_chis = []
+    for z in rand_zs:
+        chi_to_z = Convergence.comoving(np.linspace(0, z, 1001), OM=0.25, OL=0.75, h=0.7)
+        dists.append(chi_to_z[-1] * (1 + z))
+        rand_chis.append(chi_to_z[-1])
+    mus = 5 * np.log10(np.array(dists) / 10 * 1E9)
+    mu_diff = np.zeros(len(mus))
+    mu_diff += - (5.0 / np.log(10) * rand_kappas)
+
+    random.seed(seed)
+    for i in range(len(mu_diff)):
+        mu_diff[i] += random.gauss(0.0, rand_zs[i] * 0.1 / 1.5 + 0.15)  # Width is 0.15 at z=0, 0.25 at z=1.5
+    rand_mus = mus + mu_diff
+    rand_errs = np.array([abs(random.uniform(0.05 + 0.1 * rand_zs[i], 0.1 + 0.45 * rand_zs[i]))
+                          for i in range(rand_samp_size)])
+    SN_data = {'mu_diff': mu_diff, 'SNZ': rand_zs, 'SNkappa': rand_kappas,
+               'SNRA': rand_RAs, 'SNDEC': rand_DECs, 'SNMU': rand_mus, 'SNMU_ERR': rand_errs}
+    pickle_out = open("sparseMICE_SN_data.pickle", "wb")
+    pickle.dump(SN_data, pickle_out)
+    pickle_out.close()
+    print("Finished SN_data")
+
+    pickle_in = open("sparse_lenses.pickle", "rb")
+    lenses = pickle.load(pickle_in)
+
+    for R in lenses.keys():
+        for num, SN in enumerate(lenses[R].keys()):
+            lenses[R][SN]["SNMU"] = SN_data["SNMU"][num]
+
+    pickle_out = open("sparse_lenses.pickle", "wb")
+    pickle.dump(lenses, pickle_out)
+
+
+
+if __name__ == "__main__":
     #### test sparse data ####
     use_weighted = True
     alldata = get_data()
@@ -812,7 +869,7 @@ if __name__ == "__main__":
     # bin_test(alldata, big_cone, big_cone_radius)
     # exit()
     exp_data = find_expected(big_cone, big_cone_radius, 111, redo=False, plot=False)
-    get_random(alldata, redo=False)
+    get_random(alldata, redo=True)
     # plot_cones(alldata, plot_hist=True, cone_radius=6.0)
     # plot_Hubble()
 

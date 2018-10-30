@@ -2,13 +2,14 @@ from Convergence import *
 from astropy.io import fits
 from matplotlib.patches import Circle
 from matplotlib.collections import PatchCollection
-from scipy.optimize import curve_fit
 from scipy.stats import rankdata
 import csv
 import pickle
 from scipy.signal import savgol_filter
-from mpl_toolkits.mplot3d import Axes3D
+import ImpactP
 
+i=0
+asdf = ["FIS", "Impact"]
 colours = [[0, 150/255, 100/255], [225/255, 149/255, 0], [207/255, 0, 48/255], [30/255, 10/255, 171/255],
            'C4', 'C9', 'C6', 'C7', 'C8', 'C5']
 blue = [23/255, 114/255, 183/255, 0.75]
@@ -137,7 +138,7 @@ def sort_SN_gals(cut_data, redo=False, weighted=False):
     RA1 = cut_data['RA1']
     DEC1 = cut_data['DEC1']
     RA2 = cut_data['RA2']
-    print(len(RA1), len(RA2))
+    # print(len(RA1), len(RA2))
     DEC2 = cut_data['DEC2']
     z1 = cut_data['z1']
     z2 = cut_data['z2']
@@ -269,9 +270,9 @@ def make_test_cones(cut_data, redo=False, plot=False):
      plot -- boolean that determines whether a plot of the data field with test_cones overplotted. Default false.
     """
     if redo:
-        RA1 = cut_data['RA']
-        DEC1 = cut_data['DEC']
-        z1 = cut_data['z']
+        RA1 = cut_data['RA1']
+        DEC1 = cut_data['DEC1']
+        z1 = cut_data['z1']
         # pickle_in = open("test_cones.pickle", "rb")
         # test_cones = pickle.load(pickle_in)
         test_cones = {}
@@ -329,11 +330,11 @@ def make_test_cones(cut_data, redo=False, plot=False):
                 print(f'Finished {int(num)+1}/{len(tests)}')
             print(f"Finished radius {str(cone_radius)}'")
 
-        pickle_out = open("test_cones.pickle", "wb")
+        pickle_out = open("sparse_test_cones_new.pickle", "wb")
         pickle.dump(test_cones, pickle_out)
         pickle_out.close()
     else:
-        pickle_in = open("test_cones.pickle", "rb")
+        pickle_in = open("sparse_test_cones.pickle", "rb")
         test_cones = pickle.load(pickle_in)
 
     # plt.hist([test_cones[f'c{i+1}']['Total'] for i in range(len(test_cones))], density=1,
@@ -345,7 +346,7 @@ def make_test_cones(cut_data, redo=False, plot=False):
     return test_cones
 
 
-def find_expected_counts(test_cones, bins, redo=False, plot=False):
+def find_expected_counts(test_cones, bins, redo=False, plot=False, impact=False):
     """Uses the test cones to find the expected number of galaxies per bin, for bins of even redshift.
 
     Inputs:
@@ -354,9 +355,13 @@ def find_expected_counts(test_cones, bins, redo=False, plot=False):
      redo -- boolean that determines whether expected counts are calculated or loaded. Default false.
      plot -- boolean that determines whether expected counts are plotted. Default false.
     """
-    max_z = 1.4
-    chi_bin_widths, chi_bins, z_bins, z_bin_widths = create_z_bins(0.01, max_z, bins)
-    limits = np.cumsum(z_bin_widths)
+    # max_z = 0.6
+    # chi_bin_widths, chi_bins, z_bins, z_bin_widths = create_z_bins(0.01, max_z, bins)
+    # limits = np.cumsum(z_bin_widths)
+    max_z = 1.41
+    chi_bin_widths, chi_bins, z_bins, z_bin_widths = create_z_bins(0.01, max_z, bins, OM=0.25, OL=0.75, h=0.7)
+    limits = np.cumsum(z_bin_widths) + z_bins[0]
+    # limits = np.insert(limits, 0, 0)
     if redo:
         # pickle_in = open("expected.pickle", "rb")
         # expected = pickle.load(pickle_in)
@@ -368,28 +373,31 @@ def find_expected_counts(test_cones, bins, redo=False, plot=False):
                 for num2, _ in enumerate(test_cone.items()):
                     cumul_tot[num1][num2] = np.count_nonzero([test_cone[f'c{num2+1}']['Zs'] < lim])
             expected[f"Radius{str(cone_radius)}"] = np.diff(np.mean(cumul_tot, 1))
-            for index, count in enumerate(expected[f"Radius{str(cone_radius)}"]):
-                if count == 0:
-                    try:
-                        expected[f"Radius{str(cone_radius)}"][index] = 0.5 * (expected[f"Radius{str(cone_radius)}"]
-                                                                              [index+1] + expected[
-                                                                               f"Radius{str(cone_radius)}"][index-1])
-                    except IndexError:
-                        expected[f"Radius{str(cone_radius)}"][index] = 0.5 * (expected[f"Radius{str(cone_radius)}"]
-                                                                              [index] + expected[
-                                                                               f"Radius{str(cone_radius)}"][index - 1])
+            # for index, count in enumerate(expected[f"Radius{str(cone_radius)}"]):
+            #     if count == 0:
+            #         try:
+            #             expected[f"Radius{str(cone_radius)}"][index] = 0.5 * (expected[f"Radius{str(cone_radius)}"]
+            #                                                                   [index+1] + expected[
+            #                                                                    f"Radius{str(cone_radius)}"][index-1])
+            #         except IndexError:
+            #             expected[f"Radius{str(cone_radius)}"][index] = 0.5 * (expected[f"Radius{str(cone_radius)}"]
+            #                                                                   [index] + expected[
+            #                                                                    f"Radius{str(cone_radius)}"][index - 1])
 
             print(f"Finished radius {str(cone_radius)}'")
 
-        pickle_out = open("expected.pickle", "wb")
+        pickle_out = open("sparse_exp_data.pickle", "wb")
         pickle.dump(expected, pickle_out)
         pickle_out.close()
     else:
-        pickle_in = open("sparse_exp_data.pickle", "rb")
+        if impact:
+            pickle_in = open("sparse_expected_IPs.pickle", "rb")
+        else:
+            pickle_in = open("sparse_expected.pickle", "rb")
         expected = pickle.load(pickle_in)
 
     if plot:
-        for cone_radius in RADII:
+        for cone_radius in RADII[29::5]:
             plt.plot([0, 1.42], [0, 0], color=grey, linestyle='--')
             plt.plot((limits[1:]+limits[:-1])/2.0, expected[f"Radius{str(cone_radius)}"], marker='o',
                      markersize=2.5, color=colours[0])
@@ -419,22 +427,25 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
     chis = exp_data[3]
     zs = exp_data[4]
     if redo:
-        if weighted:
-            # pickle_in = open("kappa_weighted.pickle", "rb")
-            # kappa = pickle.load(pickle_in)
-            kappa = {}
-        elif fis:
-            # pickle_in = open("kappa_fis.pickle", "rb")
-            # kappa = pickle.load(pickle_in)
-            kappa = {}
-        elif impact:
-            pickle_in = open("kappa_impact3.pickle", "rb")
-            kappa = pickle.load(pickle_in)
-            # kappa[crit_key] = {}
-            # print(kappa[2.5].keys(), kappa[0.05].keys())
-        else:
-            pickle_in = open("kappa.pickle", "rb")
-            kappa = pickle.load(pickle_in)
+        kappa = {}
+        # if weighted:
+        #     # pickle_in = open("kappa_weighted.pickle", "rb")
+        #     # kappa = pickle.load(pickle_in)
+        #     kappa = {}
+        # elif fis:
+        #     # pickle_in = open("kappa_fis.pickle", "rb")
+        #     # kappa = pickle.load(pickle_in)
+        #     kappa = {}
+        # elif impact:
+        #     pickle_in = open("kappa_impact3.pickle", "rb")
+        #     kappa = pickle.load(pickle_in)
+        #     # kappa[crit_key] = {}
+        #     # print(kappa[2.5].keys(), kappa[0.05].keys())
+        # else:
+        #     pickle_in = open("kappa.pickle", "rb")
+        #     kappa = pickle.load(pickle_in)
+        deltas = np.array([])
+        stds = np.array([])
         for cone_radius in RADII[29:]:
             expected_counts = exp_data[1][f"Radius{str(cone_radius)}"]
             lenses = lens_data[f"Radius{str(cone_radius)}"]
@@ -451,7 +462,6 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
                     tmp = [np.logical_and(limits[num2] < lenses[key]['Zs'], (lenses[key]['Zs'] <= limits[num2 + 1]))]
                     if impact:
                         IPs = np.array(lenses[key]["IPWEIGHT"])[tmp]
-
                     if weighted:
                         counts[key][num2] = np.count_nonzero(tmp) / lenses[key]['WEIGHT']
                     elif impact:
@@ -470,7 +480,10 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
                 chiSNs.append(chi[-1])
             # c_arr = []
             for num, (key, SN) in enumerate(counts.items()):
-                d_arr[key] = (SN - expected_counts[:len(SN)]) / expected_counts[:(len(SN))]
+                if impact:
+                    d_arr[key] = (SN - expected_counts[0][:len(SN)]) / expected_counts[0][:(len(SN))]
+                else:
+                    d_arr[key] = (SN - expected_counts[:len(SN)]) / expected_counts[:(len(SN))]
                 # kappa[f"Radius{str(cone_radius)}"]["SNkappa"][num], kappa[f"Radius{str(cone_radius)}"][key] =
                 SNkappa, allkappas = general_convergence(chi_widths[:len(SN)], chis[:len(SN)], zs[:len(SN)], d_arr[key],
                                                  chiSNs[num])
@@ -481,6 +494,9 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
                 #                                 expected_counts[:len(SN)], chiSNs[num])
                 # kappa[f"Radius{str(cone_radius)}"]["SNerr"].append(SNkappa_err)
                 # c_arr.append(SN)
+            deltas = np.append(deltas, np.mean([np.mean(d_arr[key]) for key in counts.keys()]))
+            stds = np.append(stds, np.std([np.mean(d_arr[key]) for key in counts.keys()])/np.sqrt(len(counts.keys())))
+
             kappa[f"Radius{str(cone_radius)}"]["Total"] = np.sum(kappa[f"Radius{str(cone_radius)}"]["SNkappa"])
             # kappa[f"Radius{str(cone_radius)}"]["Counts"] = counts
             # kappa[f"Radius{str(cone_radius)}"]["delta"] = d_arr
@@ -493,19 +509,20 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
             # plt.ylabel('$\kappa$')
             # plt.show()
             print(f"Finished radius {str(cone_radius)}'")
-        # pickle_out = open("kappa_fis.pickle", "wb")
-        # pickle.dump(kappa, pickle_out)
-        # pickle_out.close()
+        plt.errorbar(RADII[29:], deltas, stds, elinewidth=0.8, marker='o', ms=5, ls='', label=f"{asdf[i]}", color=colours[2+i])
+        # plt.show()
         if weighted:
             pickle_out = open("sparse_kappa_weighted.pickle", "wb")
         elif fis:
             pickle_out = open("sparse_kappa_fis.pickle", "wb")
-        # elif impact:
-        #     pickle_out = open("kappa_impact2.pickle", "wb")
+        elif impact:
+            pickle_out = open("sparse_kappa_impact_new.pickle", "wb")
         # else:
         #     pickle_out = open("kappa.pickle", "wb")
         pickle.dump(kappa, pickle_out)
         pickle_out.close()
+        pickle_in = open("sparse_lenses.pickle", "rb")
+        SN_data = pickle.load(pickle_in)
 
     else:
         if weighted:
@@ -513,21 +530,23 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
         elif fis:
             pickle_in = open("sparse_kappa_fis.pickle", "rb")
         elif impact:
-            pickle_in = open("kappa_impact2.pickle", "rb")
+            pickle_in = open("sparse_kappa_impact.pickle", "rb")
         else:
             pickle_in = open("kappa.pickle", "rb")
         kappa = pickle.load(pickle_in)
         print(kappa.keys())
+        pickle_in = open("sparse_cut_data.pickle", "rb")
+        SN_data = pickle.load(pickle_in)
 
     if plot_scatter or plot_total:
-        for cone_radius in [6.0]:
+        for cone_radius in [24.0]:
             SNe_data_radius = find_mu_diff(lens_data, cone_radius=cone_radius, impact=impact, key=crit_key)
             # lenses = lens_data[f"Radius{str(cone_radius)}"]
-            bins = np.linspace(0.025, max_z - 0.025, 12)
+            bins = np.linspace(0.025, max_z - 0.025, 24)
             # # edges = np.linspace(0, 0.6, 13)
             mean_kappa = []
             standard_error = []
-            if impact:
+            if crit_key != None:
                 conv = kappa[crit_key][f"Radius{str(cone_radius)}"]["SNkappa"]
             else:
                 conv = kappa[f"Radius{str(cone_radius)}"]["SNkappa"]
@@ -566,13 +585,13 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
                 ax.set_xlabel("$z$")
                 # ax2.set_xlabel("Count")
                 # ax2.set_yticklabels([])
-                plt.tight_layout()
                 ax.plot([0, max_z], [0, 0], color=grey, linestyle='--')
-                ax.axis([0, max_z, -0.02, 0.02])
+                ax.axis([0, max_z, -0.08, 0.1])
                 # ax2.axis([0, 260, -0.02, 0.02])
                 # ax.set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0])
                 # ax.set_xticklabels([0, 0.2, 0.4, 0])
                 ax.plot(SNe_data_radius['z'], conv, linestyle='', marker='o', markersize=2, color=colours[0])
+                # ax.plot(SN_data["z2"], SN_data["SNkappa"], linestyle='', marker='o', markersize=2, color=colours[1])
                 # ax2.hist(conv, bins=np.arange(-0.05, 0.08 + 0.005, 0.005), orientation='horizontal',
                 #          fc=green, edgecolor=colours[0])
                 ax.errorbar(bins, mean_kappa, standard_error, marker='s', color='r', markersize=3, capsize=3)
@@ -595,7 +614,7 @@ def find_convergence(lens_data, exp_data, redo=False, plot_scatter=False, plot_t
     return kappa
 
 
-def plot_Hubble(lenses, OM=0.27, OL=0.73, max_z=0.6):
+def plot_Hubble(lenses, OM=0.27, OL=0.73, h=0.738, max_z=0.6):
     """Plots the Hubble diagram (distance modulus against redshift), including the best fitting cosmology, and
     residuals from best cosmology.
 
@@ -607,7 +626,7 @@ def plot_Hubble(lenses, OM=0.27, OL=0.73, max_z=0.6):
      mu_diff -- residuals from best fitting cosmology.
      z_arr -- array of redshifts used for best fitting cosmology.
     """
-    data = find_mu_diff(lenses, OM=OM, OL=OL, max_z=max_z)
+    data = find_mu_diff(lenses, OM=OM, OL=OL, h=h, max_z=max_z)
     z = data['z']
     mu = data['mu']
     mu_err = data['mu_err']
@@ -787,10 +806,11 @@ def bin_test(test_cones, lenses):
 
     exit()
 
+
 if __name__ == "__main__":
-    use_weighted = False
+    # use_weighted = False
     # data, S_data = get_data(new_data=False)
-    # lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
+    # lensing_gals = sort_SN_gals(data, redo=False, weighted=True)
     pickle_in = open("sparse_cut_data.pickle", "rb")
     data = pickle.load(pickle_in)
     pickle_in = open("sparse_lenses.pickle", "rb")
@@ -798,13 +818,13 @@ if __name__ == "__main__":
     pickle_in = open("sparse_test_cones.pickle", "rb")
     cone_array = pickle.load(pickle_in)
     # plot_cones(data, lensing_gals, plot_hist=True, cone_radius=12.0)
-    # cone_array = make_test_cones(data, redo=False, plot=False)
-    exp_data = find_expected_counts(cone_array, 51, redo=False, plot=False)
-    redo_conv = False
-    kappa = find_convergence(lensing_gals, exp_data, redo=redo_conv, plot_scatter=True,
-                             plot_total=True, weighted=True)
+    cone_array = make_test_cones(data, redo=False, plot=False)
+    exp_data = find_expected_counts(cone_array, 111, redo=False, plot=False)
+    redo_conv = True
+    # kappa = find_convergence(lensing_gals, exp_data, redo=True, plot_scatter=False,
+    #                          plot_total=False, weighted=True)
 
-    # plot_Hubble(lensing_gals)
+    # plot_Hubble(lensing_gals, OM=0.25, OL=0.75, h=0.7, max_z=1.41)
     lensing_gals_fully_in_sample = {}
     number_fis = np.zeros(len(RADII[29:]))
     num = 0
@@ -819,111 +839,60 @@ if __name__ == "__main__":
         num += 1
     # plt.plot(RADII[29:], number_fis, '+')
     # plt.show()
-
-    kappa_fis = find_convergence(lensing_gals_fully_in_sample, exp_data, redo=False, plot_scatter=True, plot_total=True, fis=True)
-    fully_in_sample = find_correlation(kappa_fis, lensing_gals_fully_in_sample, plot_correlation=False,
-                                       plot_radii=True)
-    exit()
-    use_weighted = True
-    lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
-    kappa_weighted = find_convergence(lensing_gals, exp_data, redo=redo_conv, plot_scatter=False, plot_total=False,
-                                      weighted=use_weighted)
-
-    weighted = find_correlation(kappa_weighted, lensing_gals, plot_correlation=False, plot_radii=True)
-
-    lensing_gals_fully_in_sample = {}
-    number_fis = np.zeros(len(RADII))
-    num = 0
-    not_fis_indices = np.zeros(749)
-    for rad in RADII:
-        lensing_gals_fully_in_sample[f"Radius{rad}"] = {}
-        for num2, (key2, SN) in enumerate(lensing_gals[f"Radius{rad}"].items()):
-            if SN["WEIGHT"] == 1:
-                not_fis_indices[num2] = 1
-                lensing_gals_fully_in_sample[f"Radius{rad}"][key2] = SN
-                number_fis[num] += 1
-        num += 1
-    # plt.plot(S_data['kappa'], S_data['kappa'], color=[0.75, 0.75, 0.75])
-    # plt.plot(np.array(S_data['kappa'])[np.logical_not(not_fis_indices)],
-    #          np.array(kappa_weighted["Radius12.0"]["SNkappa"])[np.logical_not(not_fis_indices)], 'o', linestyle='',
-    #          color=colours[0], label='Weighted', markersize=4)
-    # plt.plot(np.array(S_data['kappa'])[np.logical_not(not_fis_indices)],
-    #          np.array(kappa["Radius12.0"]["SNkappa"])[np.logical_not(not_fis_indices)], 'o', linestyle='',
-    #          color=colours[1], label='Unweighted', markersize=4)
-    # plt.xlabel('$\kappa$ Smith et al. (2014)')
-    # plt.ylabel('My $\kappa$')
-    # plt.legend(frameon=0)
-    # plt.show()
-    # exit()
-    # plt.plot(RADII, number_fis, '+')
-    # plt.show()
-    # lensing_gals = sort_SN_gals(data, redo=False, weighted=False)
-    # bin_test(cone_array, lensing_gals_fully_in_sample)
-    # exit()
-    kappa_fis = find_convergence(lensing_gals_fully_in_sample, exp_data, redo=redo_conv, plot_total=False, fis=True)
-    fully_in_sample = find_correlation(kappa_fis, lensing_gals_fully_in_sample, plot_correlation=False,
-                                       plot_radii=True)
-
-    pickle_in = open("lenses_IP3.pickle", "rb")
-    lensing_gals_impact = pickle.load(pickle_in)
-    pickle_in = open("kappa_impact3.pickle", "rb")
-    kappa_impact = pickle.load(pickle_in)
-    # kappa_impact = find_convergence(lensing_gals_impact, exp_data, redo=False, plot_scatter=False, impact=False,
-    #                                 plot_total=True)
-    impact = find_correlation(kappa_impact, lensing_gals_impact, plot_correlation=False, plot_radii=True, impact=True)
-
-    # exit()
-    print(impact[0][76-28], impact[4][76-28], impact[0][81-28], impact[4][81-28])
-    # print(unweighted[0][53], unweighted[4][53], weighted[0][53], weighted[4][53], fully_in_sample[0][53],
-          # fully_in_sample[4][53], fully_in_sample[0][58], fully_in_sample[4][58])
-    # # plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
-    # # plt.plot(RADII, unweighted[1], color=colours[0])
-    # # plt.plot(RADII, unweighted[0], marker='x', linestyle='', color=[0, 0.5, 0.9])
-    # # plt.fill_between(RADII, unweighted[2], unweighted[3], color=colours[0], alpha=0.3)
-    # # plt.plot(RADII, weighted[1], color=colours[1])
-    # # plt.plot(RADII, weighted[0], marker='x', linestyle='', color=[0.7, 0.3, 0])
-    # # plt.fill_between(RADII, weighted[2], weighted[3], color=colours[1], alpha=0.3)
-    # # plt.plot(RADII, fully_in_sample[1], color=colours[2])
-    # # plt.plot(RADII, fully_in_sample[0], marker='x', linestyle='', color=[0.7, 0.1, 0.6])
-    # # plt.fill_between(RADII, fully_in_sample[2], fully_in_sample[3], color=colours[2], alpha=0.3)
-    # # kwargs1 = {'marker': 'x', 'markeredgecolor': [0, 0.5, 0.9], 'color': colours[0]}
-    # # kwargs2 = {'marker': 'x', 'markeredgecolor': [0.7, 0.3, 0], 'color': colours[1]}
-    kwargs3 = {'marker': 'x', 'markeredgecolor': [0.7, 0.1, 0.6], 'color': colours[2]}
-    # # plt.plot([], [], label='Unweighted', **kwargs1)
-    # # plt.plot([], [], label='Weighted', **kwargs2)
-    # # plt.plot([], [], label='Fully In Sample', **kwargs3)
-    # # plt.gca().invert_yaxis()
-    # # plt.xlim([0, 30.0])
-    # # plt.legend(frameon=0)
-    # # plt.xlabel('Cone Radius (arcmin)')
-    # # plt.ylabel("Spearman's Rank Coefficient")
-    # # plt.tight_layout()
-    # # plt.show()
+    # #
+    # kappa_weighted = find_convergence(lensing_gals, exp_data, redo=False, plot_scatter=False, plot_total=False, weighted=True, max_z=1.41)
     #
-    plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
-    plt.plot(RADII[29:], fully_in_sample[1], color=colours[2])
-    plt.plot(RADII[29:], fully_in_sample[0], marker='x', linestyle='', color=[0.7, 0.1, 0.6])
-    plt.fill_between(RADII[29:], fully_in_sample[2], fully_in_sample[3], color=colours[2], alpha=0.3)
-    plt.plot(RADII[29:], impact[1], color=colours[3])
-    plt.plot(RADII[29:], impact[0], marker='x', linestyle='', color=[60/255, 90/255, 240/255])
-    plt.fill_between(RADII[29:], impact[2], impact[3], color=colours[3], alpha=0.3)
-    kwargs4 = {'marker': 'x', 'markeredgecolor': [60/255, 90/255, 240/255], 'color': colours[3]}
-    plt.plot([], [], label='Fully In Sample', **kwargs3)
-    plt.plot([], [], label='Impact Parameter', **kwargs4)
-    plt.xlim([6.0, 30.0])
-    plt.ylim([-0.17, 0.04])
-    plt.gca().invert_yaxis()
+    # kappa_fis = find_convergence(lensing_gals_fully_in_sample, exp_data, redo=True, plot_scatter=False, plot_total=False, fis=True, max_z=1.41)
+
+    # pickle_in = open("sparse_lenses.pickle", "rb")
+    # lensing_gals_impact = pickle.load(pickle_in)
+    # kappa_impact = find_convergence(lensing_gals_fully_in_sample, exp_data, redo=True, impact=True, max_z=1.42, plot_scatter=True, plot_total=True)
+    # i+=1
+    pickle_in = open("sparse_lenses_IP.pickle", "rb")
+    lensing_gals_impact = pickle.load(pickle_in)
+    kappa_fis = find_convergence(lensing_gals_fully_in_sample, exp_data, redo=True, plot_scatter=False, weighted=True,
+                                    plot_total=False)
+    i+=1
+    # exp_data_IPs = ImpactP.find_expected_weights(data, 111, redo=False)
+    # kappa_impact = find_convergence(lensing_gals_impact, exp_data_IPs, redo=False, plot_scatter=False, impact=True,
+    #                                 plot_total=False)
+    plt.xlabel("Cone Radius")
+    plt.ylabel("Average $\delta$")
+    plt.axis([5.5, 31.5, 3, 25])
     plt.legend(frameon=0)
-    plt.xlabel('Cone Radius (arcmin)')
-    plt.ylabel("Spearman's Rank Coefficient")
     plt.tight_layout()
     plt.show()
+
+    fully_in_sample = find_correlation(kappa_fis, lensing_gals_fully_in_sample, plot_correlation=False,
+                              plot_radii=True)
+    impact = find_correlation(kappa_impact, lensing_gals_impact, plot_correlation=False,
+                                       plot_radii=True, impact=True)
+
+    # plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
+    # plt.plot(RADII[29:], fully_in_sample[1], color=colours[2])
+    # plt.plot(RADII[29:], fully_in_sample[0], marker='x', linestyle='', color=[0.7, 0.1, 0.6])
+    # plt.fill_between(RADII[29:], fully_in_sample[2], fully_in_sample[3], color=colours[2], alpha=0.3)
+    # plt.plot(RADII[29:], impact[1], color=colours[3])
+    # plt.plot(RADII[29:], impact[0], marker='x', linestyle='', color=[60/255, 90/255, 240/255])
+    # plt.fill_between(RADII[29:], impact[2], impact[3], color=colours[3], alpha=0.3)
+    # kwargs3 = {'marker': 'x', 'markeredgecolor': [0.7, 0.1, 0.6], 'color': colours[2]}
+    # kwargs4 = {'marker': 'x', 'markeredgecolor': [60/255, 90/255, 240/255], 'color': colours[3]}
+    # plt.plot([], [], label='Fully In Sample', **kwargs3)
+    # plt.plot([], [], label='Impact Parameter', **kwargs4)
+    # plt.xlim([6.0, 30.0])
+    # plt.ylim([-0.17, 0.04])
+    # plt.gca().invert_yaxis()
+    # plt.legend(frameon=0)
+    # plt.xlabel('Cone Radius (arcmin)')
+    # plt.ylabel("Spearman's Rank Coefficient")
+    # plt.tight_layout()
+    # plt.show()
 
     # conv_total = []
     # conv_total_weighted = []
     conv_total_fis = []
     conv_total_impact = []
-    for cone_radius in RADII:
+    for cone_radius in RADII[29:]:
         # conv_total.append(kappa[f"Radius{str(cone_radius)}"]["Total"])
         # conv_total_weighted.append(kappa_weighted[f"Radius{str(cone_radius)}"]["Total"])
         conv_total_fis.append(kappa_fis[f"Radius{str(cone_radius)}"]["Total"])
@@ -939,81 +908,210 @@ if __name__ == "__main__":
     # plt.legend(frameon=0)
     # plt.show()
     #
-    # plt.ylabel("Total Convergence")
-    # plt.xlabel("Cone Radius (arcmin)")
-    # plt.tick_params(labelsize=12)
-    # plt.plot([6, 30], [0, 0], color=grey, linestyle='--')
-    # plt.axis([6, 30, -3, 0.5])
-    # plt.plot(RADII[29:], conv_total_fis[29:], marker='o', markersize=2, color=colours[2], label='Fully in sample')
-    # plt.plot(RADII[29:], conv_total_impact[29:], marker='o', markersize=2, color=colours[3], label='Impact')
-    # plt.legend(frameon=0)
-    # plt.tight_layout()
-    # plt.show()
-
-    # pickle_in = open("kappa_impact2.pickle", "rb")
+    plt.ylabel("Total Convergence")
+    plt.xlabel("Cone Radius (arcmin)")
+    plt.tick_params(labelsize=12)
+    plt.plot([6, 30], [0, 0], color=grey, linestyle='--')
+    plt.axis([6, 30, -3, 0.5])
+    plt.plot(RADII[29:], conv_total_fis, marker='o', markersize=2, color=colours[2], label='Fully in sample')
+    plt.plot(RADII[29:], conv_total_impact, marker='o', markersize=2, color=colours[3], label='Impact')
+    plt.legend(frameon=0)
+    plt.tight_layout()
+    plt.show()
+    exit()
+    # use_weighted = True
+    # lensing_gals = sort_SN_gals(data, redo=False, weighted=use_weighted)
+    # kappa_weighted = find_convergence(lensing_gals, exp_data, redo=redo_conv, plot_scatter=False, plot_total=False,
+    #                                   weighted=use_weighted)
+    #
+    # weighted = find_correlation(kappa_weighted, lensing_gals, plot_correlation=False, plot_radii=True)
+    #
+    # lensing_gals_fully_in_sample = {}
+    # number_fis = np.zeros(len(RADII))
+    # num = 0
+    # not_fis_indices = np.zeros(749)
+    # for rad in RADII:
+    #     lensing_gals_fully_in_sample[f"Radius{rad}"] = {}
+    #     for num2, (key2, SN) in enumerate(lensing_gals[f"Radius{rad}"].items()):
+    #         if SN["WEIGHT"] == 1:
+    #             not_fis_indices[num2] = 1
+    #             lensing_gals_fully_in_sample[f"Radius{rad}"][key2] = SN
+    #             number_fis[num] += 1
+    #     num += 1
+    # # plt.plot(S_data['kappa'], S_data['kappa'], color=[0.75, 0.75, 0.75])
+    # # plt.plot(np.array(S_data['kappa'])[np.logical_not(not_fis_indices)],
+    # #          np.array(kappa_weighted["Radius12.0"]["SNkappa"])[np.logical_not(not_fis_indices)], 'o', linestyle='',
+    # #          color=colours[0], label='Weighted', markersize=4)
+    # # plt.plot(np.array(S_data['kappa'])[np.logical_not(not_fis_indices)],
+    # #          np.array(kappa["Radius12.0"]["SNkappa"])[np.logical_not(not_fis_indices)], 'o', linestyle='',
+    # #          color=colours[1], label='Unweighted', markersize=4)
+    # # plt.xlabel('$\kappa$ Smith et al. (2014)')
+    # # plt.ylabel('My $\kappa$')
+    # # plt.legend(frameon=0)
+    # # plt.show()
+    # # exit()
+    # # plt.plot(RADII, number_fis, '+')
+    # # plt.show()
+    # # lensing_gals = sort_SN_gals(data, redo=False, weighted=False)
+    # # bin_test(cone_array, lensing_gals_fully_in_sample)
+    # # exit()
+    # kappa_fis = find_convergence(lensing_gals_fully_in_sample, exp_data, redo=True, plot_total=True, fis=True)
+    # fully_in_sample = find_correlation(kappa_fis, lensing_gals_fully_in_sample, plot_correlation=False,
+    #                                    plot_radii=True)
+    #
+    # pickle_in = open("lenses_IP3.pickle", "rb")
+    # lensing_gals_impact = pickle.load(pickle_in)
+    # pickle_in = open("kappa_impact3.pickle", "rb")
     # kappa_impact = pickle.load(pickle_in)
-    # # kappa_impact = find_convergence(lensing_gals_impact, exp_data, redo=True, impact=True, crit_key=0.05)
-    # # print(kappa_impact.keys())
-    # # key = 3.0
-    # key = 0.05
-    # impact1 = find_correlation(kappa_impact, lensing_gals_impact, plot_radii=True, impact=True, key=key)
-    # # key = 6.0
-    # key = 2.5
-    # impact2 = find_correlation(kappa_impact, lensing_gals_impact, plot_radii=True, impact=True, key=key)
-    # # key = 12.0
-    # key = 5.0
-    # impact3 = find_correlation(kappa_impact, lensing_gals_impact, plot_radii=True, impact=True, key=key)
-    # # key = 24.0
-    # key = 10.0
-    # impact4 = find_correlation(kappa_impact, lensing_gals_impact, plot_radii=True, impact=True, key=key)
-    # plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
-    # plt.plot(RADII[29:], impact1[1], color=colours[0])
-    # plt.plot(RADII[29:], impact1[0], marker='x', linestyle='', color=[0, 0.5, 0.9])
-    # plt.fill_between(RADII[29:], impact1[2], impact1[3], color=colours[0], alpha=0.2)
-    # plt.plot(RADII[29:], impact2[1], color=colours[1])
-    # plt.plot(RADII[29:], impact2[0], marker='x', linestyle='', color=[0.7, 0.3, 0])
-    # plt.fill_between(RADII[29:], impact2[2], impact2[3], color=colours[1], alpha=0.2)
-    # plt.plot(RADII[29:], impact3[1], color=colours[2])
-    # plt.plot(RADII[29:], impact3[0], marker='x', linestyle='', color=[0.7, 0.1, 0.6])
-    # plt.fill_between(RADII[29:], impact3[2], impact3[3], color=colours[2], alpha=0.2)
-    # plt.plot(RADII[29:], impact4[1], color=colours[3])
-    # plt.plot(RADII[29:], impact4[0], marker='x', linestyle='', color=[60 / 255, 90 / 255, 240 / 255])
-    # plt.fill_between(RADII[29:], impact4[2], impact4[3], color=colours[3], alpha=0.2)
-    # kwargs1 = {'marker': 'x', 'markeredgecolor': [0, 0.5, 0.9], 'color': colours[0]}
-    # kwargs2 = {'marker': 'x', 'markeredgecolor': [0.7, 0.3, 0], 'color': colours[1]}
+    # # kappa_impact = find_convergence(lensing_gals_impact, exp_data, redo=False, plot_scatter=False, impact=False,
+    # #                                 plot_total=True)
+    # impact = find_correlation(kappa_impact, lensing_gals_impact, plot_correlation=False, plot_radii=True, impact=True)
+    #
+    # # exit()
+    # print(impact[0][76-28], impact[4][76-28], impact[0][81-28], impact[4][81-28])
+    # # print(unweighted[0][53], unweighted[4][53], weighted[0][53], weighted[4][53], fully_in_sample[0][53],
+    #       # fully_in_sample[4][53], fully_in_sample[0][58], fully_in_sample[4][58])
+    # # # plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
+    # # # plt.plot(RADII, unweighted[1], color=colours[0])
+    # # # plt.plot(RADII, unweighted[0], marker='x', linestyle='', color=[0, 0.5, 0.9])
+    # # # plt.fill_between(RADII, unweighted[2], unweighted[3], color=colours[0], alpha=0.3)
+    # # # plt.plot(RADII, weighted[1], color=colours[1])
+    # # # plt.plot(RADII, weighted[0], marker='x', linestyle='', color=[0.7, 0.3, 0])
+    # # # plt.fill_between(RADII, weighted[2], weighted[3], color=colours[1], alpha=0.3)
+    # # # plt.plot(RADII, fully_in_sample[1], color=colours[2])
+    # # # plt.plot(RADII, fully_in_sample[0], marker='x', linestyle='', color=[0.7, 0.1, 0.6])
+    # # # plt.fill_between(RADII, fully_in_sample[2], fully_in_sample[3], color=colours[2], alpha=0.3)
+    # # # kwargs1 = {'marker': 'x', 'markeredgecolor': [0, 0.5, 0.9], 'color': colours[0]}
+    # # # kwargs2 = {'marker': 'x', 'markeredgecolor': [0.7, 0.3, 0], 'color': colours[1]}
     # kwargs3 = {'marker': 'x', 'markeredgecolor': [0.7, 0.1, 0.6], 'color': colours[2]}
-    # kwargs4 = {'marker': 'x', 'markeredgecolor': [60 / 255, 90 / 255, 240 / 255], 'color': colours[3]}
-    # plt.plot([], [], label="0.05 Mpc", **kwargs1)
-    # plt.plot([], [], label="2.5 Mpc", **kwargs2)
-    # plt.plot([], [], label="5.0 Mpc", **kwargs3)
-    # plt.plot([], [], label="10.0 Mpc",  **kwargs4)
+    # # # plt.plot([], [], label='Unweighted', **kwargs1)
+    # # # plt.plot([], [], label='Weighted', **kwargs2)
+    # # # plt.plot([], [], label='Fully In Sample', **kwargs3)
+    # # # plt.gca().invert_yaxis()
+    # # # plt.xlim([0, 30.0])
+    # # # plt.legend(frameon=0)
+    # # # plt.xlabel('Cone Radius (arcmin)')
+    # # # plt.ylabel("Spearman's Rank Coefficient")
+    # # # plt.tight_layout()
+    # # # plt.show()
+    # #
+    # plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
+    # plt.plot(RADII[29:], fully_in_sample[1], color=colours[2])
+    # plt.plot(RADII[29:], fully_in_sample[0], marker='x', linestyle='', color=[0.7, 0.1, 0.6])
+    # plt.fill_between(RADII[29:], fully_in_sample[2], fully_in_sample[3], color=colours[2], alpha=0.3)
+    # plt.plot(RADII[29:], impact[1], color=colours[3])
+    # plt.plot(RADII[29:], impact[0], marker='x', linestyle='', color=[60/255, 90/255, 240/255])
+    # plt.fill_between(RADII[29:], impact[2], impact[3], color=colours[3], alpha=0.3)
+    # kwargs4 = {'marker': 'x', 'markeredgecolor': [60/255, 90/255, 240/255], 'color': colours[3]}
+    # plt.plot([], [], label='Fully In Sample', **kwargs3)
+    # plt.plot([], [], label='Impact Parameter', **kwargs4)
     # plt.xlim([6.0, 30.0])
+    # plt.ylim([-0.17, 0.04])
+    # plt.gca().invert_yaxis()
     # plt.legend(frameon=0)
     # plt.xlabel('Cone Radius (arcmin)')
     # plt.ylabel("Spearman's Rank Coefficient")
-    # plt.gca().invert_yaxis()
     # plt.tight_layout()
     # plt.show()
     #
-    # conv_total_25 = []
-    # conv_total_50 = []
-    # conv_total_75 = []
-    # conv_total_100 = []
+    # # conv_total = []
+    # # conv_total_weighted = []
+    # conv_total_fis = []
+    # conv_total_impact = []
     # for cone_radius in RADII:
-    #     conv_total_25.append( kappa_impact[0.05][f"Radius{str(cone_radius)}"]["Total"])
-    #     conv_total_50.append( kappa_impact[2.5][f"Radius{str(cone_radius)}"]["Total"])
-    #     conv_total_75.append( kappa_impact[5.0][f"Radius{str(cone_radius)}"]["Total"])
-    #     conv_total_100.append(kappa_impact[10.0][f"Radius{str(cone_radius)}"]["Total"])
-    # plt.ylabel("Total Convergence")
-    # plt.xlabel("Cone Radius (arcmin)")
-    # plt.tick_params(labelsize=12)
-    # plt.plot([6.0, 30], [0, 0], color=grey, linestyle='--')
-    # plt.xlim([6.0, 30])
-    # plt.ylim([-4.37, 2.17])
-    # plt.plot(RADII[29:],  conv_total_25[29:], marker='o', markersize=2, color=colours[0], label="0.05 Mpc")
-    # plt.plot(RADII[29:],  conv_total_50[29:], marker='o', markersize=2, color=colours[1], label="2.5 Mpc")
-    # plt.plot(RADII[29:],  conv_total_75[29:], marker='o', markersize=2, color=colours[2], label="5.0 Mpc")
-    # plt.plot(RADII[29:], conv_total_100[29:], marker='o', markersize=2, color=colours[3], label="10.0 Mpc")
-    # plt.legend(frameon=0)
-    # plt.tight_layout()
-    # plt.show()
+    #     # conv_total.append(kappa[f"Radius{str(cone_radius)}"]["Total"])
+    #     # conv_total_weighted.append(kappa_weighted[f"Radius{str(cone_radius)}"]["Total"])
+    #     conv_total_fis.append(kappa_fis[f"Radius{str(cone_radius)}"]["Total"])
+    #     conv_total_impact.append(kappa_impact[f"Radius{str(cone_radius)}"]["Total"])
+    # # plt.ylabel("Total Convergence")
+    # # plt.xlabel("Cone Radius (arcmin)")
+    # # plt.tick_params(labelsize=12)
+    # # plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
+    # # plt.axis([0, 30, -1, 1.5])
+    # # plt.plot(RADII, conv_total, marker='o', markersize=2, color=colours[0], label='Unweighted')
+    # # plt.plot(RADII, conv_total_weighted, marker='o', markersize=2, color=colours[1], label='Weighted')
+    # # plt.plot(RADII, conv_total_fis, marker='o', markersize=2, color=colours[2], label='Fully in sample')
+    # # plt.legend(frameon=0)
+    # # plt.show()
+    # #
+    # # plt.ylabel("Total Convergence")
+    # # plt.xlabel("Cone Radius (arcmin)")
+    # # plt.tick_params(labelsize=12)
+    # # plt.plot([6, 30], [0, 0], color=grey, linestyle='--')
+    # # plt.axis([6, 30, -3, 0.5])
+    # # plt.plot(RADII[29:], conv_total_fis[29:], marker='o', markersize=2, color=colours[2], label='Fully in sample')
+    # # plt.plot(RADII[29:], conv_total_impact[29:], marker='o', markersize=2, color=colours[3], label='Impact')
+    # # plt.legend(frameon=0)
+    # # plt.tight_layout()
+    # # plt.show()
+    #
+    # # pickle_in = open("kappa_impact2.pickle", "rb")
+    # # kappa_impact = pickle.load(pickle_in)
+    # # # kappa_impact = find_convergence(lensing_gals_impact, exp_data, redo=True, impact=True, crit_key=0.05)
+    # # # print(kappa_impact.keys())
+    # # # key = 3.0
+    # # key = 0.05
+    # # impact1 = find_correlation(kappa_impact, lensing_gals_impact, plot_radii=True, impact=True, key=key)
+    # # # key = 6.0
+    # # key = 2.5
+    # # impact2 = find_correlation(kappa_impact, lensing_gals_impact, plot_radii=True, impact=True, key=key)
+    # # # key = 12.0
+    # # key = 5.0
+    # # impact3 = find_correlation(kappa_impact, lensing_gals_impact, plot_radii=True, impact=True, key=key)
+    # # # key = 24.0
+    # # key = 10.0
+    # # impact4 = find_correlation(kappa_impact, lensing_gals_impact, plot_radii=True, impact=True, key=key)
+    # # plt.plot([0, 30], [0, 0], color=grey, linestyle='--')
+    # # plt.plot(RADII[29:], impact1[1], color=colours[0])
+    # # plt.plot(RADII[29:], impact1[0], marker='x', linestyle='', color=[0, 0.5, 0.9])
+    # # plt.fill_between(RADII[29:], impact1[2], impact1[3], color=colours[0], alpha=0.2)
+    # # plt.plot(RADII[29:], impact2[1], color=colours[1])
+    # # plt.plot(RADII[29:], impact2[0], marker='x', linestyle='', color=[0.7, 0.3, 0])
+    # # plt.fill_between(RADII[29:], impact2[2], impact2[3], color=colours[1], alpha=0.2)
+    # # plt.plot(RADII[29:], impact3[1], color=colours[2])
+    # # plt.plot(RADII[29:], impact3[0], marker='x', linestyle='', color=[0.7, 0.1, 0.6])
+    # # plt.fill_between(RADII[29:], impact3[2], impact3[3], color=colours[2], alpha=0.2)
+    # # plt.plot(RADII[29:], impact4[1], color=colours[3])
+    # # plt.plot(RADII[29:], impact4[0], marker='x', linestyle='', color=[60 / 255, 90 / 255, 240 / 255])
+    # # plt.fill_between(RADII[29:], impact4[2], impact4[3], color=colours[3], alpha=0.2)
+    # # kwargs1 = {'marker': 'x', 'markeredgecolor': [0, 0.5, 0.9], 'color': colours[0]}
+    # # kwargs2 = {'marker': 'x', 'markeredgecolor': [0.7, 0.3, 0], 'color': colours[1]}
+    # # kwargs3 = {'marker': 'x', 'markeredgecolor': [0.7, 0.1, 0.6], 'color': colours[2]}
+    # # kwargs4 = {'marker': 'x', 'markeredgecolor': [60 / 255, 90 / 255, 240 / 255], 'color': colours[3]}
+    # # plt.plot([], [], label="0.05 Mpc", **kwargs1)
+    # # plt.plot([], [], label="2.5 Mpc", **kwargs2)
+    # # plt.plot([], [], label="5.0 Mpc", **kwargs3)
+    # # plt.plot([], [], label="10.0 Mpc",  **kwargs4)
+    # # plt.xlim([6.0, 30.0])
+    # # plt.legend(frameon=0)
+    # # plt.xlabel('Cone Radius (arcmin)')
+    # # plt.ylabel("Spearman's Rank Coefficient")
+    # # plt.gca().invert_yaxis()
+    # # plt.tight_layout()
+    # # plt.show()
+    # #
+    # # conv_total_25 = []
+    # # conv_total_50 = []
+    # # conv_total_75 = []
+    # # conv_total_100 = []
+    # # for cone_radius in RADII:
+    # #     conv_total_25.append( kappa_impact[0.05][f"Radius{str(cone_radius)}"]["Total"])
+    # #     conv_total_50.append( kappa_impact[2.5][f"Radius{str(cone_radius)}"]["Total"])
+    # #     conv_total_75.append( kappa_impact[5.0][f"Radius{str(cone_radius)}"]["Total"])
+    # #     conv_total_100.append(kappa_impact[10.0][f"Radius{str(cone_radius)}"]["Total"])
+    # # plt.ylabel("Total Convergence")
+    # # plt.xlabel("Cone Radius (arcmin)")
+    # # plt.tick_params(labelsize=12)
+    # # plt.plot([6.0, 30], [0, 0], color=grey, linestyle='--')
+    # # plt.xlim([6.0, 30])
+    # # plt.ylim([-4.37, 2.17])
+    # # plt.plot(RADII[29:],  conv_total_25[29:], marker='o', markersize=2, color=colours[0], label="0.05 Mpc")
+    # # plt.plot(RADII[29:],  conv_total_50[29:], marker='o', markersize=2, color=colours[1], label="2.5 Mpc")
+    # # plt.plot(RADII[29:],  conv_total_75[29:], marker='o', markersize=2, color=colours[2], label="5.0 Mpc")
+    # # plt.plot(RADII[29:], conv_total_100[29:], marker='o', markersize=2, color=colours[3], label="10.0 Mpc")
+    # # plt.legend(frameon=0)
+    # # plt.tight_layout()
+    # # plt.show()
+#
+# if __name__ == "__main__":
+#     main()
