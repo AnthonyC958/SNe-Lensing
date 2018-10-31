@@ -58,7 +58,7 @@ def deep_update(old_dict, update_to_dict):
 
 
 def get_data():
-    with fits.open('sparseMICE.fits') as hdul1:
+    with fits.open('MICEsim5.fits') as hdul1:
         RA = hdul1[1].data['ra']
         DEC = hdul1[1].data['dec']
         kap = hdul1[1].data['kappa']
@@ -66,14 +66,13 @@ def get_data():
         ID = hdul1[1].data['id']
         # Comoving = hdul1[1].data['d_c_v']
 
-    RA = np.array(RA)[[z >= 0.01]]
-    DEC = np.array(DEC)[[z >= 0.01]]
-    kap = np.array(kap)[[z >= 0.01]]
-    ID = np.array(ID)[[z >= 0.01]]
-    # Comoving = np.array(Comoving)[[z >= 0.01]]
-    z = np.array(z)[[z >= 0.01]]
-    cut_data = {'RA': RA, 'DEC': DEC, 'z': z, 'kappa': kap, 'id': ID}
-
+    cut_RA = np.array(RA)[[z >= 0.01]][::25]
+    cut_DEC = np.array(DEC)[[z >= 0.01]][::25]
+    cut_kap = np.array(kap)[[z >= 0.01]][::25]
+    cut_ID = np.array(ID)[[z >= 0.01]][::25]
+    cut_z = np.array(z)[[z >= 0.01]][::25]
+    cut_data = {'RA': cut_RA, 'DEC': cut_DEC, 'z': cut_z, 'kappa': cut_kap, 'id': cut_ID}
+    print(len(cut_z))
     return cut_data
 
 
@@ -98,7 +97,7 @@ def make_big_cone(data, redo=False):
             big_cone['kappa'] = np.append(big_cone['kappa'], kappas[(RAs - centre[0] - 2 * i * radius) ** 2 +
                                                                     (DECs - centre[1]) ** 2 <= radius ** 2])
 
-        pickle_out = open(f"sparse_big_cone.pickle", "wb")
+        pickle_out = open(f"big_cone.pickle", "wb")
         pickle.dump(big_cone, pickle_out)
         pickle_out.close()
     else:
@@ -216,22 +215,23 @@ def get_random(data, redo=False, seed=1337):
                               for i in range(rand_samp_size)])
         SN_data = {'mu_diff': mu_diff, 'SNZ': rand_zs, 'SNkappa': rand_kappas,
                    'SNRA': rand_RAs, 'SNDEC': rand_DECs, 'SNMU': rand_mus, 'SNMU_ERR': rand_errs}
-        pickle_out = open("sparseMICE_SN_data.pickle", "wb")
+        pickle_out = open("sparse2MICE_SN_data.pickle", "wb")
         pickle.dump(SN_data, pickle_out)
         pickle_out.close()
         print("Finished SN_data")
-        exit()
-        #
+        # exit()
+        # pickle_in = open("sparse_lenses.pickle", "rb")
+        # lenses = pickle.load(pickle_in)
         lenses = {}
-        for cone_radius in RADII[29:]:
+        for cone_radius in RADII[29::2]:
             lenses[f"Radius{str(cone_radius)}"] = {}
             for num, (SRA, SDE, SZ, Sk, SM, SE) in enumerate(zip(rand_RAs, rand_DECs, rand_zs, rand_kappas, rand_mus,
                                                                 rand_errs)):
                 lenses[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}'] = {'RAs': [], 'DECs': [], 'Zs': [], 'SNZ': SZ,
                                                                           'SNMU': SM, 'SNMU_ERR': SE, 'SNRA': SRA,
                                                                           'SNkappa': Sk, 'SNDEC': SDE, 'WEIGHT': 1.0}
-                if SDE > 3.0 - cone_radius/60.0:
-                    h = SDE - (3.0 - cone_radius/60.0)
+                if SDE > 3.6 - cone_radius/60.0:
+                    h = SDE - (3.6 - cone_radius/60.0)
                 elif SDE < -(0.0 - cone_radius/60.0):
                     h = -(0.0 - cone_radius/60.0) - SDE
                 else:
@@ -267,11 +267,12 @@ def get_random(data, redo=False, seed=1337):
         #     lenses[f"Radius{str(cone_radius)}"]['WEIGHT'] = weights
         #     print(f"Sorted radius {cone_radius}'")
         #     prev_rad = cone_radius
-        pickle_out = open(f"sparse_random_cones.pickle", "wb")
-        pickle.dump(lenses, pickle_out)
-        pickle_out.close()
+        # pickle_out = open(f"sparse2_random_cones.pickle", "wb")
+        # pickle.dump(lenses, pickle_out)
+        # pickle_out.close()
+        exit()
     else:
-        pickle_in = open("sparse_lenses.pickle", "rb")
+        pickle_in = open("sparse2_lenses.pickle", "rb")
         lenses = pickle.load(pickle_in)
 
     return lenses

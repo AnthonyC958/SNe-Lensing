@@ -24,7 +24,8 @@ colours = [[0, 150 / 255, 100 / 255], [225 / 255, 149 / 255, 0], [207 / 255, 0, 
 
 def find_expected_weights(cut_data, bins, redo=False, plot=False):
     max_z = 1.41
-    chi_bin_widths, chi_bins, z_bins, z_bin_widths = Convergence.create_z_bins(0.01, max_z, bins)
+    chi_bin_widths, chi_bins, z_bins, z_bin_widths = Convergence.create_z_bins(0.01, max_z, bins, OM=0.25, OL=0.75,
+                                                                               h=0.7)
     limits = np.cumsum(z_bin_widths) + z_bins[0]
     limits = np.insert(limits, 0, 0)
 
@@ -36,13 +37,13 @@ def find_expected_weights(cut_data, bins, redo=False, plot=False):
         z1 = np.array(cut_data['z1'])
         z2 = cut_data['z2']
         lens_data = {}
-        for cone_radius in RADII[29:]:
+        for cone_radius in RADII[29::2]:
             lens_data[f"Radius{str(cone_radius)}"] = {}
             for num, (SRA, SDE, SZ) in enumerate(zip(RA2, DEC2, z2)):
                 lens_data[f"Radius{str(cone_radius)}"][f'SN{int(num)+1}'] = {'Zs': [], 'SNZ': SZ, 'SNRA': SRA,
                                                                              'SNDEC': SDE, 'RAs': [], 'DECs': []}
-                if SDE > 3.0 - cone_radius / 60.0:
-                    h = SDE - (3.0 - cone_radius / 60.0)
+                if SDE > 3.6 - cone_radius / 60.0:
+                    h = SDE - (3.6 - cone_radius / 60.0)
                 elif SDE < -(0.0 - cone_radius / 60.0):
                     h = -(0.0 - cone_radius / 60.0) - SDE
                 else:
@@ -76,7 +77,9 @@ def find_expected_weights(cut_data, bins, redo=False, plot=False):
             # print(f"Finished sorting radius {str(cone_radius)}'")
 
         expected = {}
-        for cone_radius in RADII[29:]:
+        avg_ws = []
+        stds_ws = []
+        for cone_radius in RADII[29::2]:
             # IPs = {}
             lens = lens_data[f"Radius{str(cone_radius)}"]
             cumul_tot = np.zeros((len(limits), len(lens)))
@@ -86,6 +89,8 @@ def find_expected_weights(cut_data, bins, redo=False, plot=False):
                     Zs = np.array(item['Zs'])
                     thetas = (((item['RAs'] - item["SNRA"]) ** 2 + (
                             item['DECs'] - item["SNDEC"]) ** 2) ** 0.5 * np.pi / 180)
+                    # print(thetas)
+
                     # print(thetas[thetas!=0])
                     Dperps = thetas[thetas != 0] * np.interp(Zs[thetas != 0], fine_z, Dpara_fine) * \
                              1000.0 / (1 + Zs[thetas != 0])
@@ -93,6 +98,8 @@ def find_expected_weights(cut_data, bins, redo=False, plot=False):
                     # print(all_IPs)
                     cumul_tot[num1][num2] = np.sum(all_IPs[Zs[thetas != 0] < lim])
             expected[f"Radius{str(cone_radius)}"] = np.diff([np.mean(cumul_tot, 1)])
+            avg_ws.append(np.mean(expected[f"Radius{str(cone_radius)}"]))
+            stds_ws.append(np.std(expected[f"Radius{str(cone_radius)}"]) / np.sqrt(len(expected[f"Radius{str(cone_radius)}"])))
             # for index, count in enumerate(expected[f"Radius{str(cone_radius)}"]):
             #     if count == 0:
             #         try:
@@ -105,11 +112,14 @@ def find_expected_weights(cut_data, bins, redo=False, plot=False):
             #                                                                    f"Radius{str(cone_radius)}"][index - 1])
 
             print(f"Finished radius {str(cone_radius)}'")
-        pickle_out = open("sparse_expected_IPs.pickle", "wb")
+        plt.errorbar(RADII[29::2], avg_ws, stds_ws, elinewidth=0.8, marker='o', ms=5, ls='', color=colours[3])
+        plt.show()
+        exit()
+        pickle_out = open("sparse2_expected_IPs.pickle", "wb")
         pickle.dump(expected, pickle_out)
         pickle_out.close()
     else:
-        pickle_in = open("sparse_expected_IPs.pickle", "rb")
+        pickle_in = open("sparse2_expected_IPs.pickle", "rb")
         expected = pickle.load(pickle_in)
 
     if plot:
@@ -129,21 +139,23 @@ def redo_lenses():
     pickle_in = open("sparse_lenses.pickle", "rb")
     lenses = pickle.load(pickle_in)
     Gal_data = MICE.get_data()
-    pickle_in = open("sparseMICE_SN_data.pickle", "rb")
+    pickle_in = open("sparse2MICE_SN_data.pickle", "rb")
     SN_data = pickle.load(pickle_in)
     print(min(SN_data["SNkappa"]))
     # plt.plot(SN_data["SNZ"], SN_data["SNMU"], '.', ls='')
     # plt.show()
-    pickle_out = open("sparse_cut_data.pickle", "wb")
+    pickle_out = open("sparse2_cut_data.pickle", "wb")
     cut_data = {"RA1": Gal_data["RA"], "DEC1": Gal_data["DEC"], "RA2": SN_data["SNRA"], "DEC2": SN_data["SNDEC"],
                 "z1": Gal_data["z"], "z2": SN_data["SNZ"], "mu": SN_data["SNMU"], "mu_err": SN_data["SNMU_ERR"],
                 "SNkappa": SN_data["SNkappa"]}
-    print(cut_data.keys())
+    print(lenses.keys(), cut_data.keys())
     pickle.dump(cut_data, pickle_out)
     pickle_out.close()
 
 
 if __name__ == "__main__":
+    # redo_lenses()
+    # exit()
     # crit_weight = 0.1
     # crit_angles = [3.0, 6.0, 12.0, 24.0]
     # crit_dists = [2.5, 5.0, 7.5, 10.0]
@@ -155,11 +167,11 @@ if __name__ == "__main__":
     # data, _ = cones.get_data(new_data=False)
     # lenses = cones.sort_SN_gals(data, redo=False, weighted=True)
     # exp_data = cones.find_expected_counts(_, 51)
-    pickle_in = open("sparse_cut_data.pickle", "rb")
+    pickle_in = open("sparse2_cut_data.pickle", "rb")
     data = pickle.load(pickle_in)
     pickle_in = open("sparse_lenses.pickle", "rb")
     lenses = pickle.load(pickle_in)
-    pickle_in = open("sparse_test_cones.pickle", "rb")
+    pickle_in = open("sparse2_test_cones.pickle", "rb")
     cone_array = pickle.load(pickle_in)
     exp_data = cones.find_expected_counts(cone_array, 111, redo=False, plot=False)
     # exp_data = find_expected_weights(data, 111, redo=False, plot=False)
@@ -174,7 +186,7 @@ if __name__ == "__main__":
     # print(lenses_IP.keys(), lenses_IP[0.05].keys())
     lenses_IP = {}
     if redo_IP:
-        for radius in RADII[29:]:
+        for radius in RADII[29::2]:
             print(radius)
             lenses_IP[f'Radius{radius}'] = {}
             # average_per_bin = []
@@ -191,6 +203,7 @@ if __name__ == "__main__":
                         #                     range(len(exp_data[0]) - 1)])[0]
                         # print(z, exp[0][bin_num[0]], exp[0][bin_num[0]+1], bin_num[0])
                         theta = (((ra - item["SNRA"]) ** 2 + (dec - item["SNDEC"]) ** 2) ** 0.5 * np.pi / 180)
+                        theta = theta[theta!=0]
                         # print(theta)
                         Dpara = np.interp(z, fine_z, Dpara_fine) * 1000.0
                         # limperp = crit_angle/60.0*np.pi/180 * Dpara / (1+z)
@@ -223,11 +236,11 @@ if __name__ == "__main__":
         # plt.xlim(0.00038, 15)
         # plt.show()
 
-        pickle_out = open(f"sparse_lenses_IP.pickle", "wb")
+        pickle_out = open(f"sparse2_lenses_IP.pickle", "wb")
         pickle.dump(lenses_IP, pickle_out)
         pickle_out.close()
     else:
-        pickle_in = open("lenses_IP3.pickle", "rb")
+        pickle_in = open("sparse2_lenses_IP.pickle", "rb")
         lenses_IP = pickle.load(pickle_in)
     #
     # plt.plot([0, 0.6], [2.5, 2.5], c=colours[1], lw=2, ls='-')
@@ -252,13 +265,13 @@ if __name__ == "__main__":
     # plt.tight_layout()
     # plt.show()
     # exit()
-    exp_wts = find_expected_weights(data, 51, redo=False)
-    kappa_impact = cones.find_convergence(lenses_IP, exp_wts, redo=True, plot_scatter=True, impact=True, max_z=1.41)
+    exp_wts = find_expected_weights(data, 111, redo=True)
+    kappa_impact = cones.find_convergence(lenses_IP, exp_wts, redo=False, plot_scatter=True, impact=True, max_z=1.41)
     conv_total_impact = []
-    for cone_radius in RADII[29:]:
+    for cone_radius in RADII[29::2]:
         conv_total_impact.append(kappa_impact[f"Radius{str(cone_radius)}"]["Total"])
-    plt.plot(RADII[29:], conv_total_impact, marker='o', markersize=2, color=colours[3])
-    plt.plot(RADII[29:], np.zeros(len(RADII[29:])), color=[0.75, 0.75, 0.75], linestyle='--')
+    plt.plot(RADII[29::2], conv_total_impact, marker='o', markersize=2, color=colours[3])
+    plt.plot(RADII[29::2], np.zeros(len(RADII[29::2])), color=[0.75, 0.75, 0.75], linestyle='--')
     plt.xlabel("Cone Radius (arcmin)")
     plt.ylabel("Total $\kappa$")
     plt.show()
